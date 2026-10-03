@@ -55,7 +55,7 @@ impl SuggestionEngine {
 
         let mut target_lang = lang;
         let trie = dict.get_trie(target_lang);
-        let mut completions = trie.find_completions(&clean, 12);
+        let mut completions = trie.find_completions(&clean, 16);
         completions.retain(|(w, _)| !dict.removed_words.contains(w));
 
         if !dict.profanity_enabled {
@@ -79,7 +79,7 @@ impl SuggestionEngine {
             if let Some(alt) = alt_lang {
                 if alt != target_lang {
                     let alt_trie = dict.get_trie(alt);
-                    let mut alt_completions = alt_trie.find_completions(&clean, 12);
+                    let mut alt_completions = alt_trie.find_completions(&clean, 16);
                     alt_completions.retain(|(w, _)| !dict.removed_words.contains(w));
                     if !dict.profanity_enabled {
                         alt_completions.retain(|(w, _)| !dict.profanity.contains(w.as_str()));
@@ -92,12 +92,21 @@ impl SuggestionEngine {
             }
         }
 
-        // 4. Exact match prioritization:
-        // If the user's typed word matches a dictionary word case-insensitively,
+        // 4. Exact match & Diacritic-equivalent match prioritization:
+        // If the user's typed word matches a dictionary word exactly or when ignoring diacritics
+        // (e.g. "buna" -> "bună", "dziekuje" -> "dziękuję", "uber" -> "über", "francais" -> "français"),
         // it must ALWAYS be the primary candidate (Slot 1, Center chip)!
+        let clean_norm: String = clean.chars().map(Autocorrect::strip_diacritics).collect();
         if let Some(pos) = completions
             .iter()
-            .position(|(w, _)| w.to_lowercase() == clean)
+            .position(|(w, _)| {
+                let w_lower = w.to_lowercase();
+                if w_lower == clean {
+                    return true;
+                }
+                let w_norm: String = w_lower.chars().map(Autocorrect::strip_diacritics).collect();
+                w_norm == clean_norm
+            })
         {
             let exact = completions.remove(pos);
             let mut top_candidates = Vec::with_capacity(3);
@@ -105,7 +114,7 @@ impl SuggestionEngine {
             // Slot 0 (Left): Exact literal input typed by user
             top_candidates.push(input.to_string());
 
-            // Slot 1 (Center): Exact word (canonical casing)
+            // Slot 1 (Center): Exact / Diacritic-corrected word
             top_candidates.push(Self::match_case(input, &exact.0));
 
             // Slot 2 (Right): Second best completion or context prediction
@@ -120,8 +129,7 @@ impl SuggestionEngine {
             return top_candidates;
         }
 
-        // 5. Typo or Prefix matching:
-        // Combine prefix completions and fuzzy autocorrect, ranking by score_candidate
+        // 5. Typo, Diacritic, Context, or Prefix matching:
         let mut candidates_map: std::collections::HashMap<String, f32> =
             std::collections::HashMap::new();
 
@@ -132,21 +140,21 @@ impl SuggestionEngine {
                     .chars()
                     .count()
                     .saturating_sub(clean.chars().count())) as f32;
-                let penalty = remaining * 0.15;
-                let freq_weight = (*freq as f32).min(1500.0) / 1500.0 * 1.5;
-                4.0 - penalty + freq_weight
+                let penalty = remaining * 0.12;
+                let freq_weight = (*freq as f32).min(2000.0) / 2000.0 * 2.0;
+                5.0 - penalty + freq_weight
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };
-            let ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == comp_lower) {
-                0.8
+            let ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(&comp_lower)) {
+                2.5
             } else {
                 0.0
             };
             candidates_map.insert(comp.clone(), score + ctx_bonus);
         }
 
-        // Fast fuzzy candidates: query small indexed candidate pool (~50-150 words) instead of scanning 50,000 words!
+        // Fast fuzzy candidates: query small indexed candidate pool (~50-150 words)
         let fuzzy_pool = dict.get_fuzzy_candidates(&clean, target_lang);
         for &(w, freq) in &fuzzy_pool {
             if dict.removed_words.contains(w)
@@ -155,9 +163,9 @@ impl SuggestionEngine {
                 continue;
             }
             let score = Autocorrect::score_candidate(&clean, w, freq);
-            if score > 1.8 {
+            if score > 1.5 {
                 let ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(w)) {
-                    0.8
+                    2.5
                 } else {
                     0.0
                 };
@@ -203,7 +211,6 @@ impl SuggestionEngine {
 
         if target_has_upper && !target_has_lower {
             // Target is an ALL-UPPERCASE abbreviation (e.g. "OST", "API", "ЕГЭ", "ООО", "ГОСТ")
-            // Always preserve all-caps!
             target.to_string()
         } else if target_has_upper && target_has_lower {
             // Target has MIXED casing (e.g. "macOS", "iOS", "СПб", "СНиП", "ChatGPT", "GitHub")
@@ -213,7 +220,7 @@ impl SuggestionEngine {
                 target.to_string()
             }
         } else {
-            // Target is normal lowercase (e.g. "привет", "hello", "etc", "спс", "хз")
+            // Target is normal lowercase
             if input_all_upper {
                 target.to_uppercase()
             } else if input_first_upper {

@@ -182,13 +182,8 @@ class RynkInputMethodService : InputMethodService() {
             "uk" -> "uk,en"
             "be" -> "be,ru,en"
             "kk" -> "kk,ru,en"
-            "de" -> "de,en"
-            "fr" -> "fr,en"
-            "es" -> "es,en"
-            "pt" -> "pt,en"
-            "it" -> "it,en"
-            "tr" -> "tr,en"
-            else -> "en"
+            "en" -> "en"
+            else -> if (sysLang.length == 2) "$sysLang,en" else "en"
         }
     }
 

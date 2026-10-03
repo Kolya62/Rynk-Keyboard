@@ -69,6 +69,12 @@ impl LayoutBuilder {
                 Language::Ukrainian => Self::build_ukrainian(shift_state, metrics),
                 Language::Belarusian => Self::build_belarusian(shift_state, metrics),
                 Language::Kazakh => Self::build_kazakh(shift_state, metrics),
+                Language::Arabic | Language::Persian | Language::Urdu => Self::build_arabic(shift_state, metrics),
+                Language::Polish => Self::build_polish(shift_state, metrics),
+                Language::Czech | Language::Slovak => Self::build_czech(shift_state, metrics),
+                Language::Romanian => Self::build_romanian(shift_state, metrics),
+                Language::Hebrew => Self::build_hebrew(shift_state, metrics),
+                _ => Self::build_custom_qwerty(shift_state, language, metrics),
             },
             KeyboardMode::Numbers => Self::build_numbers(metrics),
             KeyboardMode::Symbols => Self::build_symbols(metrics),
@@ -1648,4 +1654,612 @@ impl LayoutBuilder {
 
         keys
     }
+
+    fn build_arabic(_shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("ض", Some("١"), &['١']),
+                ("ص", Some("٢"), &['٢']),
+                ("ث", Some("٣"), &['٣']),
+                ("ق", Some("٤"), &['٤']),
+                ("ف", Some("٥"), &['٥']),
+                ("غ", Some("٦"), &['٦']),
+                ("ع", Some("٧"), &['٧']),
+                ("ه", Some("٨"), &['٨']),
+                ("خ", Some("٩"), &['٩']),
+                ("ح", Some("٠"), &['٠']),
+                ("ج", Some("%"), &['%']),
+                ("د", Some("/"), &['/']),
+            ],
+            &[
+                ("ش", Some("@"), &['@']),
+                ("س", Some("#"), &['#']),
+                ("ي", Some("$"), &['$']),
+                ("ب", Some("&"), &['&']),
+                ("ل", Some("*"), &['*']),
+                ("ا", Some("-"), &['أ', 'إ', 'آ', 'ٱ']),
+                ("ت", Some("+"), &['+']),
+                ("ن", Some("("), &['(']),
+                ("م", Some(")"), &[')']),
+                ("ك", Some(":"), &[':']),
+                ("ط", Some(";"), &[';']),
+            ],
+            &[
+                ("ئ", Some("!"), &['!']),
+                ("ء", Some("?"), &['?']),
+                ("ؤ", Some("\""), &['\"']),
+                ("ر", Some("'"), &['\'']),
+                ("لا", Some("~"), &['ل', 'ا']),
+                ("ى", Some("`"), &['`']),
+                ("ة", Some("^"), &['^']),
+                ("و", Some("="), &['=']),
+                ("ز", Some("<"), &['<']),
+                ("ظ", Some(">"), &['>']),
+            ],
+        ];
+
+        let num_rows = 4.0;
+        let row_height = (m.key_area_height - (num_rows - 1.0) * m.key_spacing_v) / num_rows;
+        let mut keys = Vec::with_capacity(40);
+        let mut key_id = 1;
+
+        // Row 1: 12 keys
+        let r1_count = rows_data[0].len() as f32;
+        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let mut curr_x = m.padding_horizontal;
+        let r1_y = m.key_area_top;
+        for &(ch_str, sub, alts) in rows_data[0] {
+            let mut key = Key::new(
+                key_id,
+                curr_x,
+                r1_y,
+                r1_key_w,
+                row_height,
+                KeyAction::Character(ch_str.chars().next().unwrap()),
+                ch_str.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            curr_x += r1_key_w + m.key_spacing_h;
+        }
+
+        // Row 2: 11 keys
+        let r2_count = rows_data[1].len() as f32;
+        let r2_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r2_count - 1.0) * m.key_spacing_h) / r2_count;
+        let mut r2_x = m.padding_horizontal;
+        let r2_y = r1_y + row_height + m.key_spacing_v;
+        for &(ch_str, sub, alts) in rows_data[1] {
+            let mut key = Key::new(
+                key_id,
+                r2_x,
+                r2_y,
+                r2_key_w,
+                row_height,
+                KeyAction::Character(ch_str.chars().next().unwrap()),
+                ch_str.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r2_x += r2_key_w + m.key_spacing_h;
+        }
+
+        // Row 3: 10 keys + Backspace
+        let r3_y = r2_y + row_height + m.key_spacing_v;
+        let bs_w = r1_key_w * 1.4;
+        let r3_count = rows_data[2].len() as f32;
+        let r3_key_w = (m.total_width - 2.0 * m.padding_horizontal - bs_w - r3_count * m.key_spacing_h) / r3_count;
+        let mut r3_x = m.padding_horizontal;
+
+        for &(ch_str, sub, alts) in rows_data[2] {
+            let mut key = Key::new(
+                key_id,
+                r3_x,
+                r3_y,
+                r3_key_w,
+                row_height,
+                KeyAction::Character(ch_str.chars().next().unwrap()),
+                ch_str.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r3_x += r3_key_w + m.key_spacing_h;
+        }
+
+        keys.push(Key::new(
+            key_id,
+            r3_x,
+            r3_y,
+            bs_w,
+            row_height,
+            KeyAction::Backspace,
+            "⌫",
+            KeyType::Modifier,
+        ));
+        key_id += 1;
+
+        // Row 4: [?١٢٣] [Globe] [Space] [.] [،] [Enter]
+        let r4_y = r3_y + row_height + m.key_spacing_v;
+        let mode_btn_w = bs_w;
+        let enter_w = bs_w;
+        let lang_btn_w = r1_key_w * 1.15;
+        let dot_w = r1_key_w;
+        let comma_w = r1_key_w;
+        let total_fixed = mode_btn_w + lang_btn_w + dot_w + comma_w + enter_w + 5.0 * m.key_spacing_h;
+        let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
+
+        let mut r4_x = m.padding_horizontal;
+        keys.push(Key::new(key_id, r4_x, r4_y, mode_btn_w, row_height, KeyAction::SwitchMode(KeyboardMode::Numbers), "?١٢٣", KeyType::Modifier));
+        key_id += 1;
+        r4_x += mode_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, lang_btn_w, row_height, KeyAction::SwitchLanguage, "🌐", KeyType::Modifier));
+        key_id += 1;
+        r4_x += lang_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, space_w, row_height, KeyAction::Space, "مسافة", KeyType::Space));
+        key_id += 1;
+        r4_x += space_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal));
+        key_id += 1;
+        r4_x += dot_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character('،'), "،", KeyType::Normal));
+        key_id += 1;
+        r4_x += comma_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, enter_w, row_height, KeyAction::Enter, "↵", KeyType::Accent));
+
+        keys
+    }
+
+    fn build_polish(shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let is_upper = shift.is_uppercase();
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("q", Some("1"), &['1']),
+                ("w", Some("2"), &['2']),
+                ("e", Some("3"), &['ę', '3']),
+                ("r", Some("4"), &['4']),
+                ("t", Some("5"), &['5']),
+                ("y", Some("6"), &['6']),
+                ("u", Some("7"), &['7']),
+                ("i", Some("8"), &['8']),
+                ("o", Some("9"), &['ó', '9']),
+                ("p", Some("0"), &['0']),
+            ],
+            &[
+                ("a", Some("@"), &['ą', '@']),
+                ("s", Some("#"), &['ś', '#']),
+                ("d", Some("$"), &['$']),
+                ("f", Some("%"), &['%']),
+                ("g", Some("&"), &['&']),
+                ("h", Some("-"), &['-']),
+                ("j", Some("+"), &['+']),
+                ("k", Some("("), &['(']),
+                ("l", Some(")"), &['ł', ')']),
+            ],
+            &[
+                ("z", Some("*"), &['ż', 'ź', '*']),
+                ("x", Some("\""), &['\"']),
+                ("c", Some("'"), &['ć', '\'']),
+                ("v", Some(":"), &[':']),
+                ("b", Some(";"), &[';']),
+                ("n", Some("!"), &['ń', '!']),
+                ("m", Some("?"), &['?']),
+            ],
+        ];
+
+        Self::build_latin_keyboard_internal(rows_data, is_upper, shift, "spacja", m)
+    }
+
+    fn build_czech(shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let is_upper = shift.is_uppercase();
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("q", Some("1"), &['1']),
+                ("w", Some("2"), &['2']),
+                ("e", Some("3"), &['ě', 'é', '3']),
+                ("r", Some("4"), &['ř', '4']),
+                ("t", Some("5"), &['ť', '5']),
+                ("y", Some("6"), &['ý', '6']),
+                ("u", Some("7"), &['ů', 'ú', '7']),
+                ("i", Some("8"), &['í', '8']),
+                ("o", Some("9"), &['ó', '9']),
+                ("p", Some("0"), &['0']),
+            ],
+            &[
+                ("a", Some("@"), &['á', '@']),
+                ("s", Some("#"), &['š', '#']),
+                ("d", Some("$"), &['ď', '$']),
+                ("f", Some("%"), &['%']),
+                ("g", Some("&"), &['&']),
+                ("h", Some("-"), &['-']),
+                ("j", Some("+"), &['+']),
+                ("k", Some("("), &['(']),
+                ("l", Some(")"), &[')']),
+            ],
+            &[
+                ("z", Some("*"), &['ž', '*']),
+                ("x", Some("\""), &['\"']),
+                ("c", Some("'"), &['č', '\'']),
+                ("v", Some(":"), &[':']),
+                ("b", Some(";"), &[';']),
+                ("n", Some("!"), &['ň', '!']),
+                ("m", Some("?"), &['?']),
+            ],
+        ];
+
+        Self::build_latin_keyboard_internal(rows_data, is_upper, shift, "mezerník", m)
+    }
+
+    fn build_romanian(shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let is_upper = shift.is_uppercase();
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("q", Some("1"), &['1']),
+                ("w", Some("2"), &['2']),
+                ("e", Some("3"), &['3']),
+                ("r", Some("4"), &['4']),
+                ("t", Some("5"), &['ț', '5']),
+                ("y", Some("6"), &['6']),
+                ("u", Some("7"), &['7']),
+                ("i", Some("8"), &['î', '8']),
+                ("o", Some("9"), &['9']),
+                ("p", Some("0"), &['0']),
+            ],
+            &[
+                ("a", Some("@"), &['ă', 'â', '@']),
+                ("s", Some("#"), &['ș', '#']),
+                ("d", Some("$"), &['$']),
+                ("f", Some("%"), &['%']),
+                ("g", Some("&"), &['&']),
+                ("h", Some("-"), &['-']),
+                ("j", Some("+"), &['+']),
+                ("k", Some("("), &['(']),
+                ("l", Some(")"), &[')']),
+            ],
+            &[
+                ("z", Some("*"), &['*']),
+                ("x", Some("\""), &['\"']),
+                ("c", Some("'"), &['\'']),
+                ("v", Some(":"), &[':']),
+                ("b", Some(";"), &[';']),
+                ("n", Some("!"), &['!']),
+                ("m", Some("?"), &['?']),
+            ],
+        ];
+
+        Self::build_latin_keyboard_internal(rows_data, is_upper, shift, "spațiu", m)
+    }
+
+    fn build_hebrew(_shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("ק", Some("1"), &['1']),
+                ("ר", Some("2"), &['2']),
+                ("א", Some("3"), &['3']),
+                ("ט", Some("4"), &['4']),
+                ("ו", Some("5"), &['5']),
+                ("ן", Some("6"), &['6']),
+                ("ם", Some("7"), &['7']),
+                ("פ", Some("8"), &['8']),
+            ],
+            &[
+                ("ש", Some("@"), &['@']),
+                ("ד", Some("#"), &['#']),
+                ("ג", Some("$"), &['$']),
+                ("כ", Some("%"), &['%']),
+                ("ע", Some("&"), &['&']),
+                ("י", Some("-"), &['-']),
+                ("ח", Some("+"), &['+']),
+                ("ל", Some("("), &['(']),
+                ("ך", Some(")"), &[')']),
+                ("ף", Some(":"), &[':']),
+            ],
+            &[
+                ("ז", Some("*"), &['*']),
+                ("ס", Some("\""), &['\"']),
+                ("ב", Some("'"), &['\'']),
+                ("ה", Some("?"), &['?']),
+                ("נ", Some("!"), &['!']),
+                ("מ", Some(";"), &[';']),
+                ("צ", Some("<"), &['<']),
+                ("ת", Some(">"), &['>']),
+                ("ץ", Some("/"), &['/']),
+            ],
+        ];
+
+        let num_rows = 4.0;
+        let row_height = (m.key_area_height - (num_rows - 1.0) * m.key_spacing_v) / num_rows;
+        let mut keys = Vec::with_capacity(36);
+        let mut key_id = 1;
+
+        // Row 1
+        let r1_count = rows_data[0].len() as f32;
+        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let mut curr_x = m.padding_horizontal;
+        let r1_y = m.key_area_top;
+        for &(ch_str, sub, alts) in rows_data[0] {
+            let mut key = Key::new(key_id, curr_x, r1_y, r1_key_w, row_height, KeyAction::Character(ch_str.chars().next().unwrap()), ch_str.to_string(), KeyType::Normal);
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            curr_x += r1_key_w + m.key_spacing_h;
+        }
+
+        // Row 2
+        let r2_count = rows_data[1].len() as f32;
+        let r2_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r2_count - 1.0) * m.key_spacing_h) / r2_count;
+        let mut r2_x = m.padding_horizontal;
+        let r2_y = r1_y + row_height + m.key_spacing_v;
+        for &(ch_str, sub, alts) in rows_data[1] {
+            let mut key = Key::new(key_id, r2_x, r2_y, r2_key_w, row_height, KeyAction::Character(ch_str.chars().next().unwrap()), ch_str.to_string(), KeyType::Normal);
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r2_x += r2_key_w + m.key_spacing_h;
+        }
+
+        // Row 3
+        let r3_y = r2_y + row_height + m.key_spacing_v;
+        let bs_w = r1_key_w * 1.3;
+        let r3_count = rows_data[2].len() as f32;
+        let r3_key_w = (m.total_width - 2.0 * m.padding_horizontal - bs_w - r3_count * m.key_spacing_h) / r3_count;
+        let mut r3_x = m.padding_horizontal;
+        for &(ch_str, sub, alts) in rows_data[2] {
+            let mut key = Key::new(key_id, r3_x, r3_y, r3_key_w, row_height, KeyAction::Character(ch_str.chars().next().unwrap()), ch_str.to_string(), KeyType::Normal);
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r3_x += r3_key_w + m.key_spacing_h;
+        }
+        keys.push(Key::new(key_id, r3_x, r3_y, bs_w, row_height, KeyAction::Backspace, "⌫", KeyType::Modifier));
+        key_id += 1;
+
+        // Row 4
+        let r4_y = r3_y + row_height + m.key_spacing_v;
+        let mode_btn_w = bs_w;
+        let enter_w = bs_w;
+        let lang_btn_w = r1_key_w * 1.15;
+        let dot_w = r1_key_w;
+        let comma_w = r1_key_w;
+        let total_fixed = mode_btn_w + lang_btn_w + dot_w + comma_w + enter_w + 5.0 * m.key_spacing_h;
+        let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
+
+        let mut r4_x = m.padding_horizontal;
+        keys.push(Key::new(key_id, r4_x, r4_y, mode_btn_w, row_height, KeyAction::SwitchMode(KeyboardMode::Numbers), "?123", KeyType::Modifier));
+        key_id += 1;
+        r4_x += mode_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, lang_btn_w, row_height, KeyAction::SwitchLanguage, "🌐", KeyType::Modifier));
+        key_id += 1;
+        r4_x += lang_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, space_w, row_height, KeyAction::Space, "רווח", KeyType::Space));
+        key_id += 1;
+        r4_x += space_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal));
+        key_id += 1;
+        r4_x += comma_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal));
+        key_id += 1;
+        r4_x += dot_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, enter_w, row_height, KeyAction::Enter, "↵", KeyType::Accent));
+
+        keys
+    }
+
+    fn build_custom_qwerty(shift: ShiftState, lang: Language, m: &LayoutMetrics) -> Vec<Key> {
+        let is_upper = shift.is_uppercase();
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                ("q", Some("1"), &['1']),
+                ("w", Some("2"), &['2']),
+                ("e", Some("3"), &['3']),
+                ("r", Some("4"), &['4']),
+                ("t", Some("5"), &['5']),
+                ("y", Some("6"), &['6']),
+                ("u", Some("7"), &['7']),
+                ("i", Some("8"), &['8']),
+                ("o", Some("9"), &['9']),
+                ("p", Some("0"), &['0']),
+            ],
+            &[
+                ("a", Some("@"), &['@']),
+                ("s", Some("#"), &['#']),
+                ("d", Some("$"), &['$']),
+                ("f", Some("%"), &['%']),
+                ("g", Some("&"), &['&']),
+                ("h", Some("-"), &['-']),
+                ("j", Some("+"), &['+']),
+                ("k", Some("("), &['(']),
+                ("l", Some(")"), &[')']),
+            ],
+            &[
+                ("z", Some("*"), &['*']),
+                ("x", Some("\""), &['\"']),
+                ("c", Some("'"), &['\'']),
+                ("v", Some(":"), &[':']),
+                ("b", Some(";"), &[';']),
+                ("n", Some("!"), &['!']),
+                ("m", Some("?"), &['?']),
+            ],
+        ];
+
+        Self::build_latin_keyboard_internal(rows_data, is_upper, shift, lang.space_label(), m)
+    }
+
+    fn build_latin_keyboard_internal(
+        rows_data: [&[KeyDef]; 3],
+        is_upper: bool,
+        shift: ShiftState,
+        space_text: &str,
+        m: &LayoutMetrics,
+    ) -> Vec<Key> {
+        let num_rows = 4.0;
+        let row_height = (m.key_area_height - (num_rows - 1.0) * m.key_spacing_v) / num_rows;
+        let mut keys = Vec::with_capacity(36);
+        let mut key_id = 1;
+
+        // Row 1: 10 keys
+        let r1_count = rows_data[0].len() as f32;
+        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let mut curr_x = m.padding_horizontal;
+        let r1_y = m.key_area_top;
+        for &(ch_str, sub, alts) in rows_data[0] {
+            let ch = ch_str.chars().next().unwrap();
+            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let mut key = Key::new(
+                key_id,
+                curr_x,
+                r1_y,
+                r1_key_w,
+                row_height,
+                KeyAction::Character(final_ch),
+                final_ch.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            curr_x += r1_key_w + m.key_spacing_h;
+        }
+
+        // Row 2: 9 keys
+        let r2_count = rows_data[1].len() as f32;
+        let r2_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r2_count - 1.0) * m.key_spacing_h) / r2_count;
+        let mut r2_x = m.padding_horizontal;
+        let r2_y = r1_y + row_height + m.key_spacing_v;
+        for &(ch_str, sub, alts) in rows_data[1] {
+            let ch = ch_str.chars().next().unwrap();
+            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let mut key = Key::new(
+                key_id,
+                r2_x,
+                r2_y,
+                r2_key_w,
+                row_height,
+                KeyAction::Character(final_ch),
+                final_ch.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r2_x += r2_key_w + m.key_spacing_h;
+        }
+
+        // Row 3: Shift + 7 letters + Backspace
+        let r3_y = r2_y + row_height + m.key_spacing_v;
+        let r3_letter_count = rows_data[2].len() as f32;
+        let shift_backspace_w = r1_key_w * 1.30;
+        let available_w = m.total_width
+            - 2.0 * m.padding_horizontal
+            - 2.0 * shift_backspace_w
+            - (r3_letter_count + 1.0) * m.key_spacing_h;
+        let r3_letter_w = available_w / r3_letter_count;
+
+        keys.push(Key::new(
+            key_id,
+            m.padding_horizontal,
+            r3_y,
+            shift_backspace_w,
+            row_height,
+            KeyAction::Shift,
+            match shift {
+                ShiftState::CapsLock => "⇪",
+                ShiftState::Shifted => "⬆",
+                ShiftState::Off => "⇧",
+            },
+            KeyType::Modifier,
+        ));
+        key_id += 1;
+
+        let mut r3_x = m.padding_horizontal + shift_backspace_w + m.key_spacing_h;
+        for &(ch_str, sub, alts) in rows_data[2] {
+            let ch = ch_str.chars().next().unwrap();
+            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let mut key = Key::new(
+                key_id,
+                r3_x,
+                r3_y,
+                r3_letter_w,
+                row_height,
+                KeyAction::Character(final_ch),
+                final_ch.to_string(),
+                KeyType::Normal,
+            );
+            if let Some(s) = sub { key = key.with_sub_label(s); }
+            if !alts.is_empty() { key = key.with_alternates(alts.to_vec()); }
+            keys.push(key);
+            key_id += 1;
+            r3_x += r3_letter_w + m.key_spacing_h;
+        }
+
+        keys.push(Key::new(
+            key_id,
+            r3_x,
+            r3_y,
+            shift_backspace_w,
+            row_height,
+            KeyAction::Backspace,
+            "⌫",
+            KeyType::Modifier,
+        ));
+        key_id += 1;
+
+        // Row 4
+        let r4_y = r3_y + row_height + m.key_spacing_v;
+        let mode_btn_w = shift_backspace_w;
+        let enter_w = shift_backspace_w;
+        let lang_btn_w = r1_key_w * 1.15;
+        let comma_w = r1_key_w;
+        let dot_w = r1_key_w;
+        let total_fixed = mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
+        let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
+
+        let mut r4_x = m.padding_horizontal;
+        keys.push(Key::new(key_id, r4_x, r4_y, mode_btn_w, row_height, KeyAction::SwitchMode(KeyboardMode::Numbers), "?123", KeyType::Modifier));
+        key_id += 1;
+        r4_x += mode_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, lang_btn_w, row_height, KeyAction::SwitchLanguage, "🌐", KeyType::Modifier));
+        key_id += 1;
+        r4_x += lang_btn_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, space_w, row_height, KeyAction::Space, space_text, KeyType::Space));
+        key_id += 1;
+        r4_x += space_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal).with_alternates(vec![';', ':', '<']));
+        key_id += 1;
+        r4_x += comma_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal).with_alternates(vec!['!', '?', '>']));
+        key_id += 1;
+        r4_x += dot_w + m.key_spacing_h;
+
+        keys.push(Key::new(key_id, r4_x, r4_y, enter_w, row_height, KeyAction::Enter, "↵", KeyType::Accent));
+
+        keys
+    }
+
 }

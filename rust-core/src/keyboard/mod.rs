@@ -113,6 +113,9 @@ impl KeyboardEngine {
     pub fn set_enabled_languages(&mut self, langs: Vec<Language>) {
         if !langs.is_empty() {
             self.enabled_languages = langs;
+            self.prediction
+                .dictionary
+                .ensure_languages_loaded(&self.enabled_languages);
             if !self.enabled_languages.contains(&self.state.language) {
                 self.set_language(self.enabled_languages[0]);
             }
@@ -158,6 +161,7 @@ impl KeyboardEngine {
     pub fn set_language(&mut self, lang: Language) {
         if self.state.language != lang {
             self.state.language = lang;
+            self.prediction.dictionary.ensure_language_loaded(lang);
             self.suggestions_dirty = true;
             self.rebuild_layout();
         }
@@ -467,8 +471,11 @@ impl KeyboardEngine {
                     self.state.rejected_autocorrect_word = None;
 
                     // Check dictionaries + user dictionary + whether autocorrect was rejected:
-                    let is_valid_word =
-                        is_rejected || self.prediction.dictionary.contains_word(&clean, true);
+                    let is_valid_word = is_rejected
+                        || self
+                            .prediction
+                            .dictionary
+                            .contains_word_for_lang(&clean, self.state.language);
 
                     let mut word_to_commit = self.state.composing_text.clone();
                     let mut did_autocorrect = false;

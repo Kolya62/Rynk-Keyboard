@@ -13,11 +13,79 @@ pub static TR_WORDS_RAW: &str = include_str!("data/tr_words.txt");
 pub static UK_WORDS_RAW: &str = include_str!("data/uk_words.txt");
 pub static BE_WORDS_RAW: &str = include_str!("data/be_words.txt");
 pub static KK_WORDS_RAW: &str = include_str!("data/kk_words.txt");
+pub static AR_WORDS_RAW: &str = include_str!("data/ar_words.txt");
+pub static PL_WORDS_RAW: &str = include_str!("data/pl_words.txt");
+pub static CS_WORDS_RAW: &str = include_str!("data/cs_words.txt");
+pub static RO_WORDS_RAW: &str = include_str!("data/ro_words.txt");
+pub static NL_WORDS_RAW: &str = include_str!("data/nl_words.txt");
+pub static SV_WORDS_RAW: &str = include_str!("data/sv_words.txt");
+pub static NO_WORDS_RAW: &str = include_str!("data/no_words.txt");
+pub static DA_WORDS_RAW: &str = include_str!("data/da_words.txt");
+pub static FI_WORDS_RAW: &str = include_str!("data/fi_words.txt");
+pub static EL_WORDS_RAW: &str = include_str!("data/el_words.txt");
+pub static HE_WORDS_RAW: &str = include_str!("data/he_words.txt");
+pub static FA_WORDS_RAW: &str = include_str!("data/fa_words.txt");
+pub static UR_WORDS_RAW: &str = include_str!("data/ur_words.txt");
+pub static HI_WORDS_RAW: &str = include_str!("data/hi_words.txt");
+pub static BN_WORDS_RAW: &str = include_str!("data/bn_words.txt");
+pub static ID_WORDS_RAW: &str = include_str!("data/id_words.txt");
+pub static MS_WORDS_RAW: &str = include_str!("data/ms_words.txt");
+pub static VI_WORDS_RAW: &str = include_str!("data/vi_words.txt");
+pub static TH_WORDS_RAW: &str = include_str!("data/th_words.txt");
+pub static HU_WORDS_RAW: &str = include_str!("data/hu_words.txt");
+pub static BG_WORDS_RAW: &str = include_str!("data/bg_words.txt");
+pub static SR_WORDS_RAW: &str = include_str!("data/sr_words.txt");
+pub static HR_WORDS_RAW: &str = include_str!("data/hr_words.txt");
+pub static SK_WORDS_RAW: &str = include_str!("data/sk_words.txt");
+pub static SL_WORDS_RAW: &str = include_str!("data/sl_words.txt");
+pub static LT_WORDS_RAW: &str = include_str!("data/lt_words.txt");
+pub static LV_WORDS_RAW: &str = include_str!("data/lv_words.txt");
+pub static ET_WORDS_RAW: &str = include_str!("data/et_words.txt");
+pub static KA_WORDS_RAW: &str = include_str!("data/ka_words.txt");
+pub static HY_WORDS_RAW: &str = include_str!("data/hy_words.txt");
+pub static AZ_WORDS_RAW: &str = include_str!("data/az_words.txt");
+pub static UZ_WORDS_RAW: &str = include_str!("data/uz_words.txt");
+pub static TG_WORDS_RAW: &str = include_str!("data/tg_words.txt");
+pub static KY_WORDS_RAW: &str = include_str!("data/ky_words.txt");
+pub static TK_WORDS_RAW: &str = include_str!("data/tk_words.txt");
+pub static MN_WORDS_RAW: &str = include_str!("data/mn_words.txt");
+pub static TL_WORDS_RAW: &str = include_str!("data/tl_words.txt");
+pub static SQ_WORDS_RAW: &str = include_str!("data/sq_words.txt");
+pub static BS_WORDS_RAW: &str = include_str!("data/bs_words.txt");
+pub static MK_WORDS_RAW: &str = include_str!("data/mk_words.txt");
+pub static IS_WORDS_RAW: &str = include_str!("data/is_words.txt");
+pub static GA_WORDS_RAW: &str = include_str!("data/ga_words.txt");
+pub static CY_WORDS_RAW: &str = include_str!("data/cy_words.txt");
+pub static EU_WORDS_RAW: &str = include_str!("data/eu_words.txt");
+pub static CA_WORDS_RAW: &str = include_str!("data/ca_words.txt");
+pub static GL_WORDS_RAW: &str = include_str!("data/gl_words.txt");
+pub static AF_WORDS_RAW: &str = include_str!("data/af_words.txt");
+pub static SW_WORDS_RAW: &str = include_str!("data/sw_words.txt");
+pub static HA_WORDS_RAW: &str = include_str!("data/ha_words.txt");
+pub static YO_WORDS_RAW: &str = include_str!("data/yo_words.txt");
+pub static IG_WORDS_RAW: &str = include_str!("data/ig_words.txt");
+pub static ZU_WORDS_RAW: &str = include_str!("data/zu_words.txt");
+pub static EO_WORDS_RAW: &str = include_str!("data/eo_words.txt");
+pub static LA_WORDS_RAW: &str = include_str!("data/la_words.txt");
+pub static TA_WORDS_RAW: &str = include_str!("data/ta_words.txt");
+pub static TE_WORDS_RAW: &str = include_str!("data/te_words.txt");
+pub static MR_WORDS_RAW: &str = include_str!("data/mr_words.txt");
+pub static GU_WORDS_RAW: &str = include_str!("data/gu_words.txt");
+pub static KN_WORDS_RAW: &str = include_str!("data/kn_words.txt");
+pub static ML_WORDS_RAW: &str = include_str!("data/ml_words.txt");
+pub static PA_WORDS_RAW: &str = include_str!("data/pa_words.txt");
+pub static NE_WORDS_RAW: &str = include_str!("data/ne_words.txt");
+pub static SI_WORDS_RAW: &str = include_str!("data/si_words.txt");
+pub static MY_WORDS_RAW: &str = include_str!("data/my_words.txt");
+pub static KM_WORDS_RAW: &str = include_str!("data/km_words.txt");
+pub static AM_WORDS_RAW: &str = include_str!("data/am_words.txt");
+pub static SO_WORDS_RAW: &str = include_str!("data/so_words.txt");
+pub static KU_WORDS_RAW: &str = include_str!("data/ku_words.txt");
+pub static MT_WORDS_RAW: &str = include_str!("data/mt_words.txt");
 pub static PROFANITY_RAW: &str = include_str!("data/profanity.txt");
 pub static RU_BIGRAMS_RAW: &str = include_str!("data/ru_bigrams.txt");
 pub static EN_BIGRAMS_RAW: &str = include_str!("data/en_bigrams.txt");
-
-const NUM_LANGUAGES: usize = 11;
+pub static MULTI_BIGRAMS_RAW: &str = include_str!("data/multi_bigrams.txt");
 
 const MAX_LEARNED_WORDS: usize = 2000;
 const MAX_LEARNED_BIGRAMS: usize = 600;
@@ -227,11 +295,10 @@ impl AdaptiveDictionary {
 pub type CandidateBucketMap = HashMap<(char, usize), Vec<(&'static str, u32)>>;
 
 pub struct Dictionary {
-    pub tries: [Trie; NUM_LANGUAGES],
-    pub word_lists: [Vec<(&'static str, u32)>; NUM_LANGUAGES],
-    pub candidate_buckets: [CandidateBucketMap; NUM_LANGUAGES],
-    pub ru_bigrams: HashMap<String, Vec<String>>,
-    pub en_bigrams: HashMap<String, Vec<String>>,
+    pub tries: HashMap<Language, Trie>,
+    pub word_lists: HashMap<Language, Vec<(&'static str, u32)>>,
+    pub candidate_buckets: HashMap<Language, CandidateBucketMap>,
+    pub bigrams: HashMap<Language, HashMap<String, Vec<String>>>,
     pub profanity: HashSet<&'static str>,
     pub profanity_enabled: bool,
     pub user_dict: HashMap<String, u32>,
@@ -258,20 +325,93 @@ fn parse_words(raw: &'static str, cap: usize) -> Vec<(&'static str, u32)> {
     words
 }
 
+fn get_raw_words_for_lang(lang: Language) -> &'static str {
+    match lang {
+        Language::Russian => RU_WORDS_RAW,
+        Language::English => EN_WORDS_RAW,
+        Language::German => DE_WORDS_RAW,
+        Language::French => FR_WORDS_RAW,
+        Language::Spanish => ES_WORDS_RAW,
+        Language::Portuguese => PT_WORDS_RAW,
+        Language::Italian => IT_WORDS_RAW,
+        Language::Turkish => TR_WORDS_RAW,
+        Language::Ukrainian => UK_WORDS_RAW,
+        Language::Belarusian => BE_WORDS_RAW,
+        Language::Kazakh => KK_WORDS_RAW,
+        Language::Arabic => AR_WORDS_RAW,
+        Language::Polish => PL_WORDS_RAW,
+        Language::Czech => CS_WORDS_RAW,
+        Language::Romanian => RO_WORDS_RAW,
+        Language::Dutch => NL_WORDS_RAW,
+        Language::Swedish => SV_WORDS_RAW,
+        Language::Norwegian => NO_WORDS_RAW,
+        Language::Danish => DA_WORDS_RAW,
+        Language::Finnish => FI_WORDS_RAW,
+        Language::Greek => EL_WORDS_RAW,
+        Language::Hebrew => HE_WORDS_RAW,
+        Language::Persian => FA_WORDS_RAW,
+        Language::Urdu => UR_WORDS_RAW,
+        Language::Hindi => HI_WORDS_RAW,
+        Language::Bengali => BN_WORDS_RAW,
+        Language::Indonesian => ID_WORDS_RAW,
+        Language::Malay => MS_WORDS_RAW,
+        Language::Vietnamese => VI_WORDS_RAW,
+        Language::Thai => TH_WORDS_RAW,
+        Language::Hungarian => HU_WORDS_RAW,
+        Language::Bulgarian => BG_WORDS_RAW,
+        Language::Serbian => SR_WORDS_RAW,
+        Language::Croatian => HR_WORDS_RAW,
+        Language::Slovak => SK_WORDS_RAW,
+        Language::Slovenian => SL_WORDS_RAW,
+        Language::Lithuanian => LT_WORDS_RAW,
+        Language::Latvian => LV_WORDS_RAW,
+        Language::Estonian => ET_WORDS_RAW,
+        Language::Georgian => KA_WORDS_RAW,
+        Language::Armenian => HY_WORDS_RAW,
+        Language::Azerbaijani => AZ_WORDS_RAW,
+        Language::Uzbek => UZ_WORDS_RAW,
+        Language::Tajik => TG_WORDS_RAW,
+        Language::Kyrgyz => KY_WORDS_RAW,
+        Language::Turkmen => TK_WORDS_RAW,
+        Language::Mongolian => MN_WORDS_RAW,
+        Language::Tagalog => TL_WORDS_RAW,
+        Language::Albanian => SQ_WORDS_RAW,
+        Language::Bosnian => BS_WORDS_RAW,
+        Language::Macedonian => MK_WORDS_RAW,
+        Language::Icelandic => IS_WORDS_RAW,
+        Language::Irish => GA_WORDS_RAW,
+        Language::Welsh => CY_WORDS_RAW,
+        Language::Basque => EU_WORDS_RAW,
+        Language::Catalan => CA_WORDS_RAW,
+        Language::Galician => GL_WORDS_RAW,
+        Language::Afrikaans => AF_WORDS_RAW,
+        Language::Swahili => SW_WORDS_RAW,
+        Language::Hausa => HA_WORDS_RAW,
+        Language::Yoruba => YO_WORDS_RAW,
+        Language::Igbo => IG_WORDS_RAW,
+        Language::Zulu => ZU_WORDS_RAW,
+        Language::Esperanto => EO_WORDS_RAW,
+        Language::Latin => LA_WORDS_RAW,
+        Language::Tamil => TA_WORDS_RAW,
+        Language::Telugu => TE_WORDS_RAW,
+        Language::Marathi => MR_WORDS_RAW,
+        Language::Gujarati => GU_WORDS_RAW,
+        Language::Kannada => KN_WORDS_RAW,
+        Language::Malayalam => ML_WORDS_RAW,
+        Language::Punjabi => PA_WORDS_RAW,
+        Language::Nepali => NE_WORDS_RAW,
+        Language::Sinhala => SI_WORDS_RAW,
+        Language::Burmese => MY_WORDS_RAW,
+        Language::Khmer => KM_WORDS_RAW,
+        Language::Amharic => AM_WORDS_RAW,
+        Language::Somali => SO_WORDS_RAW,
+        Language::Kurdish => KU_WORDS_RAW,
+        Language::Maltese => MT_WORDS_RAW,
+    }
+}
+
 impl Dictionary {
     pub fn new() -> Self {
-        let ru_words = parse_words(RU_WORDS_RAW, 50000);
-        let en_words = parse_words(EN_WORDS_RAW, 25000);
-        let de_words = parse_words(DE_WORDS_RAW, 2000);
-        let fr_words = parse_words(FR_WORDS_RAW, 2000);
-        let es_words = parse_words(ES_WORDS_RAW, 2000);
-        let pt_words = parse_words(PT_WORDS_RAW, 2000);
-        let it_words = parse_words(IT_WORDS_RAW, 2000);
-        let tr_words = parse_words(TR_WORDS_RAW, 2000);
-        let uk_words = parse_words(UK_WORDS_RAW, 2000);
-        let be_words = parse_words(BE_WORDS_RAW, 2000);
-        let kk_words = parse_words(KK_WORDS_RAW, 2000);
-
         let mut profanity = HashSet::with_capacity(200);
         for line in PROFANITY_RAW.lines() {
             let trimmed = line.trim();
@@ -280,61 +420,100 @@ impl Dictionary {
             }
         }
 
-        let mut ru_bigrams = HashMap::with_capacity(100);
+        let mut bigrams: HashMap<Language, HashMap<String, Vec<String>>> = HashMap::new();
+
+        // 1. Russian bigrams
+        let ru_map = bigrams.entry(Language::Russian).or_default();
         for line in RU_BIGRAMS_RAW.lines() {
             let mut parts = line.split(':');
             if let (Some(w), Some(nexts)) = (parts.next(), parts.next()) {
                 let list: Vec<String> = nexts.split(',').map(|s| s.trim().to_string()).collect();
-                ru_bigrams.insert(w.to_string(), list);
+                ru_map.insert(w.to_string(), list);
             }
         }
 
-        let mut en_bigrams = HashMap::with_capacity(100);
+        // 2. English bigrams
+        let en_map = bigrams.entry(Language::English).or_default();
         for line in EN_BIGRAMS_RAW.lines() {
             let mut parts = line.split(':');
             if let (Some(w), Some(nexts)) = (parts.next(), parts.next()) {
                 let list: Vec<String> = nexts.split(',').map(|s| s.trim().to_string()).collect();
-                en_bigrams.insert(w.to_string(), list);
+                en_map.insert(w.to_string(), list);
             }
         }
 
-        let word_lists = [
-            ru_words, en_words, de_words, fr_words, es_words, pt_words, it_words, tr_words,
-            uk_words, be_words, kk_words,
-        ];
-
-        let mut tries: [Trie; NUM_LANGUAGES] = Default::default();
-        let mut candidate_buckets: [CandidateBucketMap; NUM_LANGUAGES] = Default::default();
-
-        for (i, list) in word_lists.iter().enumerate() {
-            for &(w, freq) in list {
-                tries[i].insert(w, freq);
-                let c0 = w
-                    .chars()
-                    .next()
-                    .unwrap_or('\0')
-                    .to_lowercase()
-                    .next()
-                    .unwrap_or('\0');
-                let len = w.chars().count();
-                candidate_buckets[i]
-                    .entry((c0, len))
-                    .or_default()
-                    .push((w, freq));
+        // 3. Multi-language bigrams
+        for line in MULTI_BIGRAMS_RAW.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            let mut parts = trimmed.split(':');
+            if let (Some(code), Some(w), Some(nexts)) = (parts.next(), parts.next(), parts.next()) {
+                if let Some(lang) = Language::from_code(code) {
+                    let map = bigrams.entry(lang).or_default();
+                    let list: Vec<String> = nexts.split(',').map(|s| s.trim().to_string()).collect();
+                    map.insert(w.to_string(), list);
+                }
             }
         }
 
-        Self {
-            tries,
-            word_lists,
-            candidate_buckets,
-            ru_bigrams,
-            en_bigrams,
+        let mut dict = Self {
+            tries: HashMap::new(),
+            word_lists: HashMap::new(),
+            candidate_buckets: HashMap::new(),
+            bigrams,
             profanity,
             profanity_enabled: false,
             user_dict: HashMap::new(),
             adaptive_dict: AdaptiveDictionary::default(),
             removed_words: HashSet::new(),
+        };
+
+        // Always load Russian and English as primary base languages
+        dict.ensure_language_loaded(Language::Russian);
+        dict.ensure_language_loaded(Language::English);
+
+        dict
+    }
+
+    pub fn ensure_language_loaded(&mut self, lang: Language) {
+        if self.tries.contains_key(&lang) {
+            return;
+        }
+
+        let raw = get_raw_words_for_lang(lang);
+        let cap = match lang {
+            Language::Russian => 50000,
+            Language::English => 25000,
+            _ => 1600,
+        };
+        let words = parse_words(raw, cap);
+
+        let mut trie = Trie::default();
+        let mut buckets: CandidateBucketMap = HashMap::new();
+
+        for &(w, freq) in &words {
+            trie.insert(w, freq);
+            let c0 = w
+                .chars()
+                .next()
+                .unwrap_or('\0')
+                .to_lowercase()
+                .next()
+                .unwrap_or('\0');
+            let len = w.chars().count();
+            buckets.entry((c0, len)).or_default().push((w, freq));
+        }
+
+        self.tries.insert(lang, trie);
+        self.word_lists.insert(lang, words);
+        self.candidate_buckets.insert(lang, buckets);
+    }
+
+    pub fn ensure_languages_loaded(&mut self, langs: &[Language]) {
+        for &lang in langs {
+            self.ensure_language_loaded(lang);
         }
     }
 
@@ -343,13 +522,23 @@ impl Dictionary {
     }
 
     pub fn get_trie(&self, lang: Language) -> &Trie {
-        let idx = (lang.to_id() as usize).min(NUM_LANGUAGES - 1);
-        &self.tries[idx]
+        if let Some(trie) = self.tries.get(&lang) {
+            trie
+        } else if let Some(trie) = self.tries.get(&Language::Russian) {
+            trie
+        } else {
+            self.tries.values().next().expect("At least one trie loaded")
+        }
     }
 
     pub fn get_word_list(&self, lang: Language) -> &[(&'static str, u32)] {
-        let idx = (lang.to_id() as usize).min(NUM_LANGUAGES - 1);
-        &self.word_lists[idx]
+        if let Some(list) = self.word_lists.get(&lang) {
+            list
+        } else if let Some(list) = self.word_lists.get(&Language::Russian) {
+            list
+        } else {
+            &[]
+        }
     }
 
     pub fn get_fuzzy_candidates(&self, query: &str, lang: Language) -> Vec<(&'static str, u32)> {
@@ -359,8 +548,11 @@ impl Dictionary {
             return Vec::new();
         }
 
-        let idx = (lang.to_id() as usize).min(NUM_LANGUAGES - 1);
-        let buckets = &self.candidate_buckets[idx];
+        let buckets_opt = self.candidate_buckets.get(&lang).or_else(|| self.candidate_buckets.get(&Language::Russian));
+        let buckets = match buckets_opt {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
 
         let min_len = query_len.saturating_sub(2).max(1);
         let max_len = query_len + 2;
@@ -409,7 +601,7 @@ impl Dictionary {
         if self.profanity_enabled && self.profanity.contains(clean.as_str()) {
             return true;
         }
-        for trie in &self.tries {
+        for trie in self.tries.values() {
             if trie.contains(&clean) {
                 return true;
             }
@@ -460,11 +652,15 @@ impl Dictionary {
             return f;
         }
         // Fallback check in Russian or English trie
-        if let Some(f) = self.tries[0].get_frequency(&clean) {
-            return f;
+        if let Some(trie) = self.tries.get(&Language::Russian) {
+            if let Some(f) = trie.get_frequency(&clean) {
+                return f;
+            }
         }
-        if let Some(f) = self.tries[1].get_frequency(&clean) {
-            return f;
+        if let Some(trie) = self.tries.get(&Language::English) {
+            if let Some(f) = trie.get_frequency(&clean) {
+                return f;
+            }
         }
         0
     }
@@ -476,8 +672,11 @@ impl Dictionary {
         }
         self.removed_words.remove(&clean);
         self.user_dict.insert(clean.clone(), 2500);
-        let lang_idx = if is_ru { 0 } else { 1 };
-        self.tries[lang_idx].insert(&clean, 2500);
+        let lang = if is_ru { Language::Russian } else { Language::English };
+        self.ensure_language_loaded(lang);
+        if let Some(trie) = self.tries.get_mut(&lang) {
+            trie.insert(&clean, 2500);
+        }
     }
 
     pub fn remove_user_word(&mut self, word: &str) {
@@ -502,8 +701,11 @@ impl Dictionary {
 
         self.adaptive_dict.learn_word(&trimmed);
         if let Some(&freq) = self.adaptive_dict.learned_words.get(&trimmed) {
-            let lang_idx = if is_ru { 0 } else { 1 };
-            self.tries[lang_idx].insert(&trimmed, freq);
+            let lang = if is_ru { Language::Russian } else { Language::English };
+            self.ensure_language_loaded(lang);
+            if let Some(trie) = self.tries.get_mut(&lang) {
+                trie.insert(&trimmed, freq);
+            }
         }
     }
 
@@ -528,16 +730,31 @@ impl Dictionary {
             }
         }
 
-        // 2. Builtin bigrams (Russian or English)
-        let bigram_map = if lang == Language::Russian {
-            &self.ru_bigrams
-        } else {
-            &self.en_bigrams
-        };
-        if let Some(nexts) = bigram_map.get(&k) {
-            for w in nexts {
-                if !res.contains(w) && !self.removed_words.contains(w) {
-                    res.push(w.clone());
+        // 2. Builtin bigrams for this language
+        if let Some(map) = self.bigrams.get(&lang) {
+            if let Some(nexts) = map.get(&k) {
+                for w in nexts {
+                    if !res.contains(w) && !self.removed_words.contains(w) {
+                        res.push(w.clone());
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback to English/Russian bigrams if not found
+        if res.is_empty() {
+            let fallback_map = if lang == Language::Russian {
+                self.bigrams.get(&Language::English)
+            } else {
+                self.bigrams.get(&Language::Russian)
+            };
+            if let Some(map) = fallback_map {
+                if let Some(nexts) = map.get(&k) {
+                    for w in nexts {
+                        if !res.contains(w) && !self.removed_words.contains(w) {
+                            res.push(w.clone());
+                        }
+                    }
                 }
             }
         }
