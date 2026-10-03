@@ -17,7 +17,7 @@ android {
         versionName = "1.0.0"
 
         ndk {
-            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
         }
     }
 
@@ -44,13 +44,21 @@ android {
                 ?: System.getenv("RYNK_RELEASE_KEY_PASSWORD")
                 ?: localProps.getProperty("rynk.release.keyPassword")
 
+            val defaultKeystore = file("rynk-release.jks")
             if (!keystorePath.isNullOrBlank() && file(keystorePath).exists() &&
                 !keystorePass.isNullOrBlank() && !keyAliasStr.isNullOrBlank() && !keyPassStr.isNullOrBlank()) {
                 storeFile = file(keystorePath)
                 storePassword = keystorePass
                 keyAlias = keyAliasStr
                 keyPassword = keyPassStr
+            } else if (defaultKeystore.exists()) {
+                storeFile = defaultKeystore
+                storePassword = "REMOVED"
+                keyAlias = "rynk"
+                keyPassword = "REMOVED"
             }
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
@@ -113,6 +121,7 @@ tasks.register("buildRustCore") {
 
     val abiTargets = mapOf(
         "arm64-v8a" to Triple("aarch64-linux-android", "aarch64-linux-android24-clang", "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"),
+        "armeabi-v7a" to Triple("armv7-linux-androideabi", "armv7a-linux-androideabi24-clang", "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"),
         "x86_64" to Triple("x86_64-linux-android", "x86_64-linux-android24-clang", "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER")
     )
 
@@ -135,6 +144,9 @@ tasks.register("buildRustCore") {
             pb.environment()[linkerEnv] = clangPath
             pb.environment()["CC_$rustTarget"] = clangPath
             pb.environment()["AR_$rustTarget"] = arPath
+            val normalizedTarget = rustTarget.replace('-', '_')
+            pb.environment()["CC_$normalizedTarget"] = clangPath
+            pb.environment()["AR_$normalizedTarget"] = arPath
             val exitCode = pb.inheritIO().start().waitFor()
             if (exitCode != 0) {
                 throw GradleException("Failed to build Rust library for $rustTarget with exit code $exitCode")
