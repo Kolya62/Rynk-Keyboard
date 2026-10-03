@@ -64,4 +64,14 @@
     <string name="pref_category_feedback">Haptic Feedback</string>
     <string name="pref_haptics">Key press vibration</string>
     <string name="pref_haptics_desc">Precise tactile haptic feedback</string>
+
+    <string name="pref_category_support">Support the Author</string>
+    <string name="support_author_title">Support the author</string>
+    <string name="support_author_desc">If you enjoy using Rynk Keyboard, you can support the developer via card transfer</string>
+    <string name="support_card_number">4466 1481 2794 9960</string>
+    <string name="btn_copy_card">Copy card number</string>
+    <string name="card_copied">Card number copied to clipboard</string>
+    <string name="support_dialog_title">Support Rynk Creator</string>
+    <string name="support_dialog_message">Thank you for choosing Rynk Keyboard!\n\nThe project is actively maintained and improved. If you appreciate the keyboard, you can support the developer via card transfer:\n\n4466 1481 2794 9960\n\nThank you for your support!</string>
+    <string name="btn_close">Close</string>
 </resources>

@@ -366,18 +366,20 @@ mod tests {
     #[test]
     fn test_emoji_manager_exit() {
         use emoji::{EmojiManager, EmojiTouchResult};
+        use keyboard::touch::TouchAction;
+        use keyboard::state::Language;
         let mut mgr = EmojiManager::default();
         let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
 
         // Tap on top-left Back button
-        let top_exit = mgr.handle_touch(20.0, 20.0, &metrics);
+        let top_exit = mgr.handle_touch_event(TouchAction::Up, 20.0, 20.0, &metrics, Language::Russian);
         assert!(matches!(top_exit, EmojiTouchResult::SwitchToAlphabet));
 
         // Tap on bottom-left ABC button
         let dp = (metrics.suggestion_bar_height / 40.0).max(1.0);
         let bottom_bar_h = 40.0 * dp;
         let abc_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h + 10.0;
-        let bot_exit = mgr.handle_touch(30.0, abc_y, &metrics);
+        let bot_exit = mgr.handle_touch_event(TouchAction::Up, 30.0, abc_y, &metrics, Language::Russian);
         assert!(matches!(bot_exit, EmojiTouchResult::SwitchToAlphabet));
     }
 

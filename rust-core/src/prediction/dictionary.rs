@@ -82,6 +82,11 @@ pub static AM_WORDS_RAW: &str = include_str!("data/am_words.txt");
 pub static SO_WORDS_RAW: &str = include_str!("data/so_words.txt");
 pub static KU_WORDS_RAW: &str = include_str!("data/ku_words.txt");
 pub static MT_WORDS_RAW: &str = include_str!("data/mt_words.txt");
+pub static KO_WORDS_RAW: &str = include_str!("data/ko_words.txt");
+pub static JA_WORDS_RAW: &str = include_str!("data/ja_words.txt");
+pub static ZH_CN_WORDS_RAW: &str = include_str!("data/zh_cn_words.txt");
+pub static ZH_TW_WORDS_RAW: &str = include_str!("data/zh_tw_words.txt");
+pub static ZH_HK_WORDS_RAW: &str = include_str!("data/zh_hk_words.txt");
 pub static PROFANITY_RAW: &str = include_str!("data/profanity.txt");
 pub static RU_BIGRAMS_RAW: &str = include_str!("data/ru_bigrams.txt");
 pub static EN_BIGRAMS_RAW: &str = include_str!("data/en_bigrams.txt");
@@ -407,6 +412,11 @@ fn get_raw_words_for_lang(lang: Language) -> &'static str {
         Language::Somali => SO_WORDS_RAW,
         Language::Kurdish => KU_WORDS_RAW,
         Language::Maltese => MT_WORDS_RAW,
+        Language::Korean => KO_WORDS_RAW,
+        Language::Japanese => JA_WORDS_RAW,
+        Language::ChineseSimplified => ZH_CN_WORDS_RAW,
+        Language::ChineseTraditional => ZH_TW_WORDS_RAW,
+        Language::Cantonese => ZH_HK_WORDS_RAW,
     }
 }
 
@@ -486,6 +496,11 @@ impl Dictionary {
         let cap = match lang {
             Language::Russian => 50000,
             Language::English => 25000,
+            Language::Korean
+            | Language::Japanese
+            | Language::ChineseSimplified
+            | Language::ChineseTraditional
+            | Language::Cantonese => 3200,
             _ => 1600,
         };
         let words = parse_words(raw, cap);

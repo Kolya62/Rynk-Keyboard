@@ -23,7 +23,7 @@
 
 ### 🌟 О проекте
 
-**Rynk Keyboard** — это современная системная клавиатура для Android премиального уровня, объединяющая бескомпромиссную скорость системного языка **Rust** с нативной интеграцией **Android SDK (Kotlin)**.
+**Rynk Keyboard** — это современная высокопроизводительная системная клавиатура для Android, объединяющая бескомпромиссную скорость системного языка **Rust** с нативной интеграцией **Android SDK (Kotlin)**.
 
 В отличие от традиционных клавиатур, где рендеринг завязан на тяжеловесный стек Java/Kotlin UI или веб-компоненты, Rynk производит всю математику, обработку мультитач-жестов, физику анимаций, предиктивный поиск и 2D-растеризацию интерфейса **непосредственно в нативном коде Rust** с прямой записью пикселей в аппаратный буфер Android через `AndroidBitmap_lockPixels` (`libjnigraphics.so`).
 
@@ -35,25 +35,28 @@
    - Растеризатор на базе знаковых функций расстояния (**Signed Distance Fields / SDF**) с субпиксельным сглаживанием (anti-aliasing).
    - Мягкие объёмные тени под клавишами и эффект тактильной глубины в реальном времени.
    - Физические микро-анимации нажатий, всплывающие превью (Popups) и ripple-эффекты с частотой обновления до 120 FPS.
-2. **Интеллектуальная предиктивная система**:
-   - Префиксное дерево **Trie** с временем поиска по 50 000+ словам < 0.5 мс.
-   - Умная автозамена на основе расстояния Дамерау-Левенштейна и клавиатурных дистанций.
-   - Встроенный словарь популярных разговорных опечаток ($O(1)$) для русского и английского языков.
+2. **Интеллектуальная предиктивная система и автозамена**:
+   - Префиксное дерево **Trie** с временем поиска < 0.5 мс.
+   - Продвинутая автозамена с учётом соседних клавиш, опечаток, перестановок и диакритики.
+   - Контекстное предсказание следующего слова по биграммам для всех поддерживаемых языков.
    - Канонический регистр аббревиатур (`OST`, `macOS`, `СПб`, `СНиП`, `хз`, `спс`).
    - Принцип FlorisBoard: отмена автозамены одним нажатием Backspace с сохранением слова.
    - Защита словаря: опечатки не засоряют пользовательский лексикон.
-3. **Мультиязычность из коробки (11 языков)**:
-   - Русский (ЙЦУКЕН с 33 клавишами), Английский (QWERTY), Немецкий, Французский, Испанский, Португальский, Итальянский, Турецкий, Украинский, Белорусский, Казахский.
-   - Автоматическое определение языка устройства при первом запуске (для RU $\rightarrow$ RU + EN, для остальных $\rightarrow$ язык системы + EN).
+3. **Глобальная мультиязычность (85+ языков)**:
+   - **Китайские языки**: Упрощённый китайский (中文 简体), Традиционный китайский (中文 繁體), Кантонский диалект (粵語 香港).
+   - **Корейский язык**: Нативная двухраскладочная клавиатура 2-Set Hangul (두벌식) с поддержкой диакритики и сдвоенных согласных.
+   - **Японский язык**: Японский ввод (日本語) с частотным словарем и автозаменой.
+   - **Вьетнамский язык**: Вьетнамский ввод (Tiếng Việt) с полной поддержкой тонов и диакритических знаков.
+   - **Европейские и мировые языки**: Русский, Английский, Арабский, Польский, Чешский, Румынский, Немецкий, Французский, Испанский, Итальянский, Турецкий, Украинский, Казахский, Иврит, Хинди и многие другие (более 85 языков мира).
    - Быстрое переключение раскладок свайпом влево/вправо по пробелу или клавишей глобуса.
 4. **Жесты и управление курсором**:
    - **Свайп по пробелу**: плавное и точное перемещение текстового курсора без случайных нажатий.
    - **Свайп влево от Backspace**: мгновенное удаление целого слова.
    - **Long-Press (удержание)**: всплывающее меню акцентов, цифр и спецсимволов.
    - Двойной тап по Shift для CapsLock с визуальным индикатором.
-5. **Эмодзи-панель Android 15.1**:
-   - 6 структурированных категорий с удобной сеткой и переключателем.
-   - Высота панели оптимизирована под современные соотношения сторон экранов.
+5. **Все эмодзи Unicode 16.0 со встроенным поиском**:
+   - Полная база из 3 790 эмодзи Unicode 16.0 с разделением по категориям.
+   - Быстрый встроенный поиск эмодзи на русском и английском языках с ключевыми словами CLDR.
    - Текстовые шорткаты (`:)` $\rightarrow$ 😊, `<3` $\rightarrow$ ❤️).
 6. **Темы оформления**:
    - **Rynk Dark (Cyan)** — фирменный графитовый стиль с неоновым акцентом.
@@ -148,7 +151,7 @@ export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
 
 ### 🌟 Overview
 
-**Rynk Keyboard** is a state-of-the-art, premium Android input method engineered for extreme responsiveness by combining **Rust** for the entire core processing and rendering with **Kotlin** strictly for mandatory Android SDK input method service bindings.
+**Rynk Keyboard** is a state-of-the-art, high-performance Android input method engineered for extreme responsiveness by combining **Rust** for the entire core processing and rendering with **Kotlin** strictly for mandatory Android SDK input method service bindings.
 
 Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or web runtimes, Rynk executes all layout math, multi-touch gesture processing, animation timing, predictive search, and 2D pixel rendering **directly in native Rust**. The resulting frame is flushed directly to the hardware frame buffer via `AndroidBitmap_lockPixels` (`libjnigraphics.so`) with zero memory copies.
 
@@ -161,24 +164,27 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
    - Smooth elevation drop shadows under keys for tactile realism.
    - Key-press micro-animations, popups, and ripple effects rendering up to 120 FPS.
 2. **Next-Gen Autocorrect & Suggestions**:
-   - In-memory **Trie** structure over 50,000+ words yielding lookups under 0.5 ms.
-   - Weighted Damerau-Levenshtein distance calculation calibrated with word frequencies.
-   - Direct $O(1)$ phonetic & colloquial typo lookup table for English and Russian (`thnaks` $\rightarrow$ `thanks`, `definately` $\rightarrow$ `definitely`, etc.).
+   - In-memory **Trie** structure yielding lookups under 0.5 ms.
+   - Proximity-aware autocorrect accounting for keyboard geometry, transpositions, and diacritics.
+   - Cross-language bigram next-word prediction.
    - Canonical abbreviation casing preservation (`OST`, `macOS`, `AFK`).
    - FlorisBoard-style instant undo: tapping Backspace once after spacebar restores the exact user input and prevents re-correction.
    - Clean user dictionary guarantee: uncorrected typos never pollute the dictionary.
-3. **11 Supported Languages Out of the Box**:
-   - English (QWERTY), Russian (ЙЦУКЕН), German, French, Spanish, Portuguese, Italian, Turkish, Ukrainian, Belarusian, Kazakh.
-   - Automatic system locale adaptation on initial setup.
+3. **85+ Supported Languages**:
+   - **Chinese**: Simplified Chinese (中文 简体), Traditional Chinese (中文 繁體), Cantonese (粵語 香港).
+   - **Korean**: Native 2-Set Hangul (두벌식) layout with double-consonant shift support.
+   - **Japanese**: Romaji Japanese (日本語) with dedicated vocabulary and suggestion engine.
+   - **Vietnamese**: Vietnamese (Tiếng Việt) with full diacritic and tone mark handling.
+   - **Global & European languages**: English, Russian, Arabic, Polish, Czech, Romanian, German, French, Spanish, Italian, Hebrew, Hindi, and 70+ more.
    - Instant language switching via spacebar swipe or dedicated globe key.
 4. **Precision Gestures & Cursor Control**:
    - **Spacebar Swipe Cursor**: Glide left and right across the spacebar for character-accurate cursor positioning.
    - **Backspace Swipe**: Swipe left from Backspace to delete whole words in one stroke.
    - **Long-Press Diacritics**: Hold any key to reveal alternative characters, symbols, and digits.
    - Double-tap Shift for persistent CapsLock with visual state indicator.
-5. **Android 15.1 Emoji Catalog**:
-   - 6 categorized tabs with an ergonomic grid layout.
-   - Expanded panel height matching modern high-aspect-ratio displays.
+5. **Full Unicode 16.0 Emoji Catalog & Search**:
+   - Complete database of 3,790 Unicode 16.0 emojis across all categories.
+   - High-speed interactive search in Russian and English based on CLDR keywords.
    - Instant inline emoji shortcuts (`:)` $\rightarrow$ 😊, `<3` $\rightarrow$ ❤️).
 6. **Curated Themes**:
    - **Rynk Dark (Cyan)** — Signature graphite background with neon cyan accents.
@@ -217,6 +223,13 @@ export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
 # Output APK:
 # app/build/outputs/apk/release/app-release-unsigned.apk
 ```
+
+---
+
+### 💖 Поддержать автора / Support the Author
+
+- **Банковская карта / Bank Card**: `4466 1481 2794 9960`
+- Спасибо за поддержку разработки проекта Rynk Keyboard! / Thank you for supporting the continuous development of Rynk Keyboard!
 
 ---
 

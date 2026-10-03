@@ -64,4 +64,14 @@
     <string name="pref_category_feedback">Тактильный отклик</string>
     <string name="pref_haptics">Вибрация при нажатии</string>
     <string name="pref_haptics_desc">Точный виброотклик Haptic Feedback</string>
+
+    <string name="pref_category_support">Поддержка автора</string>
+    <string name="support_author_title">Поддержать автора</string>
+    <string name="support_author_desc">Если вам нравится клавиатура Rynk, вы можете поддержать автора переводом на карту</string>
+    <string name="support_card_number">4466 1481 2794 9960</string>
+    <string name="btn_copy_card">Скопировать номер карты</string>
+    <string name="card_copied">Номер карты скопирован в буфер обмена</string>
+    <string name="support_dialog_title">Поддержите автора Rynk</string>
+    <string name="support_dialog_message">Спасибо, что выбрали Rynk Keyboard!\n\nПроект активно развивается благодаря вашей поддержке. Если клавиатура вам нравится, вы можете поддержать автора переводом на карту:\n\n4466 1481 2794 9960\n\nСпасибо за поддержку!</string>
+    <string name="btn_close">Понятно</string>
 </resources>

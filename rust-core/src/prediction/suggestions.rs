@@ -135,14 +135,22 @@ impl SuggestionEngine {
 
         for (comp, freq) in &completions {
             let comp_lower = comp.to_lowercase();
-            let score = if comp_lower.starts_with(&clean) {
+            let is_prefix = comp_lower.starts_with(&clean);
+            let score = if is_prefix {
                 let remaining = (comp_lower
                     .chars()
                     .count()
                     .saturating_sub(clean.chars().count())) as f32;
-                let penalty = remaining * 0.12;
+                let penalty = remaining * 0.15;
                 let freq_weight = (*freq as f32).min(2000.0) / 2000.0 * 2.0;
-                5.0 - penalty + freq_weight
+                let user_bonus = if dict.adaptive_dict.learned_words.contains_key(&comp_lower)
+                    || dict.user_dict.contains_key(&comp_lower)
+                {
+                    3.0
+                } else {
+                    0.0
+                };
+                15.0 - penalty + freq_weight + user_bonus
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };

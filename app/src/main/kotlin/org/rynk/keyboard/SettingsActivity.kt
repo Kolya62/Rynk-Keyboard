@@ -105,7 +105,12 @@ class SettingsActivity : AppCompatActivity() {
         "am" to "አማርኛ (Amharic)",
         "so" to "Soomaali (Somali)",
         "ku" to "Kurdî (Kurdish)",
-        "mt" to "Malti (Maltese)"
+        "mt" to "Malti (Maltese)",
+        "ko" to "한국어 (Korean)",
+        "ja" to "日本語 (Japanese)",
+        "zh_cn" to "中文 简体 (Chinese Simplified)",
+        "zh_tw" to "中文 繁體 (Chinese Traditional)",
+        "zh_hk" to "粵語 香港 (Cantonese)"
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -246,6 +251,34 @@ class SettingsActivity : AppCompatActivity() {
 
         btnViewUserWords.setOnClickListener {
             showViewWordsDialog()
+        }
+
+        val btnCopyCardNumber = findViewById<MaterialButton>(R.id.btnCopyCardNumber)
+        btnCopyCardNumber.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Rynk Card Number", "4466 1481 2794 9960")
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, getString(R.string.card_copied), Toast.LENGTH_SHORT).show()
+        }
+
+        checkAndShowSupportDialog()
+    }
+
+    private fun checkAndShowSupportDialog() {
+        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("has_shown_support_dialog", false)) {
+            prefs.edit().putBoolean("has_shown_support_dialog", true).apply()
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.support_dialog_title))
+                .setMessage(getString(R.string.support_dialog_message))
+                .setPositiveButton(getString(R.string.btn_copy_card)) { _, _ ->
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Rynk Card Number", "4466 1481 2794 9960")
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(this, getString(R.string.card_copied), Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(getString(R.string.btn_close), null)
+                .show()
         }
     }
 

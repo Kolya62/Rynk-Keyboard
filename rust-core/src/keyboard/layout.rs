@@ -74,6 +74,7 @@ impl LayoutBuilder {
                 Language::Czech | Language::Slovak => Self::build_czech(shift_state, metrics),
                 Language::Romanian => Self::build_romanian(shift_state, metrics),
                 Language::Hebrew => Self::build_hebrew(shift_state, metrics),
+                Language::Korean => Self::build_korean(shift_state, metrics),
                 _ => Self::build_custom_qwerty(shift_state, language, metrics),
             },
             KeyboardMode::Numbers => Self::build_numbers(metrics),
@@ -2063,6 +2064,46 @@ impl LayoutBuilder {
         keys.push(Key::new(key_id, r4_x, r4_y, enter_w, row_height, KeyAction::Enter, "↵", KeyType::Accent));
 
         keys
+    }
+
+    fn build_korean(shift: ShiftState, m: &LayoutMetrics) -> Vec<Key> {
+        let is_shifted = shift.is_uppercase();
+        let rows_data: [&[KeyDef]; 3] = [
+            &[
+                (if is_shifted { "ㅃ" } else { "ㅂ" }, Some("1"), &['1']),
+                (if is_shifted { "ㅉ" } else { "ㅈ" }, Some("2"), &['2']),
+                (if is_shifted { "ㄸ" } else { "ㄷ" }, Some("3"), &['3']),
+                (if is_shifted { "ㄲ" } else { "ㄱ" }, Some("4"), &['4']),
+                (if is_shifted { "ㅆ" } else { "ㅅ" }, Some("5"), &['5']),
+                ("ㅛ", Some("6"), &['6']),
+                ("ㅕ", Some("7"), &['7']),
+                ("ㅑ", Some("8"), &['8']),
+                (if is_shifted { "ㅒ" } else { "ㅐ" }, Some("9"), &['9']),
+                (if is_shifted { "ㅖ" } else { "ㅔ" }, Some("0"), &['0']),
+            ],
+            &[
+                ("ㅁ", Some("@"), &['@']),
+                ("ㄴ", Some("#"), &['#']),
+                ("ㅇ", Some("$"), &['$']),
+                ("ㄹ", Some("%"), &['%']),
+                ("ㅎ", Some("&"), &['&']),
+                ("ㅗ", Some("-"), &['-']),
+                ("ㅓ", Some("+"), &['+']),
+                ("ㅏ", Some("("), &['(']),
+                ("ㅣ", Some(")"), &[')']),
+            ],
+            &[
+                ("ㅋ", Some("*"), &['*']),
+                ("ㅌ", Some("\""), &['\"']),
+                ("ㅊ", Some("'"), &['\'']),
+                ("ㅍ", Some(":"), &[':']),
+                ("ㅠ", Some(";"), &[';']),
+                ("ㅜ", Some("!"), &['!']),
+                ("ㅡ", Some("?"), &['?']),
+            ],
+        ];
+
+        Self::build_latin_keyboard_internal(rows_data, false, shift, "간격", m)
     }
 
     fn build_custom_qwerty(shift: ShiftState, lang: Language, m: &LayoutMetrics) -> Vec<Key> {

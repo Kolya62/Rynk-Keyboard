@@ -110,6 +110,11 @@ pub enum Language {
     Somali,
     Kurdish,
     Maltese,
+    Korean,
+    Japanese,
+    ChineseSimplified,
+    ChineseTraditional,
+    Cantonese,
 }
 
 impl Language {
@@ -195,6 +200,11 @@ impl Language {
             Language::Somali => "Soomaali",
             Language::Kurdish => "Kurdî",
             Language::Maltese => "Malti",
+            Language::Korean => "한국어",
+            Language::Japanese => "日本語",
+            Language::ChineseSimplified => "中文 (简体)",
+            Language::ChineseTraditional => "中文 (繁體)",
+            Language::Cantonese => "粵語 (香港)",
         }
     }
 
@@ -280,6 +290,11 @@ impl Language {
             Language::Somali => "SO",
             Language::Kurdish => "KU",
             Language::Maltese => "MT",
+            Language::Korean => "KO",
+            Language::Japanese => "JA",
+            Language::ChineseSimplified => "ZH-CN",
+            Language::ChineseTraditional => "ZH-TW",
+            Language::Cantonese => "ZH-HK",
         }
     }
 
@@ -365,6 +380,11 @@ impl Language {
             Language::Somali => "so",
             Language::Kurdish => "ku",
             Language::Maltese => "mt",
+            Language::Korean => "ko",
+            Language::Japanese => "ja",
+            Language::ChineseSimplified => "zh_cn",
+            Language::ChineseTraditional => "zh_tw",
+            Language::Cantonese => "zh_hk",
         }
     }
 
@@ -450,6 +470,11 @@ impl Language {
             Language::Somali => "meel",
             Language::Kurdish => "valahî",
             Language::Maltese => "spazju",
+            Language::Korean => "간격",
+            Language::Japanese => "空白",
+            Language::ChineseSimplified => "空格",
+            Language::ChineseTraditional => "空格",
+            Language::Cantonese => "空格",
         }
     }
 
@@ -535,6 +560,11 @@ impl Language {
             Language::Somali => 77,
             Language::Kurdish => 78,
             Language::Maltese => 79,
+            Language::Korean => 80,
+            Language::Japanese => 81,
+            Language::ChineseSimplified => 82,
+            Language::ChineseTraditional => 83,
+            Language::Cantonese => 84,
         }
     }
 
@@ -620,6 +650,11 @@ impl Language {
             77 => Language::Somali,
             78 => Language::Kurdish,
             79 => Language::Maltese,
+            80 => Language::Korean,
+            81 => Language::Japanese,
+            82 => Language::ChineseSimplified,
+            83 => Language::ChineseTraditional,
+            84 => Language::Cantonese,
             _ => Language::Russian,
         }
     }
@@ -706,6 +741,11 @@ impl Language {
             "so" => Some(Language::Somali),
             "ku" => Some(Language::Kurdish),
             "mt" => Some(Language::Maltese),
+            "ko" => Some(Language::Korean),
+            "ja" => Some(Language::Japanese),
+            "zh" | "zh_cn" | "zh-cn" | "zh-hans" => Some(Language::ChineseSimplified),
+            "zh_tw" | "zh-tw" | "zh-hant" => Some(Language::ChineseTraditional),
+            "zh_hk" | "zh-hk" | "yue" => Some(Language::Cantonese),
             _ => None,
         }
     }
