@@ -395,7 +395,7 @@ class RynkKeyboardView @JvmOverloads constructor(
             }
 
             // Check if this is an SVG vector icon (Shift, Backspace, Enter, Globe, Emoji, Settings, Back)
-            if (item.labelType == 5 || SvgIcons.isIcon(item.text)) {
+            if (item.labelType != 6 && (item.labelType == 5 || SvgIcons.isIcon(item.text))) {
                 val iconSize = (item.fontSize * 1.25f).coerceAtLeast(18f)
                 val drawn = SvgIcons.draw(canvas, item.text, item.cx, item.cy, iconSize, item.color)
                 if (drawn) {
@@ -405,7 +405,8 @@ class RynkKeyboardView @JvmOverloads constructor(
 
             val paint = when {
                 item.isBold -> textPaintBold
-                item.labelType == 0 -> textPaintRegular   // Character keys & emojis
+                item.labelType == 0 -> textPaintRegular   // Character keys
+                item.labelType == 6 -> textPaintRegular   // Grid emojis
                 item.labelType == 1 -> textPaintRegular   // Secondary sub-labels
                 item.labelType == 2 -> textPaintMedium    // Suggestion chips & shortcuts
                 item.labelType == 3 -> textPaintBold      // Popups

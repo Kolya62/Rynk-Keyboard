@@ -57,7 +57,7 @@ impl EmojiManager {
         let bottom_bar_h = 44.0 * dp;
         let bot_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h;
         let content_y = tab_bar_h;
-        let _content_h = (bot_y - tab_bar_h).max(10.0);
+        let content_h = (bot_y - tab_bar_h).max(10.0);
 
         // 1. Clear background
         canvas.clear(theme.bg_color);
@@ -137,32 +137,43 @@ impl EmojiManager {
             theme.divider_color,
         );
 
-        // 3. Emoji Grid
+        // 3. Emoji Grid (optimized with viewport culling for instant rendering of large categories)
         let emojis = self.active_category.emojis();
         let cols = 7.0;
         let cell_w = metrics.total_width / cols;
         let cell_h = 44.0 * dp;
 
-        for (idx, &em) in emojis.iter().enumerate() {
-            let row = (idx as f32 / cols).floor();
-            let col = (idx as f32 % cols).floor();
-            let cx = col * cell_w + cell_w * 0.5;
-            let cy = content_y + row * cell_h + cell_h * 0.5 - self.scroll_offset_y;
-            let em_min_y = content_y + 10.0 * dp;
-            let em_max_y = bot_y - 10.0 * dp;
-            if cy >= em_min_y && cy <= em_max_y {
-                text_labels.push(TextLabel {
-                    text: em.to_string(),
-                    cx,
-                    cy,
-                    font_size: 24.0 * dp,
-                    color_r: 255,
-                    color_g: 255,
-                    color_b: 255,
-                    color_a: 255,
-                    is_bold: false,
-                    label_type: 6,
-                });
+        let em_min_y = content_y + 10.0 * dp;
+        let em_max_y = bot_y - 10.0 * dp;
+
+        let min_row = (self.scroll_offset_y / cell_h).floor().max(0.0) as usize;
+        let visible_rows = (content_h / cell_h).ceil() as usize + 2;
+        let max_row = min_row + visible_rows;
+
+        let start_idx = min_row * 7;
+        let end_idx = ((max_row + 1) * 7).min(emojis.len());
+
+        if start_idx < emojis.len() {
+            for idx in start_idx..end_idx {
+                let em = emojis[idx];
+                let row = (idx as f32 / cols).floor();
+                let col = (idx as f32 % cols).floor();
+                let cx = col * cell_w + cell_w * 0.5;
+                let cy = content_y + row * cell_h + cell_h * 0.5 - self.scroll_offset_y;
+                if cy >= em_min_y && cy <= em_max_y {
+                    text_labels.push(TextLabel {
+                        text: em.to_string(),
+                        cx,
+                        cy,
+                        font_size: 24.0 * dp,
+                        color_r: 255,
+                        color_g: 255,
+                        color_b: 255,
+                        color_a: 255,
+                        is_bold: false,
+                        label_type: 6,
+                    });
+                }
             }
         }
 
@@ -278,7 +289,7 @@ impl EmojiManager {
         let cell_h = 44.0 * dp;
         let total_rows = (self.active_category.emojis().len() as f32 / 7.0).ceil();
         let total_grid_h = total_rows * cell_h;
-        let max_scroll = (total_grid_h - content_h).max(0.0);
+        let max_scroll = (total_grid_h - content_h + 16.0 * dp).max(0.0);
 
         match action {
             TouchAction::Down => {
@@ -360,10 +371,12 @@ impl EmojiManager {
                     if rel_y >= 0.0 {
                         let row = (rel_y / cell_h) as usize;
                         let col = (x / cell_w) as usize;
-                        let idx = row * 7 + col;
-                        let emojis = self.active_category.emojis();
-                        if let Some(&em) = emojis.get(idx) {
-                            return EmojiTouchResult::SelectEmoji(em);
+                        if col < 7 {
+                            let idx = row * 7 + col;
+                            let emojis = self.active_category.emojis();
+                            if let Some(&em) = emojis.get(idx) {
+                                return EmojiTouchResult::SelectEmoji(em);
+                            }
                         }
                     }
                 }
