@@ -6,7 +6,8 @@
 *Next-generation, ultra-responsive Android keyboard powered by Rust and Kotlin*
 
 [![Platform](https://img.shields.io/badge/Platform-Android%207.0%2B%20(API%2024--35)-brightgreen?style=for-the-badge&logo=android)](https://developer.android.com)
-[![Core](https://img.shields.io/badge/Core-Rust%202021-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![Core](https://img.shields.io/badge/Core-Rust%202026-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![Release](https://img.shields.io/badge/Download-Release%20APK%20(v1.0.0)-success?style=for-the-badge&logo=android)](https://github.com/Kolya62/Rynk-Keyboard/releases/latest)
 [![Rendering](https://img.shields.io/badge/Rendering-Direct%20SDF%20Pixel%20Buffer-blue?style=for-the-badge)](https://github.com)
 [![Performance](https://img.shields.io/badge/Performance-120%20FPS%20%7C%20%3C1ms%20Latency-purple?style=for-the-badge)](https://github.com)
 [![License](https://img.shields.io/badge/License-MPL%202.0-blue?style=for-the-badge)](LICENSE)
