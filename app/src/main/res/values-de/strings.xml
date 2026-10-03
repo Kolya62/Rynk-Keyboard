@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Rynk-Einstellungen</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Tastatur der nächsten Generation powered by ultraschnelle Rust-Engine</string>
+    
+    <string name="step1_title">1. Rynk Keyboard aktivieren</string>
+    <string name="step1_desc">Aktivieren Sie die Tastatur in den Systemeinstellungen. Alle Berechnungen, Wörterbücher und das Rendering laufen vollständig lokal auf Ihrem Gerät.</string>
+    <string name="step1_btn">In den Einstellungen aktivieren</string>
+    <string name="step1_done">Tastatur aktiviert</string>
+    
+    <string name="step2_title">2. Eingabemethode auswählen</string>
+    <string name="step2_desc">Wechseln Sie die aktive Eingabemethode zu Rynk Keyboard.</string>
+    <string name="step2_btn">Rynk auswählen</string>
+    <string name="step2_done">Rynk als Standard ausgewählt</string>
+    
+    <string name="step3_title">3. Testfeld</string>
+    <string name="step3_desc">Testen Sie Reaktionsschnelligkeit, Animationen, Wischgesten und Wortvorschläge direkt hier:</string>
+    <string name="step3_hint">Tippen Sie hier, um Rynk zu testen...</string>
+    
+    <string name="btn_open_settings">Einstellungen öffnen</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Erscheinungsbild &amp; Designs</string>
+    <string name="pref_theme">Tastatur-Design</string>
+    <string name="theme_dark">Dunkel (Graphit)</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_amoled">AMOLED Schwarz</string>
+    <string name="theme_sunset">Sunset Dämmerung</string>
+    
+    <string name="pref_category_input">Eingabe &amp; Sprachen</string>
+    <string name="pref_autocorrect">Autokorrektur &amp; Vorschläge</string>
+    <string name="pref_autocorrect_desc">Sofortige Wortvorhersage und Tippfehlerkorrektur via Rust Trie</string>
+    <string name="pref_popup">Tasten-Popup-Vorschau</string>
+    <string name="pref_popup_desc">Vergrößerten Buchstaben und Akzent-Menü beim Halten anzeigen</string>
+    <string name="pref_profanity">Schimpfwörter</string>
+    <string name="pref_profanity_desc">Schimpfwörter in Vorschlägen und Autokorrektur zulassen</string>
+    <string name="btn_languages">Tastaturlayouts &amp; Sprachen</string>
+    <string name="dialog_languages_title">Aktive Tastaturlayouts</string>
+    
+    <string name="pref_category_dictionary">Persönliches Wörterbuch</string>
+    <string name="pref_user_dict_title">Meine Wörter</string>
+    <string name="pref_user_dict_desc">Fügen Sie eigene Wörter, Namen, Slang und Fachbegriffe hinzu</string>
+    <string name="btn_add_word">Neues Wort hinzufügen</string>
+    <string name="btn_view_words">Gespeicherte Wörter anzeigen (%d)</string>
+    <string name="dialog_add_word_title">Wort zum Wörterbuch hinzufügen</string>
+    <string name="dialog_word_hint">Wort eingeben...</string>
+    <string name="lang_russian">Russisch</string>
+    <string name="lang_english">Englisch</string>
+    <string name="btn_add">Hinzufügen</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="btn_delete">Löschen</string>
+    <string name="no_user_words">Das persönliche Wörterbuch ist leer. Fügen Sie Ihre ersten Wörter hinzu!</string>
+    
+    <string name="pref_category_feedback">Haptisches Feedback</string>
+    <string name="pref_haptics">Vibration beim Tippen</string>
+    <string name="pref_haptics_desc">Präzises taktiles Vibrationsfeedback</string>
+</resources>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Rynk Ayarları</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Ultra hızlı Rust motoruyla güçlendirilmiş yeni nesil klavye</string>
+    
+    <string name="step1_title">1. Rynk Keyboard\'u Etkinleştir</string>
+    <string name="step1_desc">Klavyeyi sistem ayarlarından etkinleştirin. Tüm hesaplamalar, sözlükler ve işleme %100 yerel olarak cihazınızda çalışır.</string>
+    <string name="step1_btn">Ayarlarda Etkinleştir</string>
+    <string name="step1_done">Klavye etkinleştirildi</string>
+    
+    <string name="step2_title">2. Giriş Yöntemini Seç</string>
+    <string name="step2_desc">Geçerli giriş yöntemini Rynk Keyboard olarak değiştirin.</string>
+    <string name="step2_btn">Rynk\'i Seç</string>
+    <string name="step2_done">Rynk varsayılan olarak seçildi</string>
+    
+    <string name="step3_title">3. Test Alanı</string>
+    <string name="step3_desc">Tepki süresini, animasyonları, kaydırma hareketlerini ve önerileri burada test edin:</string>
+    <string name="step3_hint">Rynk\'i test etmek için buraya dokunun...</string>
+    
+    <string name="btn_open_settings">Ayarları Aç</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Görünüm ve Temalar</string>
+    <string name="pref_theme">Klavye teması</string>
+    <string name="theme_dark">Koyu (Grafit)</string>
+    <string name="theme_light">Açık</string>
+    <string name="theme_amoled">AMOLED Siyah</string>
+    <string name="theme_sunset">Gün Batımı Twilight</string>
+    
+    <string name="pref_category_input">Giriş ve Diller</string>
+    <string name="pref_autocorrect">Otomatik Düzeltme ve Öneriler</string>
+    <string name="pref_autocorrect_desc">Rust Trie ile anında tahmini arama ve yazım hatası düzeltme</string>
+    <string name="pref_popup">Tuş Açılır Önizlemesi</string>
+    <string name="pref_popup_desc">Basılı tutulduğunda büyütülmüş harfi ve vurgu menüsünü göster</string>
+    <string name="pref_profanity">Küfürlü Sözcükler</string>
+    <string name="pref_profanity_desc">Önerilerde ve otomatik düzeltmede argo/küfürlü kelimelere izin ver</string>
+    <string name="btn_languages">Klavye Düzenleri ve Diller</string>
+    <string name="dialog_languages_title">Etkin Klavye Düzenleri</string>
+    
+    <string name="pref_category_dictionary">Kişisel Sözlük</string>
+    <string name="pref_user_dict_title">Kelimelerim</string>
+    <string name="pref_user_dict_desc">Klavyeye kendi kelimelerinizi, isimleri, argo ve teknik terimleri ekleyin</string>
+    <string name="btn_add_word">Yeni Kelime Ekle</string>
+    <string name="btn_view_words">Eklenen Kelimeleri Gör (%d)</string>
+    <string name="dialog_add_word_title">Sözlüğe Kelime Ekle</string>
+    <string name="dialog_word_hint">Kelime girin...</string>
+    <string name="lang_russian">Rusça</string>
+    <string name="lang_english">İngilizce</string>
+    <string name="btn_add">Ekle</string>
+    <string name="btn_cancel">İptal</string>
+    <string name="btn_delete">Sil</string>
+    <string name="no_user_words">Kişisel sözlük boş. İlk kelimelerinizi ekleyin!</string>
+    
+    <string name="pref_category_feedback">Dokunsal Geri Bildirim</string>
+    <string name="pref_haptics">Tuşa Basma Titreşimi</string>
+    <string name="pref_haptics_desc">Hassas dokunsal titreşim geri bildirimi</string>
+</resources>

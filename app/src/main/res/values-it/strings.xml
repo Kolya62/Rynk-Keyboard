@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Impostazioni Rynk</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Tastiera di nuova generazione basata su motore Rust ultra-veloce</string>
+    
+    <string name="step1_title">1. Abilita Rynk Keyboard</string>
+    <string name="step1_desc">Abilita la tastiera nelle impostazioni di sistema. Tutti i calcoli, dizionari e rendering avvengono al 100% in locale sul tuo dispositivo.</string>
+    <string name="step1_btn">Abilita nelle impostazioni</string>
+    <string name="step1_done">Tastiera abilitata</string>
+    
+    <string name="step2_title">2. Seleziona metodo di inserimento</string>
+    <string name="step2_desc">Imposta Rynk Keyboard come metodo di inserimento attivo.</string>
+    <string name="step2_btn">Scegli Rynk</string>
+    <string name="step2_done">Rynk selezionata come predefinita</string>
+    
+    <string name="step3_title">3. Campo di prova</string>
+    <string name="step3_desc">Prova la reattività, le animazioni, gli swipe e i suggerimenti qui sotto:</string>
+    <string name="step3_hint">Tocca qui per provare Rynk...</string>
+    
+    <string name="btn_open_settings">Apri impostazioni</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Aspetto e Temi</string>
+    <string name="pref_theme">Tema della tastiera</string>
+    <string name="theme_dark">Scuro (Grafite)</string>
+    <string name="theme_light">Chiaro</string>
+    <string name="theme_amoled">AMOLED Nero</string>
+    <string name="theme_sunset">Tramonto Twilight</string>
+    
+    <string name="pref_category_input">Digitazione e Lingue</string>
+    <string name="pref_autocorrect">Correzione automatica e Suggerimenti</string>
+    <string name="pref_autocorrect_desc">Ricerca predittiva istantanea e correzione refusi tramite Rust Trie</string>
+    <string name="pref_popup">Anteprima popup tasti</string>
+    <string name="pref_popup_desc">Mostra lettera ingrandita e menu accenti tenendo premuto</string>
+    <string name="pref_profanity">Parolacce</string>
+    <string name="pref_profanity_desc">Consenti parole volgari nei suggerimenti e nella correzione automatica</string>
+    <string name="btn_languages">Layout tastiera e lingue</string>
+    <string name="dialog_languages_title">Layout attivi</string>
+    
+    <string name="pref_category_dictionary">Dizionario personale</string>
+    <string name="pref_user_dict_title">Le mie parole</string>
+    <string name="pref_user_dict_desc">Aggiungi parole personalizzate, nomi, slang e termini tecnici alla tastiera</string>
+    <string name="btn_add_word">Aggiungi nuova parola</string>
+    <string name="btn_view_words">Visualizza parole aggiunte (%d)</string>
+    <string name="dialog_add_word_title">Aggiungi parola al dizionario</string>
+    <string name="dialog_word_hint">Inserisci parola...</string>
+    <string name="lang_russian">Russo</string>
+    <string name="lang_english">Inglese</string>
+    <string name="btn_add">Aggiungi</string>
+    <string name="btn_cancel">Annulla</string>
+    <string name="btn_delete">Elimina</string>
+    <string name="no_user_words">Il dizionario personale è vuoto. Aggiungi le tue prime parole!</string>
+    
+    <string name="pref_category_feedback">Feedback tattile</string>
+    <string name="pref_haptics">Vibrazione alla pressione</string>
+    <string name="pref_haptics_desc">Risposta tattile precisa Haptic Feedback</string>
+</resources>

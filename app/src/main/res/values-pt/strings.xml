@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Definições do Rynk</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Teclado de nova geração baseado no motor ultrarrápido em Rust</string>
+    
+    <string name="step1_title">1. Ativar Rynk Keyboard</string>
+    <string name="step1_desc">Ative o teclado nas definições do sistema. Todos os cálculos, dicionários e renderização ocorrem 100% localmente no seu dispositivo.</string>
+    <string name="step1_btn">Ativar nas definições</string>
+    <string name="step1_done">Teclado ativado</string>
+    
+    <string name="step2_title">2. Selecionar método de introdução</string>
+    <string name="step2_desc">Alterne o método de introdução ativo para o Rynk Keyboard.</string>
+    <string name="step2_btn">Escolher Rynk</string>
+    <string name="step2_done">Rynk selecionado como padrão</string>
+    
+    <string name="step3_title">3. Campo de teste</string>
+    <string name="step3_desc">Teste o tempo de resposta, animações, gestos e sugestões aqui mesmo:</string>
+    <string name="step3_hint">Toque aqui para testar o Rynk...</string>
+    
+    <string name="btn_open_settings">Abrir definições</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Aparência e Temas</string>
+    <string name="pref_theme">Tema do teclado</string>
+    <string name="theme_dark">Escuro (Grafite)</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_amoled">AMOLED Preto</string>
+    <string name="theme_sunset">Pôr do sol Twilight</string>
+    
+    <string name="pref_category_input">Introdução e Idiomas</string>
+    <string name="pref_autocorrect">Correção automática e Sugestões</string>
+    <string name="pref_autocorrect_desc">Pesquisa preditiva instantânea e correção de erros ortográficos via Rust Trie</string>
+    <string name="pref_popup">Pré-visualização popup de teclas</string>
+    <string name="pref_popup_desc">Mostrar letra ampliada e menu de acentos ao manter pressionado</string>
+    <string name="pref_profanity">Palavrões</string>
+    <string name="pref_profanity_desc">Permitir palavras ofensivas nas sugestões e correção automática</string>
+    <string name="btn_languages">Disposições de teclado e idiomas</string>
+    <string name="dialog_languages_title">Disposições ativas</string>
+    
+    <string name="pref_category_dictionary">Dicionário Pessoal</string>
+    <string name="pref_user_dict_title">As minhas palavras</string>
+    <string name="pref_user_dict_desc">Adicione as suas próprias palavras, nomes, gíria e termos ao teclado</string>
+    <string name="btn_add_word">Adicionar nova palavra</string>
+    <string name="btn_view_words">Ver palavras adicionadas (%d)</string>
+    <string name="dialog_add_word_title">Adicionar palavra ao dicionário</string>
+    <string name="dialog_word_hint">Introduza a palavra...</string>
+    <string name="lang_russian">Russo</string>
+    <string name="lang_english">Inglês</string>
+    <string name="btn_add">Adicionar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_delete">Eliminar</string>
+    <string name="no_user_words">O dicionário pessoal está vazio. Adicione as suas primeiras palavras!</string>
+    
+    <string name="pref_category_feedback">Feedback háptico</string>
+    <string name="pref_haptics">Vibração ao premir teclas</string>
+    <string name="pref_haptics_desc">Feedback tátil preciso Haptic Feedback</string>
+</resources>

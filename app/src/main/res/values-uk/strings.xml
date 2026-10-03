@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Налаштування Rynk</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Клавіатура нового покоління на базі надшвидкого ядра Rust</string>
+    
+    <string name="step1_title">1. Увімкніть Rynk Keyboard</string>
+    <string name="step1_desc">Дозвольте клавіатурі працювати в системі. Усі обчислення, словник та рендеринг відбуваються виключно локально на вашому пристрої.</string>
+    <string name="step1_btn">Увімкнути в налаштуваннях</string>
+    <string name="step1_done">Клавіатуру ввімкнено</string>
+    
+    <string name="step2_title">2. Виберіть спосіб введення</string>
+    <string name="step2_desc">Перемкніть активний метод введення на Rynk Keyboard.</string>
+    <string name="step2_btn">Вибрати Rynk</string>
+    <string name="step2_done">Rynk вибрано за замовчуванням</string>
+    
+    <string name="step3_title">3. Тестове поле</string>
+    <string name="step3_desc">Перевірте відгук, анімації, свайпи та підказки прямо тут:</string>
+    <string name="step3_hint">Натисніть тут, щоб протестувати Rynk...</string>
+    
+    <string name="btn_open_settings">Відкрити налаштування</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Зовнішній вигляд і теми</string>
+    <string name="pref_theme">Тема клавіатури</string>
+    <string name="theme_dark">Темна (Графіт)</string>
+    <string name="theme_light">Світла</string>
+    <string name="theme_amoled">AMOLED Чорна</string>
+    <string name="theme_sunset">Захід сонця Twilight</string>
+    
+    <string name="pref_category_input">Введення та мови</string>
+    <string name="pref_autocorrect">Автокорекція та підказки</string>
+    <string name="pref_autocorrect_desc">Миттєвий предиктивний пошук та виправлення одруківок через Rust Trie</string>
+    <string name="pref_popup">Спливаючий popup клавіш</string>
+    <string name="pref_popup_desc">Показувати збільшену літеру та меню діакритики при утриманні</string>
+    <string name="pref_profanity">Нецензурні слова</string>
+    <string name="pref_profanity_desc">Дозволити нецензурні слова в підказках та автозаміні</string>
+    <string name="btn_languages">Розкладки клавіатури та мови</string>
+    <string name="dialog_languages_title">Активні розкладки</string>
+    
+    <string name="pref_category_dictionary">Користувацький словник</string>
+    <string name="pref_user_dict_title">Мої слова</string>
+    <string name="pref_user_dict_desc">Додавайте власні слова, імена, сленг та терміни до клавіатури</string>
+    <string name="btn_add_word">Додати нове слово</string>
+    <string name="btn_view_words">Переглянути додані слова (%d)</string>
+    <string name="dialog_add_word_title">Додати слово до словника</string>
+    <string name="dialog_word_hint">Введіть слово...</string>
+    <string name="lang_russian">Російська</string>
+    <string name="lang_english">Англійська</string>
+    <string name="btn_add">Додати</string>
+    <string name="btn_cancel">Скасувати</string>
+    <string name="btn_delete">Видалити</string>
+    <string name="no_user_words">Користувацький словник порожній. Додайте свої перші слова!</string>
+    
+    <string name="pref_category_feedback">Тактильний відгук</string>
+    <string name="pref_haptics">Вібрація при натисканні</string>
+    <string name="pref_haptics_desc">Точний тактильний вібровідгук Haptic Feedback</string>
+</resources>

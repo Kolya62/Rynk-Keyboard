@@ -1,0 +1,263 @@
+package org.rynk.keyboard
+
+import android.content.Context
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
+
+class SettingsActivity : AppCompatActivity() {
+
+    private lateinit var dictManager: UserDictionaryManager
+    private lateinit var btnViewUserWords: MaterialButton
+
+    private val allLanguages = listOf(
+        "ru" to "Русский",
+        "en" to "English",
+        "de" to "Deutsch",
+        "fr" to "Français",
+        "es" to "Español",
+        "pt" to "Português",
+        "it" to "Italiano",
+        "tr" to "Türkçe",
+        "uk" to "Українська",
+        "be" to "Беларуская",
+        "kk" to "Қазақша"
+    )
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_settings)
+
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.settings_title)
+
+        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        dictManager = UserDictionaryManager(this)
+
+        val rgThemes = findViewById<RadioGroup>(R.id.rgThemes)
+        val rbDark = findViewById<RadioButton>(R.id.rbDark)
+        val rbLight = findViewById<RadioButton>(R.id.rbLight)
+        val rbAmoled = findViewById<RadioButton>(R.id.rbAmoled)
+        val rbSunset = findViewById<RadioButton>(R.id.rbSunset)
+
+        val switchAutocorrect = findViewById<SwitchMaterial>(R.id.switchAutocorrect)
+        val switchPopup = findViewById<SwitchMaterial>(R.id.switchPopup)
+        val switchProfanity = findViewById<SwitchMaterial>(R.id.switchProfanity)
+        val btnKeyboardLanguages = findViewById<MaterialButton>(R.id.btnKeyboardLanguages)
+        val switchHaptics = findViewById<SwitchMaterial>(R.id.switchHaptics)
+
+        val btnAddUserWord = findViewById<MaterialButton>(R.id.btnAddUserWord)
+        btnViewUserWords = findViewById(R.id.btnViewUserWords)
+
+        // Default to Light theme (1)
+        val currentThemeId = prefs.getInt("theme_id", 1)
+        when (currentThemeId) {
+            0 -> rbDark.isChecked = true
+            1 -> rbLight.isChecked = true
+            2 -> rbAmoled.isChecked = true
+            3 -> rbSunset.isChecked = true
+            else -> rbLight.isChecked = true
+        }
+
+        switchAutocorrect.isChecked = prefs.getBoolean("pref_autocorrect", true)
+        switchPopup.isChecked = prefs.getBoolean("pref_popup", true)
+        switchProfanity.isChecked = prefs.getBoolean("pref_profanity", false)
+        switchHaptics.isChecked = prefs.getBoolean("pref_haptics", true)
+
+        rgThemes.setOnCheckedChangeListener { _, checkedId ->
+            val themeId = when (checkedId) {
+                R.id.rbDark -> 0
+                R.id.rbAmoled -> 2
+                R.id.rbSunset -> 3
+                else -> 1 // Default to Light
+            }
+            prefs.edit().putInt("theme_id", themeId).apply()
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeSetTheme(themeId)
+            }
+        }
+
+        switchAutocorrect.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_autocorrect", isChecked).apply()
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeSetAutocorrectEnabled(isChecked)
+            }
+        }
+
+        switchPopup.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_popup", isChecked).apply()
+        }
+
+        switchProfanity.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_profanity", isChecked).apply()
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeSetProfanityEnabled(isChecked)
+            }
+        }
+
+        btnKeyboardLanguages.setOnClickListener {
+            showLanguagesDialog()
+        }
+
+        switchHaptics.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_haptics", isChecked).apply()
+        }
+
+        updateUserWordCount()
+
+        btnAddUserWord.setOnClickListener {
+            showAddWordDialog()
+        }
+
+        btnViewUserWords.setOnClickListener {
+            showViewWordsDialog()
+        }
+    }
+
+    private fun getDefaultEnabledLanguages(): String {
+        val sysLang = java.util.Locale.getDefault().language.lowercase()
+        return when (sysLang) {
+            "ru" -> "ru,en"
+            "uk" -> "uk,en"
+            "be" -> "be,ru,en"
+            "kk" -> "kk,ru,en"
+            "de" -> "de,en"
+            "fr" -> "fr,en"
+            "es" -> "es,en"
+            "pt" -> "pt,en"
+            "it" -> "it,en"
+            "tr" -> "tr,en"
+            else -> "en"
+        }
+    }
+
+    private fun showLanguagesDialog() {
+        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        val currentStr = prefs.getString("enabled_languages", null) ?: getDefaultEnabledLanguages()
+        val currentSet = currentStr.split(",").map { it.trim().lowercase() }.toMutableSet()
+
+        val names = allLanguages.map { it.second }.toTypedArray()
+        val checkedItems = BooleanArray(allLanguages.size) { i ->
+            currentSet.contains(allLanguages[i].first)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_languages_title))
+            .setMultiChoiceItems(names, checkedItems) { _, which, isChecked ->
+                val code = allLanguages[which].first
+                if (isChecked) {
+                    currentSet.add(code)
+                } else {
+                    currentSet.remove(code)
+                }
+            }
+            .setPositiveButton("OK") { _, _ ->
+                if (currentSet.isEmpty()) {
+                    currentSet.add("en")
+                }
+                val result = allLanguages.map { it.first }.filter { currentSet.contains(it) }.joinToString(",")
+                prefs.edit().putString("enabled_languages", result).apply()
+                if (NativeBridge.isLibraryLoaded()) {
+                    NativeBridge.nativeSetEnabledLanguages(result)
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun updateUserWordCount() {
+        val count = dictManager.getAllWords().size
+        btnViewUserWords.text = getString(R.string.btn_view_words, count)
+    }
+
+    private fun showAddWordDialog() {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (18 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+
+        val input = EditText(this).apply {
+            hint = getString(R.string.dialog_word_hint)
+            setSingleLine(true)
+        }
+        container.addView(input)
+
+        val rgLang = RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            val padTop = (12 * resources.displayMetrics.density).toInt()
+            setPadding(0, padTop, 0, 0)
+        }
+        val rbRu = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = getString(R.string.lang_russian)
+            isChecked = true
+        }
+        val rbEn = RadioButton(this).apply {
+            id = View.generateViewId()
+            text = getString(R.string.lang_english)
+        }
+        rgLang.addView(rbRu)
+        rgLang.addView(rbEn)
+        container.addView(rgLang)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_add_word_title))
+            .setView(container)
+            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
+                val word = input.text.toString().trim()
+                if (word.isNotEmpty()) {
+                    val isRu = rbRu.isChecked
+                    dictManager.addWord(word, isRu)
+                    updateUserWordCount()
+                    Toast.makeText(this, "«$word» добавлено в словарь", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showViewWordsDialog() {
+        val words = dictManager.getAllWords()
+        if (words.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.pref_user_dict_title))
+                .setMessage(getString(R.string.no_user_words))
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        val displayItems = words.map { "${it.word}  (${if (it.isRussian) "RU" else "EN"})" }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.pref_user_dict_title))
+            .setItems(displayItems) { _, which ->
+                val targetWord = words[which].word
+                AlertDialog.Builder(this)
+                    .setTitle("${getString(R.string.btn_delete)} «$targetWord»?")
+                    .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                        dictManager.removeWord(targetWord)
+                        updateUserWordCount()
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            }
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
+}

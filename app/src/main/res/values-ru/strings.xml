@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="subtype_ru">Русский</string>
+    <string name="subtype_en">English</string>
+    <string name="settings_title">Настройки Rynk</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Клавиатура нового поколения на базе сверхбыстрого ядра Rust</string>
+    
+    <string name="step1_title">1. Включите Rynk Keyboard</string>
+    <string name="step1_desc">Разрешите клавиатуре работать в системе. Все вычисления, словарь и рендеринг происходят исключительно локально на вашем устройстве.</string>
+    <string name="step1_btn">Включить в системе</string>
+    <string name="step1_done">Клавиатура включена</string>
+    
+    <string name="step2_title">2. Выберите способ ввода</string>
+    <string name="step2_desc">Переключите текущий активный метод ввода на Rynk Keyboard.</string>
+    <string name="step2_btn">Выбрать Rynk</string>
+    <string name="step2_done">Rynk выбрана по умолчанию</string>
+    
+    <string name="step3_title">3. Тестовое поле</string>
+    <string name="step3_desc">Проверьте отклик, анимации, свайпы и подсказки прямо здесь:</string>
+    <string name="step3_hint">Нажмите здесь, чтобы протестировать Rynk...</string>
+    
+    <string name="btn_open_settings">Открыть настройки</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Внешний вид и темы</string>
+    <string name="pref_theme">Тема клавиатуры</string>
+    <string name="theme_dark">Тёмная (Графит)</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_sunset">Sunset Twilight</string>
+    
+    <string name="pref_category_input">Ввод и языки</string>
+    <string name="pref_autocorrect">Автокоррекция и подсказки</string>
+    <string name="pref_autocorrect_desc">Мгновенный предиктивный поиск и исправление опечаток через Rust Trie</string>
+    <string name="pref_popup">Всплывающий popup клавиш</string>
+    <string name="pref_popup_desc">Показывать увеличенную букву и меню акцентов при удержании</string>
+    <string name="pref_profanity">Нецензурные слова</string>
+    <string name="pref_profanity_desc">Разрешить нецензурные слова в подсказках и автозамене</string>
+    <string name="btn_languages">Раскладки клавиатуры и языки</string>
+    <string name="dialog_languages_title">Активные раскладки</string>
+    
+    <string name="pref_category_dictionary">Пользовательский словарь</string>
+    <string name="pref_user_dict_title">Мои слова</string>
+    <string name="pref_user_dict_desc">Добавляйте свои слова, имена, сленг и термины в словарь клавиатуры</string>
+    <string name="btn_add_word">Добавить новое слово</string>
+    <string name="btn_view_words">Просмотреть добавленные слова (%d)</string>
+    <string name="dialog_add_word_title">Добавить слово в словарь</string>
+    <string name="dialog_word_hint">Введите слово...</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_english">English</string>
+    <string name="btn_add">Добавить</string>
+    <string name="btn_cancel">Отмена</string>
+    <string name="btn_delete">Удалить</string>
+    <string name="no_user_words">Пользовательский словарь пуст. Добавьте свои первые слова!</string>
+    
+    <string name="pref_category_feedback">Тактильный отклик</string>
+    <string name="pref_haptics">Вибрация при нажатии</string>
+    <string name="pref_haptics_desc">Точный виброотклик Haptic Feedback</string>
+</resources>

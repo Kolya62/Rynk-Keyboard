@@ -1,0 +1,30 @@
+# Gradle and Android Build
+.gradle/
+build/
+app/build/
+*.apk
+*.ap_
+*.aab
+
+# Local Environment and Secrets
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Rust / Cargo artifacts
+target/
+rust-core/target/
+**/*.rs.bk
+*.pdb
+
+# Logs and OS files
+*.log
+Thumbs.db
+
+# Android Studio / NDK builds
+.navigation/
+captures/
+output.json
+.externalNativeBuild/
+.cxx/

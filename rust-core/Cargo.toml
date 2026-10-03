@@ -1,0 +1,11 @@
+[package]
+name = "rynk_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rynk_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = { version = "0.21", default-features = false }

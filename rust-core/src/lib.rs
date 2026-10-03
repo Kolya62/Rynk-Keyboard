@@ -1,0 +1,453 @@
+pub mod emoji;
+pub mod jni_bridge;
+pub mod keyboard;
+pub mod prediction;
+pub mod render;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keyboard::key::KeyboardMode;
+    use keyboard::state::{Language, ShiftState};
+    use keyboard::layout::{LayoutBuilder, LayoutMetrics};
+    use keyboard::KeyboardEngine;
+    use prediction::PredictionService;
+    use render::canvas::{Canvas, Color};
+    use render::theme::RynkTheme;
+    use render::KeyboardRenderer;
+
+    #[test]
+    fn test_layout_generation() {
+        let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
+        let ru_keys = LayoutBuilder::build_layout(KeyboardMode::Alphabet, Language::Russian, ShiftState::Off, &metrics);
+        assert!(!ru_keys.is_empty());
+        assert!(ru_keys.iter().any(|k| k.label == "й"));
+
+        let en_keys = LayoutBuilder::build_layout(KeyboardMode::Alphabet, Language::English, ShiftState::Off, &metrics);
+        assert!(!en_keys.is_empty());
+        assert!(en_keys.iter().any(|k| k.label == "q"));
+
+        let num_keys = LayoutBuilder::build_layout(KeyboardMode::Numbers, Language::Russian, ShiftState::Off, &metrics);
+        assert!(num_keys.iter().any(|k| k.label == "1"));
+    }
+
+    #[test]
+    fn test_prediction_and_autocorrect() {
+        let mut service = PredictionService::new();
+        let suggestions = service.get_suggestions("прив", None, true);
+        assert!(!suggestions.is_empty());
+        assert!(suggestions.iter().any(|s| s.contains("привет")));
+
+        let typo_suggestions = service.get_suggestions("превет", None, true);
+        assert!(!typo_suggestions.is_empty());
+        assert!(typo_suggestions.iter().any(|s| s == "привет"));
+
+        // Contextual next-word prediction
+        let context_suggs = service.get_suggestions("", Some("как"), true);
+        assert!(!context_suggs.is_empty());
+        assert!(context_suggs.iter().any(|s| s == "дела"));
+
+        service.learn_word("кастомноеслово", true);
+        let custom_sugg = service.get_suggestions("кастом", None, true);
+        assert!(custom_sugg.iter().any(|s| s == "кастомноеслово"));
+    }
+
+    #[test]
+    fn test_emoji_shortcuts() {
+        let service = PredictionService::new();
+        let sugg_smile = service.get_suggestions(":)", None, false);
+        assert!(sugg_smile.iter().any(|s| s == "😊"));
+
+        let sugg_heart = service.get_suggestions("<3", None, false);
+        assert!(sugg_heart.iter().any(|s| s == "❤️"));
+
+        // Regular word "огонь" must NOT be converted to emoji
+        let sugg_fire = service.get_suggestions("огонь", None, true);
+        assert!(!sugg_fire.iter().any(|s| s == "🔥"));
+    }
+
+    #[test]
+    fn test_user_dictionary_crud() {
+        let mut service = PredictionService::new();
+        service.add_user_word("суперслово", true);
+        assert!(service.get_user_words().contains(&"суперслово".to_string()));
+        let suggs = service.get_suggestions("суперсл", None, true);
+        assert!(suggs.iter().any(|s| s.contains("суперслово")));
+
+        service.remove_user_word("суперслово");
+        assert!(!service.get_user_words().contains(&"суперслово".to_string()));
+    }
+
+    #[test]
+    fn test_no_false_autocorrect_and_undo_backspace() {
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        // 1. Typing "ютуб" followed by Space must NOT replace it with "тут"
+        for ch in "ютуб".chars() {
+            engine.execute_key_action(keyboard::key::KeyAction::Character(ch));
+        }
+        let _events = engine.state.drain_events();
+        engine.execute_key_action(keyboard::key::KeyAction::Space);
+        let space_events = engine.state.drain_events();
+        let has_delete = space_events.iter().any(|e| matches!(e, keyboard::state::KeyboardOutputEvent::DeleteSurroundingText { .. }));
+        assert!(!has_delete, "Typing 'ютуб' + space must NOT delete surrounding text!");
+        let has_space_commit = space_events.iter().any(|e| match e {
+            keyboard::state::KeyboardOutputEvent::CommitText(s) => s == " ",
+            _ => false,
+        });
+        assert!(has_space_commit, "Must commit normal space for 'ютуб'!");
+
+        // 2. Typing "привет" followed by Space must NOT delete or replace
+        for ch in "привет".chars() {
+            engine.execute_key_action(keyboard::key::KeyAction::Character(ch));
+        }
+        let _ = engine.state.drain_events();
+        engine.execute_key_action(keyboard::key::KeyAction::Space);
+        let privet_space_events = engine.state.drain_events();
+        let has_delete_privet = privet_space_events.iter().any(|e| matches!(e, keyboard::state::KeyboardOutputEvent::DeleteSurroundingText { .. }));
+        assert!(!has_delete_privet, "Typing 'привет' + space must NOT delete surrounding text!");
+
+        // 3. Typing clear typo "превет" followed by space -> autocorrects to "привет "
+        for ch in "превет".chars() {
+            engine.execute_key_action(keyboard::key::KeyAction::Character(ch));
+        }
+        let _ = engine.state.drain_events();
+        engine.execute_key_action(keyboard::key::KeyAction::Space);
+        let typo_events = engine.state.drain_events();
+        let has_correct = typo_events.iter().any(|e| match e {
+            keyboard::state::KeyboardOutputEvent::CommitText(s) => s.contains("привет"),
+            _ => false,
+        });
+        assert!(has_correct, "Typo 'превет' should autocorrect to 'привет '");
+
+        // 4. FlorisBoard feature: Immediate backspace after autocorrect restores original "превет "
+        engine.execute_key_action(keyboard::key::KeyAction::Backspace);
+        let undo_events = engine.state.drain_events();
+        let has_restored = undo_events.iter().any(|e| match e {
+            keyboard::state::KeyboardOutputEvent::CommitText(s) => s == "превет ",
+            _ => false,
+        });
+        assert!(has_restored, "Backspace must undo autocorrect and restore original 'превет '");
+        assert_eq!(engine.state.last_committed_word, "превет");
+
+        // 5. FlorisBoard feature: Hitting Space again after undo must NOT re-autocorrect!
+        engine.execute_key_action(keyboard::key::KeyAction::Space);
+        let re_space_events = engine.state.drain_events();
+        let re_delete = re_space_events.iter().any(|e| matches!(e, keyboard::state::KeyboardOutputEvent::DeleteSurroundingText { .. }));
+        assert!(!re_delete, "Space after undo must NOT delete or autocorrect again!");
+        let re_space = re_space_events.iter().any(|e| match e {
+            keyboard::state::KeyboardOutputEvent::CommitText(s) => s == " ",
+            _ => false,
+        });
+        assert!(re_space, "Space after undo must commit normal space!");
+        assert!(engine.prediction.dictionary.contains_word("превет", true), "Rejected autocorrect word must be learned into user dictionary!");
+
+        // 6. FlorisBoard feature: Removing word from dictionary (blacklist/forget word)
+        engine.prediction.remove_user_word("превет");
+        assert!(!engine.prediction.dictionary.contains_word("превет", true), "Forgotten word must not be contained!");
+        assert_eq!(engine.prediction.dictionary.get_word_frequency("превет", true), 0);
+
+        // 7. Abbreviation tests:
+        // - All-caps abbreviation: typing "ost" -> "OST", "afk" -> "AFK", "егэ" -> "ЕГЭ"
+        // - Lowercase chat abbreviation: typing "хз" -> "хз", "спс" -> "спс"
+        // - Mixed-case abbreviation: typing "macos" -> "macOS", "спб" -> "СПб"
+        let ost_suggestions = engine.prediction.get_suggestions("ost", None, false);
+        assert!(!ost_suggestions.is_empty(), "Must suggest OST!");
+        assert_eq!(ost_suggestions[1], "OST", "Slot 1 (autocorrect/exact) for 'ost' must be canonical uppercase 'OST'!");
+
+        let afk_suggestions = engine.prediction.get_suggestions("afk", None, true);
+        assert!(!afk_suggestions.is_empty(), "Must suggest AFK in Russian layout!");
+        assert_eq!(afk_suggestions[1], "AFK", "Slot 1 for 'afk' in Russian layout must be canonical 'AFK'!");
+
+        let ege_suggestions = engine.prediction.get_suggestions("егэ", None, true);
+        assert!(!ege_suggestions.is_empty(), "Must suggest ЕГЭ in Russian layout!");
+        assert_eq!(ege_suggestions[1], "ЕГЭ", "Slot 1 for 'егэ' must be 'ЕГЭ'!");
+
+        let xz_suggestions = engine.prediction.get_suggestions("хз", None, true);
+        assert!(!xz_suggestions.is_empty(), "Must suggest хз!");
+        assert_eq!(xz_suggestions[1], "хз", "Slot 1 for 'хз' must be canonical lowercase 'хз'!");
+
+        let macos_suggestions = engine.prediction.get_suggestions("macos", None, false);
+        assert!(!macos_suggestions.is_empty(), "Must suggest macOS!");
+        assert_eq!(macos_suggestions[1], "macOS", "Slot 1 for 'macos' must be canonical mixed-case 'macOS'!");
+
+        let spb_suggestions = engine.prediction.get_suggestions("спб", None, true);
+        assert!(!spb_suggestions.is_empty(), "Must suggest СПб!");
+        assert_eq!(spb_suggestions[1], "СПб", "Slot 1 for 'спб' must be canonical mixed-case 'СПб'!");
+    }
+
+    #[test]
+    fn test_autocorrect_typos() {
+        use keyboard::key::KeyAction;
+        use keyboard::state::KeyboardOutputEvent;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        let test_cases = [
+            ("превет", "привет"),
+            ("спосибо", "спасибо"),
+            ("пожалуста", "пожалуйста"),
+            ("кароче", "короче"),
+            ("зделал", "сделал"),
+            ("ашибка", "ошибка"),
+            ("хрошо", "хорошо"),
+            ("севодня", "сегодня"),
+            ("вобще", "вообще"),
+            ("вопще", "вообще"),
+            ("лудше", "лучше"),
+            ("нравитса", "нравится"),
+            ("чево", "чего"),
+            ("каво", "кого"),
+            ("помойму", "по-моему"),
+            ("thnaks", "thanks"),
+            ("teh", "the"),
+            ("definately", "definitely"),
+        ];
+
+        for (typo, expected) in test_cases {
+            engine.state.composing_text.clear();
+            engine.state.last_committed_word.clear();
+            let _ = engine.state.drain_events();
+
+            let is_en = typo.chars().all(|c| c.is_ascii_alphabetic());
+            let lang = if is_en { Language::English } else { Language::Russian };
+            engine.state.language = lang;
+
+            for ch in typo.chars() {
+                engine.execute_key_action(KeyAction::Character(ch));
+            }
+            let _ = engine.state.drain_events();
+
+            let suggestions = engine.prediction.get_suggestions_for_lang(typo, None, lang);
+            println!("Typo '{}': suggestions = {:?}", typo, suggestions);
+            assert!(suggestions.len() >= 2, "Must produce suggestions for '{}'", typo);
+            assert_eq!(
+                suggestions[1].to_lowercase(),
+                expected.to_lowercase(),
+                "Center chip for '{}' must be '{}', got '{}'",
+                typo,
+                expected,
+                suggestions[1]
+            );
+
+            engine.execute_key_action(KeyAction::Space);
+            let events = engine.state.drain_events();
+            let committed = events.iter().find_map(|e| match e {
+                KeyboardOutputEvent::CommitText(s) => Some(s.clone()),
+                _ => None,
+            });
+            let expected_committed = format!("{} ", expected);
+            assert_eq!(
+                committed,
+                Some(expected_committed.clone()),
+                "Typo '{}' + space must commit '{}', got {:?}",
+                typo,
+                expected_committed,
+                committed
+            );
+        }
+    }
+
+    #[test]
+    fn test_autocorrect_disabled_toggle() {
+        use keyboard::key::KeyAction;
+        use keyboard::state::KeyboardOutputEvent;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        // Disable autocorrect
+        engine.autocorrect_enabled = false;
+
+        for ch in "превет".chars() {
+            engine.execute_key_action(KeyAction::Character(ch));
+        }
+        let _ = engine.state.drain_events();
+
+        engine.execute_key_action(KeyAction::Space);
+        let events = engine.state.drain_events();
+        let has_delete = events.iter().any(|e| matches!(e, KeyboardOutputEvent::DeleteSurroundingText { .. }));
+        assert!(!has_delete, "When autocorrect is disabled, must not delete surrounding text!");
+        let has_space = events.iter().any(|e| match e {
+            KeyboardOutputEvent::CommitText(s) => s == " ",
+            _ => false,
+        });
+        assert!(has_space, "When autocorrect is disabled, must commit normal space!");
+    }
+
+    #[test]
+    fn test_emoji_manager_exit() {
+        use emoji::{EmojiManager, EmojiTouchResult};
+        let mut mgr = EmojiManager::default();
+        let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
+
+        // Tap on top-left Back button
+        let top_exit = mgr.handle_touch(20.0, 20.0, &metrics);
+        assert!(matches!(top_exit, EmojiTouchResult::SwitchToAlphabet));
+
+        // Tap on bottom-left ABC button
+        let dp = (metrics.suggestion_bar_height / 44.0).max(1.0);
+        let bottom_bar_h = 44.0 * dp;
+        let abc_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h + 10.0;
+        let bot_exit = mgr.handle_touch(30.0, abc_y, &metrics);
+        assert!(matches!(bot_exit, EmojiTouchResult::SwitchToAlphabet));
+    }
+
+    #[test]
+    fn test_keyboard_engine_touch_and_state() {
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        let first_key = engine.keys[0].clone();
+        let (cx, cy) = first_key.center();
+
+        // Down event
+        engine.on_touch(keyboard::touch::TouchAction::Down, 0, cx, cy, 100);
+        assert_eq!(engine.active_popup_key_id, Some(first_key.id));
+
+        // Up event
+        engine.on_touch(keyboard::touch::TouchAction::Up, 0, cx, cy, 150);
+        assert_eq!(engine.active_popup_key_id, None);
+        assert!(!engine.state.composing_text.is_empty());
+
+        let events = engine.state.drain_events();
+        assert!(!events.is_empty());
+    }
+
+    #[test]
+    fn test_canvas_rendering() {
+        let mut buffer = vec![0u32; 400 * 300];
+        {
+            let mut canvas = Canvas::new(&mut buffer, 400, 300, 400);
+            canvas.clear(Color::rgb(22, 24, 29));
+            canvas.fill_rounded_rect(10.0, 10.0, 80.0, 40.0, 8.0, Color::rgb(0, 210, 255));
+        }
+        assert_eq!(buffer[0], Color::rgb(22, 24, 29).to_u32());
+        let center_idx = 30 * 400 + 50;
+        assert_eq!(buffer[center_idx], Color::rgb(0, 210, 255).to_u32());
+    }
+
+    #[test]
+    fn test_full_renderer_pipeline() {
+        let engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        let mut renderer = KeyboardRenderer::new(RynkTheme::dark());
+        let mut buffer = vec![0u32; 1080 * 800];
+        let mut canvas = Canvas::new(&mut buffer, 1080, 800, 1080);
+        let suggs = vec!["привет".to_string(), "как".to_string(), "дела".to_string()];
+
+        renderer.render(&mut canvas, &engine, 500, &suggs);
+        // Verify buffer is not empty
+        assert!(buffer.iter().any(|&p| p != 0));
+    }
+
+    #[test]
+    fn test_shift_double_tap_caps_lock() {
+        use keyboard::key::KeyAction;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        assert_eq!(engine.state.shift_state, ShiftState::Off);
+        let shift_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Shift)).unwrap();
+        assert_eq!(shift_key.label, "⇧");
+
+        // Tap 1
+        engine.last_interaction_time_ms = 1000;
+        engine.execute_key_action(KeyAction::Shift);
+        assert_eq!(engine.state.shift_state, ShiftState::Shifted);
+        let shift_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Shift)).unwrap();
+        assert_eq!(shift_key.label, "⬆");
+
+        // Tap 2 within 200ms -> CapsLock!
+        engine.last_interaction_time_ms = 1200;
+        engine.execute_key_action(KeyAction::Shift);
+        assert_eq!(engine.state.shift_state, ShiftState::CapsLock);
+        let shift_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Shift)).unwrap();
+        assert_eq!(shift_key.label, "⇪");
+
+        // Type a letter -> should stay in CapsLock
+        engine.execute_key_action(KeyAction::Character('A'));
+        assert_eq!(engine.state.shift_state, ShiftState::CapsLock);
+        let shift_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Shift)).unwrap();
+        assert_eq!(shift_key.label, "⇪");
+
+        // Tap Shift again -> turns off CapsLock
+        engine.last_interaction_time_ms = 2000;
+        engine.execute_key_action(KeyAction::Shift);
+        assert_eq!(engine.state.shift_state, ShiftState::Off);
+        let shift_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Shift)).unwrap();
+        assert_eq!(shift_key.label, "⇧");
+    }
+
+    #[test]
+    fn test_space_double_tap_language_switch() {
+        use keyboard::key::KeyAction;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        assert_eq!(engine.state.language, Language::Russian);
+
+        // Tap 1 on empty input -> Space
+        engine.last_interaction_time_ms = 1000;
+        engine.execute_key_action(KeyAction::Space);
+        assert_eq!(engine.state.language, Language::Russian);
+
+        // Tap 2 within 200ms -> Language switches to English!
+        engine.last_interaction_time_ms = 1200;
+        engine.execute_key_action(KeyAction::Space);
+        assert_eq!(engine.state.language, Language::English);
+    }
+
+    #[test]
+    fn test_smart_punctuation_and_gestures() {
+        use keyboard::key::KeyAction;
+        use keyboard::state::KeyboardOutputEvent;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        // 1. Type word "привет" and tap Space
+        for ch in "привет".chars() {
+            engine.execute_key_action(KeyAction::Character(ch));
+        }
+        engine.execute_key_action(KeyAction::Space);
+        let _ = engine.state.drain_events();
+        assert!(engine.state.last_char_was_space);
+
+        // 2. Tap Comma: must swallow space and commit ", "
+        engine.execute_key_action(KeyAction::Character(','));
+        let comma_events = engine.state.drain_events();
+        let deleted_space = comma_events.iter().any(|e| matches!(e, KeyboardOutputEvent::DeleteSurroundingText { before: 1, after: 0 }));
+        assert!(deleted_space, "Must swallow space preceding comma!");
+        let committed_comma = comma_events.iter().any(|e| match e {
+            KeyboardOutputEvent::CommitText(s) => s == ", ",
+            _ => false,
+        });
+        assert!(committed_comma, "Must commit comma followed by space (', ')!");
+
+        // 3. Dot punctuation: must auto-capitalize next word
+        engine.execute_key_action(KeyAction::Character('.'));
+        let dot_events = engine.state.drain_events();
+        let committed_dot = dot_events.iter().any(|e| match e {
+            KeyboardOutputEvent::CommitText(s) => s == ". ",
+            _ => false,
+        });
+        assert!(committed_dot, "Must commit period followed by space ('. ')!");
+        assert_eq!(engine.state.shift_state, ShiftState::Shifted, "Must auto-capitalize after period!");
+
+        // 4. Spacebar drag moves cursor
+        let space_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Space)).unwrap().clone();
+        let (sx, sy) = space_key.center();
+        engine.on_touch(keyboard::touch::TouchAction::Down, 1, sx, sy, 100);
+        let _ = engine.state.drain_events();
+        // Drag right by 35px
+        engine.on_touch(keyboard::touch::TouchAction::Move, 1, sx + 35.0, sy, 120);
+        let move_events = engine.state.drain_events();
+        let has_cursor = move_events.iter().any(|e| matches!(e, KeyboardOutputEvent::MoveCursor(_)));
+        assert!(has_cursor, "Spacebar drag must emit MoveCursor event!");
+        // Release must NOT commit space
+        engine.on_touch(keyboard::touch::TouchAction::Up, 1, sx + 35.0, sy, 140);
+        let up_events = engine.state.drain_events();
+        let has_space = up_events.iter().any(|e| matches!(e, KeyboardOutputEvent::CommitText(_)));
+        assert!(!has_space, "Space drag release must not commit space!");
+
+        // 5. Backspace swipe left emits DeleteWord
+        let bksp_key = engine.keys.iter().find(|k| matches!(k.action, KeyAction::Backspace)).unwrap().clone();
+        let (bx, by) = bksp_key.center();
+        engine.on_touch(keyboard::touch::TouchAction::Down, 2, bx, by, 200);
+        let _ = engine.state.drain_events();
+        // Swipe left by 45px
+        engine.on_touch(keyboard::touch::TouchAction::Move, 2, bx - 45.0, by, 230);
+        let bksp_events = engine.state.drain_events();
+        let has_delete_word = bksp_events.iter().any(|e| matches!(e, KeyboardOutputEvent::DeleteWord));
+        assert!(has_delete_word, "Backspace swipe left must emit DeleteWord event!");
+    }
+}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="settings_title">Rynk параметрлері</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Аса жылдам Rust ядросына негізделген жаңа буын пернетақтасы</string>
+    
+    <string name="step1_title">1. Rynk Keyboard пернетақтасын қосыңыз</string>
+    <string name="step1_desc">Жүйе параметрлерінде пернетақтаны қосыңыз. Барлық есептеулер, сөздік және рендеринг құрылғыңызда 100% жергілікті орындалады.</string>
+    <string name="step1_btn">Параметрлерде қосу</string>
+    <string name="step1_done">Пернетақта қосылды</string>
+    
+    <string name="step2_title">2. Енгізу әдісін таңдаңыз</string>
+    <string name="step2_desc">Белсенді енгізу әдісін Rynk Keyboard-қа ауыстырыңыз.</string>
+    <string name="step2_btn">Rynk таңдау</string>
+    <string name="step2_done">Rynk әдепкі ретінде таңдалды</string>
+    
+    <string name="step3_title">3. Сынақ өрісі</string>
+    <string name="step3_desc">Жауап жылдамдығын, анимацияларды, сырғытуларды және сөз ұсыныстарын осында тексеріңіз:</string>
+    <string name="step3_hint">Rynk сынау үшін осында түртіңіз...</string>
+    
+    <string name="btn_open_settings">Параметрлерді ашу</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Сыртқы түрі мен тақырыптар</string>
+    <string name="pref_theme">Пернетақта тақырыбы</string>
+    <string name="theme_dark">Күңгірт (Графит)</string>
+    <string name="theme_light">Ашық</string>
+    <string name="theme_amoled">AMOLED Қара</string>
+    <string name="theme_sunset">Күн батуы Twilight</string>
+    
+    <string name="pref_category_input">Енгізу және тілдер</string>
+    <string name="pref_autocorrect">Автотүзету және ұсыныстар</string>
+    <string name="pref_autocorrect_desc">Rust Trie арқылы лезде болжамды іздеу және қателерді түзету</string>
+    <string name="pref_popup">Пернелердің қалқымалы алдын ала қарауы</string>
+    <string name="pref_popup_desc">Басып тұрғанда үлкейтілген әріпті және қосымша таңбалар мәзірін көрсету</string>
+    <string name="pref_profanity">Бейәдеп сөздер</string>
+    <string name="pref_profanity_desc">Ұсыныстарда және автотүзетуде бейәдеп сөздерге рұқсат беру</string>
+    <string name="btn_languages">Пернетақта жаймалары және тілдер</string>
+    <string name="dialog_languages_title">Белсенді жаймалар</string>
+    
+    <string name="pref_category_dictionary">Жеке сөздік</string>
+    <string name="pref_user_dict_title">Менің сөздерім</string>
+    <string name="pref_user_dict_desc">Пернетақта сөздігіне өз сөздеріңізді, есімдерді, сленгті және терминдерді қосыңыз</string>
+    <string name="btn_add_word">Жаңа сөз қосу</string>
+    <string name="btn_view_words">Қосылған сөздерді көру (%d)</string>
+    <string name="dialog_add_word_title">Сөздікті сөзге қосу</string>
+    <string name="dialog_word_hint">Сөзді енгізіңіз...</string>
+    <string name="lang_russian">Орысша</string>
+    <string name="lang_english">Ағылшынша</string>
+    <string name="btn_add">Қосу</string>
+    <string name="btn_cancel">Болдырмау</string>
+    <string name="btn_delete">Жою</string>
+    <string name="no_user_words">Жеке сөздік бос. Алғашқы сөздеріңізді қосыңыз!</string>
+    
+    <string name="pref_category_feedback">Тактильді кері байланыс</string>
+    <string name="pref_haptics">Басқандағы діріл</string>
+    <string name="pref_haptics_desc">Дәл тактильді діріл Haptic Feedback</string>
+</resources>

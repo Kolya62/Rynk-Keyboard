@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rynk Keyboard</string>
+    <string name="subtype_ru">Русский</string>
+    <string name="subtype_en">English</string>
+    <string name="settings_title">Rynk Settings</string>
+    
+    <!-- Onboarding / Setup Wizard -->
+    <string name="onboarding_title">Rynk Keyboard</string>
+    <string name="onboarding_subtitle">Next-generation keyboard powered by ultra-fast Rust engine</string>
+    
+    <string name="step1_title">1. Enable Rynk Keyboard</string>
+    <string name="step1_desc">Enable the keyboard in system settings. All computations, dictionaries, and rendering run 100% locally on your device.</string>
+    <string name="step1_btn">Enable in settings</string>
+    <string name="step1_done">Keyboard enabled</string>
+    
+    <string name="step2_title">2. Select input method</string>
+    <string name="step2_desc">Switch active input method to Rynk Keyboard.</string>
+    <string name="step2_btn">Choose Rynk</string>
+    <string name="step2_done">Rynk selected as default</string>
+    
+    <string name="step3_title">3. Test field</string>
+    <string name="step3_desc">Test responsiveness, animations, swipes, and suggestions right here:</string>
+    <string name="step3_hint">Tap here to test Rynk...</string>
+    
+    <string name="btn_open_settings">Open settings</string>
+    
+    <!-- Settings Screen -->
+    <string name="pref_category_appearance">Appearance &amp; Themes</string>
+    <string name="pref_theme">Keyboard theme</string>
+    <string name="theme_dark">Dark (Graphite)</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_sunset">Sunset Twilight</string>
+    
+    <string name="pref_category_input">Input &amp; Languages</string>
+    <string name="pref_autocorrect">Autocorrect &amp; Suggestions</string>
+    <string name="pref_autocorrect_desc">Instant predictive search and typo correction via Rust Trie</string>
+    <string name="pref_popup">Key popup preview</string>
+    <string name="pref_popup_desc">Show enlarged character and alternate accents menu on hold</string>
+    <string name="pref_profanity">Profanity filter</string>
+    <string name="pref_profanity_desc">Allow profane words in suggestions and autocorrect</string>
+    <string name="btn_languages">Keyboard layouts &amp; languages</string>
+    <string name="dialog_languages_title">Active keyboard layouts</string>
+    
+    <string name="pref_category_dictionary">Personal Dictionary</string>
+    <string name="pref_user_dict_title">My words</string>
+    <string name="pref_user_dict_desc">Add your custom words, names, slang, and terms to the keyboard dictionary</string>
+    <string name="btn_add_word">Add new word</string>
+    <string name="btn_view_words">View added words (%d)</string>
+    <string name="dialog_add_word_title">Add word to dictionary</string>
+    <string name="dialog_word_hint">Enter word...</string>
+    <string name="lang_russian">Russian</string>
+    <string name="lang_english">English</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_delete">Delete</string>
+    <string name="no_user_words">Personal dictionary is empty. Add your first words!</string>
+    
+    <string name="pref_category_feedback">Haptic Feedback</string>
+    <string name="pref_haptics">Key press vibration</string>
+    <string name="pref_haptics_desc">Precise tactile haptic feedback</string>
+</resources>
