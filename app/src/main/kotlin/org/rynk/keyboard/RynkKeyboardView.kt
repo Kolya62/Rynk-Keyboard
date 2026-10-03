@@ -112,11 +112,29 @@ class RynkKeyboardView @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val width = MeasureSpec.getSize(widthMeasureSpec)
         val density = resources.displayMetrics.density
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val config = resources.configuration
+        val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val isTablet = config.smallestScreenWidthDp >= 600
 
-        val desiredHeightDp = if (isLandscape) 200f else if (isEmojiMode) 350f else 280f
+        val screenWidthPx = MeasureSpec.getSize(widthMeasureSpec)
+        val maxWidthDp = if (isTablet) {
+            if (isLandscape) 900f else 720f
+        } else {
+            Float.MAX_VALUE
+        }
+        val maxWidthPx = if (maxWidthDp < Float.MAX_VALUE) (maxWidthDp * density).toInt() else Int.MAX_VALUE
+        val width = if (maxWidthPx in 1 until screenWidthPx) maxWidthPx else screenWidthPx
+
+        val desiredHeightDp = if (isTablet) {
+            if (isLandscape) {
+                if (isEmojiMode) 360f else 280f
+            } else {
+                if (isEmojiMode) 400f else 330f
+            }
+        } else {
+            if (isLandscape) 200f else if (isEmojiMode) 350f else 280f
+        }
         val contentHeight = (desiredHeightDp * density).toInt()
         val totalHeight = contentHeight + bottomInset
 

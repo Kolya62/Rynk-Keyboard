@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settingsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/rynk_bg_dark">
+
+    <!-- Static Toolbar positioned safely under status bar and camera cutout -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="?attr/actionBarSize"
+        android:background="@color/rynk_card_dark"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/rynk_text_white"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/rynk_text_white" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/rynk_card_stroke" />
+
+    <ScrollView
+        android:id="@+id/settingsScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/rynk_bg_dark"
+        android:overScrollMode="never"
+        android:scrollbars="vertical"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingTop="32dp"
+            android:paddingBottom="48dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <!-- Tablet Centered Content Column (660dp) -->
+            <LinearLayout
+                android:layout_width="660dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_gravity="center_horizontal">
+
+                <!-- Theme Selection Category -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_category_appearance"
+                    android:textColor="@color/rynk_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="28dp"
+                    app:cardBackgroundColor="@color/rynk_card_dark"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="3dp">
+
+                    <RadioGroup
+                        android:id="@+id/rgThemes"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp">
+
+                        <RadioButton
+                            android:id="@+id/rbDark"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/theme_dark"
+                            android:textColor="@color/rynk_text_white"
+                            android:checked="true"
+                            android:textSize="16sp"
+                            android:padding="10dp" />
+
+                        <RadioButton
+                            android:id="@+id/rbLight"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/theme_light"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:padding="10dp" />
+
+                        <RadioButton
+                            android:id="@+id/rbAmoled"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/theme_amoled"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:padding="10dp" />
+
+                        <RadioButton
+                            android:id="@+id/rbSunset"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/theme_sunset"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:padding="10dp" />
+                    </RadioGroup>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Input Preferences Category -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_category_input"
+                    android:textColor="@color/rynk_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="28dp"
+                    app:cardBackgroundColor="@color/rynk_card_dark"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="3dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAutocorrect"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_autocorrect"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_autocorrect_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="18dp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchPopup"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_popup"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_popup_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="18dp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="@color/rynk_card_stroke"
+                            android:layout_marginBottom="18dp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchProfanity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_profanity"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:checked="false" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_profanity_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="18dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnKeyboardLanguages"
+                            android:layout_width="match_parent"
+                            android:layout_height="50dp"
+                            android:text="@string/btn_languages"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="15sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            app:strokeColor="@color/rynk_card_stroke"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- User Dictionary Category -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_category_dictionary"
+                    android:textColor="@color/rynk_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="28dp"
+                    app:cardBackgroundColor="@color/rynk_card_dark"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="3dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_user_dict_title"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_user_dict_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginBottom="16dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnAddUserWord"
+                            android:layout_width="match_parent"
+                            android:layout_height="50dp"
+                            android:text="@string/btn_add_word"
+                            android:textColor="@color/rynk_bg_dark"
+                            android:textSize="15sp"
+                            app:backgroundTint="@color/rynk_primary"
+                            app:cornerRadius="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnViewUserWords"
+                            android:layout_width="match_parent"
+                            android:layout_height="50dp"
+                            android:text="@string/btn_view_words"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="15sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            app:strokeColor="@color/rynk_card_stroke"
+                            app:cornerRadius="12dp"
+                            android:layout_marginBottom="18dp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="@color/rynk_card_stroke"
+                            android:layout_marginBottom="18dp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAdaptiveLearning"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_adaptive_learning"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_adaptive_learning_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="14dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearAdaptiveData"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="@string/btn_clear_adaptive_data"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="14sp"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Feedback Preferences Category -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_category_feedback"
+                    android:textColor="@color/rynk_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="28dp"
+                    app:cardBackgroundColor="@color/rynk_card_dark"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="3dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchHaptics"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_haptics"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="16sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/pref_haptics_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Support the Author Category -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_category_support"
+                    android:textColor="@color/rynk_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="true"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSupportAuthor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="32dp"
+                    app:cardBackgroundColor="@color/rynk_card_dark"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="3dp"
+                    app:strokeColor="@color/rynk_card_stroke"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/support_author_title"
+                            android:textColor="@color/rynk_text_white"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/support_author_desc"
+                            android:textColor="@color/rynk_text_muted"
+                            android:textSize="14sp"
+                            android:layout_marginBottom="16dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/bg_edit_text"
+                            android:padding="16dp"
+                            android:layout_marginBottom="16dp">
+
+                            <TextView
+                                android:id="@+id/tvSupportCardNumber"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/support_card_number"
+                                android:textColor="@color/rynk_primary"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:fontFamily="monospace"
+                                android:textIsSelectable="true" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCopyCardNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="50dp"
+                            android:text="@string/btn_copy_card"
+                            android:textColor="@color/rynk_bg_dark"
+                            android:textSize="15sp"
+                            app:backgroundTint="@color/rynk_primary"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -65,6 +65,13 @@ pub enum EmojiTouchResult {
 }
 
 impl EmojiManager {
+    pub fn get_cols(&self, metrics: &LayoutMetrics) -> usize {
+        let dp = (metrics.suggestion_bar_height / 40.0).max(1.0);
+        let desired_col_w = 48.0 * dp;
+        let cols = (metrics.total_width / desired_col_w).floor() as usize;
+        cols.clamp(7, 16)
+    }
+
     pub fn select_category(&mut self, cat: EmojiCategory) {
         self.active_category = cat;
         self.scroll_offset_y = 0.0;
@@ -229,7 +236,8 @@ impl EmojiManager {
 
         // 3. Emoji Grid (optimized with viewport culling for instant rendering of large categories)
         let emojis = self.active_category.emojis();
-        let cols = 7.0;
+        let cols_count = self.get_cols(metrics);
+        let cols = cols_count as f32;
         let cell_w = metrics.total_width / cols;
         let cell_h = 44.0 * dp;
 
@@ -240,8 +248,8 @@ impl EmojiManager {
         let visible_rows = (content_h / cell_h).ceil() as usize + 2;
         let max_row = min_row + visible_rows;
 
-        let start_idx = min_row * 7;
-        let end_idx = ((max_row + 1) * 7).min(emojis.len());
+        let start_idx = min_row * cols_count;
+        let end_idx = ((max_row + 1) * cols_count).min(emojis.len());
 
         if start_idx < emojis.len() {
             for idx in start_idx..end_idx {
@@ -829,7 +837,8 @@ impl EmojiManager {
         let content_y = tab_bar_h;
         let content_h = (bot_y - tab_bar_h).max(10.0);
         let cell_h = 42.0 * dp;
-        let total_rows = (self.active_category.emojis().len() as f32 / 7.0).ceil();
+        let cols_count = self.get_cols(metrics);
+        let total_rows = (self.active_category.emojis().len() as f32 / cols_count as f32).ceil();
         let total_grid_h = total_rows * cell_h;
         let max_scroll = (total_grid_h - content_h + 16.0 * dp).max(0.0);
 
@@ -911,15 +920,16 @@ impl EmojiManager {
 
                 // 3. Grid cell click (only if not dragged)
                 if !self.is_dragging {
-                    let cols = 7.0;
+                    let cols_count = self.get_cols(metrics);
+                    let cols = cols_count as f32;
                     let cell_w = metrics.total_width / cols;
                     let rel_y = y - content_y + self.scroll_offset_y;
 
                     if rel_y >= 0.0 {
                         let row = (rel_y / cell_h) as usize;
                         let col = (x / cell_w) as usize;
-                        if col < 7 {
-                            let idx = row * 7 + col;
+                        if col < cols_count {
+                            let idx = row * cols_count + col;
                             let emojis = self.active_category.emojis();
                             if let Some(&em) = emojis.get(idx) {
                                 return EmojiTouchResult::SelectEmoji(em);

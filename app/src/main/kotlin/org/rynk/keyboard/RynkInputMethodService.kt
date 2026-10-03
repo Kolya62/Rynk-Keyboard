@@ -6,13 +6,17 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
+import android.content.res.Configuration
 import android.os.Build
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.FrameLayout
 import android.widget.Toast
 
 class RynkInputMethodService : InputMethodService() {
@@ -104,9 +108,31 @@ class RynkInputMethodService : InputMethodService() {
         applyWindowTheming(win, themeId)
     }
 
+    private var inputContainerView: FrameLayout? = null
+
     override fun onCreateInputView(): View {
-        val view = RynkKeyboardView(this)
+        val root = FrameLayout(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        inputContainerView = root
+
+        val view = RynkKeyboardView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+            )
+        }
         keyboardView = view
+        root.addView(view)
+
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            view.dispatchApplyWindowInsets(insets)
+            insets
+        }
 
         val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
         val themeId = prefs.getInt("theme_id", 1)
@@ -117,7 +143,16 @@ class RynkInputMethodService : InputMethodService() {
             pollAndDispatchOutputEvents()
         }
 
-        return view
+        return root
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        keyboardView?.requestLayout()
+        inputContainerView?.requestLayout()
+        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        val themeId = prefs.getInt("theme_id", 1)
+        updateThemeAndWindowColors(themeId)
     }
 
     fun determineInputFieldMode(info: EditorInfo?): Int {
@@ -266,6 +301,13 @@ class RynkInputMethodService : InputMethodService() {
     }
 
     private fun updateThemeAndWindowColors(themeId: Int) {
+        val bgColor = keyboardView?.getThemeBgColor(themeId) ?: when (themeId) {
+            1 -> android.graphics.Color.rgb(238, 240, 245)
+            2 -> android.graphics.Color.BLACK
+            3 -> android.graphics.Color.rgb(30, 22, 42)
+            else -> android.graphics.Color.rgb(56, 58, 64)
+        }
+        inputContainerView?.setBackgroundColor(bgColor)
         keyboardView?.applyTheme(themeId)
         window?.window?.let { win ->
             applyWindowTheming(win, themeId)
