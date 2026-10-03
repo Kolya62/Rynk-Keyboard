@@ -1,11 +1,11 @@
 pub mod data;
 
-use data::EmojiCategory;
+use crate::keyboard::layout::LayoutMetrics;
+use crate::keyboard::touch::TouchAction;
 use crate::render::canvas::Canvas;
 use crate::render::theme::RynkTheme;
 use crate::render::TextLabel;
-use crate::keyboard::layout::LayoutMetrics;
-use crate::keyboard::touch::TouchAction;
+use data::EmojiCategory;
 
 pub struct EmojiManager {
     pub active_category: EmojiCategory,
@@ -129,7 +129,13 @@ impl EmojiManager {
         }
 
         // Tab bar divider
-        canvas.fill_rect(0.0, tab_bar_h - 1.0, metrics.total_width, 1.0, theme.divider_color);
+        canvas.fill_rect(
+            0.0,
+            tab_bar_h - 1.0,
+            metrics.total_width,
+            1.0,
+            theme.divider_color,
+        );
 
         // 3. Emoji Grid
         let emojis = self.active_category.emojis();
@@ -161,7 +167,13 @@ impl EmojiManager {
         }
 
         // 4. Bottom Navigation Bar (comfortably elevated above system navigation bar)
-        canvas.fill_rect(0.0, bot_y, metrics.total_width, bottom_bar_h, theme.suggestion_bar_bg);
+        canvas.fill_rect(
+            0.0,
+            bot_y,
+            metrics.total_width,
+            bottom_bar_h,
+            theme.suggestion_bar_bg,
+        );
         canvas.fill_rect(0.0, bot_y, metrics.total_width, 1.0, theme.divider_color);
 
         // Fill elevation zone below bottom bar to keep collapse arrow area clean
@@ -178,7 +190,14 @@ impl EmojiManager {
         // ABC key (Return to Alphabet)
         let abc_w = 76.0 * dp;
         let abc_h = bottom_bar_h - 8.0 * dp;
-        canvas.fill_rounded_rect(8.0 * dp, bot_y + 4.0 * dp, abc_w, abc_h, 6.0 * dp, theme.key_modifier);
+        canvas.fill_rounded_rect(
+            8.0 * dp,
+            bot_y + 4.0 * dp,
+            abc_w,
+            abc_h,
+            6.0 * dp,
+            theme.key_modifier,
+        );
         text_labels.push(TextLabel {
             text: "ABC".to_string(),
             cx: 8.0 * dp + abc_w * 0.5,
@@ -195,7 +214,14 @@ impl EmojiManager {
         // Backspace key
         let bs_w = 64.0 * dp;
         let bs_x = metrics.total_width - bs_w - 6.0 * dp;
-        canvas.fill_rounded_rect(bs_x, bot_y + 4.0 * dp, bs_w, abc_h, 6.0 * dp, theme.key_modifier);
+        canvas.fill_rounded_rect(
+            bs_x,
+            bot_y + 4.0 * dp,
+            bs_w,
+            abc_h,
+            6.0 * dp,
+            theme.key_modifier,
+        );
         text_labels.push(TextLabel {
             text: "⌫".to_string(),
             cx: bs_x + bs_w * 0.5,
@@ -212,7 +238,14 @@ impl EmojiManager {
         // Space key
         let space_x = 8.0 * dp + abc_w + 6.0 * dp;
         let space_w = bs_x - space_x - 6.0 * dp;
-        canvas.fill_rounded_rect(space_x, bot_y + 4.0 * dp, space_w, abc_h, 6.0 * dp, theme.key_normal);
+        canvas.fill_rounded_rect(
+            space_x,
+            bot_y + 4.0 * dp,
+            space_w,
+            abc_h,
+            6.0 * dp,
+            theme.key_normal,
+        );
         text_labels.push(TextLabel {
             text: "R Y N K".to_string(),
             cx: space_x + space_w * 0.5,
@@ -346,12 +379,7 @@ impl EmojiManager {
         }
     }
 
-    pub fn handle_touch(
-        &mut self,
-        x: f32,
-        y: f32,
-        metrics: &LayoutMetrics,
-    ) -> EmojiTouchResult {
+    pub fn handle_touch(&mut self, x: f32, y: f32, metrics: &LayoutMetrics) -> EmojiTouchResult {
         self.handle_touch_event(TouchAction::Up, x, y, metrics)
     }
 }

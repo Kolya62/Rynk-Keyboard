@@ -56,6 +56,10 @@
     <string name="btn_cancel">Отмена</string>
     <string name="btn_delete">Удалить</string>
     <string name="no_user_words">Пользовательский словарь пуст. Добавьте свои первые слова!</string>
+    <string name="pref_adaptive_learning">Адаптивное обучение словам</string>
+    <string name="pref_adaptive_learning_desc">Локально запоминать частые слова и словосочетания</string>
+    <string name="btn_clear_adaptive_data">Очистить историю обучения</string>
+    <string name="adaptive_data_cleared">История обучения очищена</string>
     
     <string name="pref_category_feedback">Тактильный отклик</string>
     <string name="pref_haptics">Вибрация при нажатии</string>

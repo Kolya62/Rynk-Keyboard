@@ -48,13 +48,28 @@ impl Default for TouchTracker {
 
 pub enum TouchResult {
     None,
-    KeyPress { key_id: u32, haptic: HapticFeedbackType },
-    KeyRelease { key_id: u32, action: KeyAction },
-    AlternateKeyRelease { character: char },
-    LongPressTriggered { key_id: u32, alternates: Vec<char> },
-    CursorMove { delta: i32 },
+    KeyPress {
+        key_id: u32,
+        haptic: HapticFeedbackType,
+    },
+    KeyRelease {
+        key_id: u32,
+        action: KeyAction,
+    },
+    AlternateKeyRelease {
+        character: char,
+    },
+    LongPressTriggered {
+        key_id: u32,
+        alternates: Vec<char>,
+    },
+    CursorMove {
+        delta: i32,
+    },
     DeleteWordSwipe,
-    SwitchLanguageSwipe { is_next: bool },
+    SwitchLanguageSwipe {
+        is_next: bool,
+    },
 }
 
 impl TouchTracker {
@@ -72,7 +87,8 @@ impl TouchTracker {
                 let hit_key = keys.iter().find(|k| k.contains(x, y));
                 let active_key_id = hit_key.map(|k| k.id);
                 let is_space = hit_key.is_some_and(|k| matches!(k.action, KeyAction::Space));
-                let is_backspace = hit_key.is_some_and(|k| matches!(k.action, KeyAction::Backspace));
+                let is_backspace =
+                    hit_key.is_some_and(|k| matches!(k.action, KeyAction::Backspace));
 
                 self.pointers.retain(|p| p.id != pointer_id);
                 self.pointers.push(PointerState {
@@ -96,10 +112,15 @@ impl TouchTracker {
                 if let Some(key) = hit_key {
                     let haptic = match key.action {
                         KeyAction::Character(_) => HapticFeedbackType::KeyClick,
-                        KeyAction::Shift | KeyAction::Backspace | KeyAction::Enter => HapticFeedbackType::KeyHeavyClick,
+                        KeyAction::Shift | KeyAction::Backspace | KeyAction::Enter => {
+                            HapticFeedbackType::KeyHeavyClick
+                        }
                         _ => HapticFeedbackType::KeyTick,
                     };
-                    return TouchResult::KeyPress { key_id: key.id, haptic };
+                    return TouchResult::KeyPress {
+                        key_id: key.id,
+                        haptic,
+                    };
                 }
                 TouchResult::None
             }
@@ -115,7 +136,9 @@ impl TouchTracker {
                         if total_dx.abs() >= 40.0 {
                             pointer.has_swiped_language = true;
                             pointer.has_dragged_cursor = true;
-                            return TouchResult::SwitchLanguageSwipe { is_next: total_dx > 0.0 };
+                            return TouchResult::SwitchLanguageSwipe {
+                                is_next: total_dx > 0.0,
+                            };
                         }
                     }
 
@@ -225,7 +248,8 @@ impl TouchTracker {
                 if elapsed >= self.long_press_threshold_ms {
                     let dist_sq = (pointer.current_x - pointer.start_x).powi(2)
                         + (pointer.current_y - pointer.start_y).powi(2);
-                    if dist_sq < 600.0 { // < 24px movement
+                    if dist_sq < 600.0 {
+                        // < 24px movement
                         if let Some(key_id) = pointer.active_key_id {
                             if let Some(key) = keys.iter().find(|k| k.id == key_id) {
                                 if !key.alternate_chars.is_empty() {

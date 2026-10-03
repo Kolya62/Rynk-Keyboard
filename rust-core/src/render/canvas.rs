@@ -16,7 +16,12 @@ impl Color {
     }
 
     pub const fn transparent() -> Self {
-        Self { r: 0, g: 0, b: 0, a: 0 }
+        Self {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+        }
     }
 
     pub fn with_alpha(self, a: u8) -> Self {
@@ -242,7 +247,16 @@ impl<'a> Canvas<'a> {
 
     /// Renders a fast tactile elevation drop shadow under a key
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_drop_shadow(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32, blur: f32, shadow_color: Color) {
+    pub fn draw_drop_shadow(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        blur: f32,
+        shadow_color: Color,
+    ) {
         if shadow_color.a == 0 {
             return;
         }

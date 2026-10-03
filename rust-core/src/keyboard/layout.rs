@@ -131,12 +131,18 @@ impl LayoutBuilder {
 
         // Row 1: 12 keys
         let r1_count = rows_data[0].len() as f32;
-        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let r1_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
+                / r1_count;
         let mut curr_x = m.padding_horizontal;
         let r1_y = m.key_area_top;
         for &(ch_str, sub, alts) in rows_data[0] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 curr_x,
@@ -160,12 +166,18 @@ impl LayoutBuilder {
 
         // Row 2: 11 keys centered
         let r2_count = rows_data[1].len() as f32;
-        let r2_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r2_count - 1.0) * m.key_spacing_h) / r2_count;
+        let r2_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r2_count - 1.0) * m.key_spacing_h)
+                / r2_count;
         let mut r2_x = m.padding_horizontal;
         let r2_y = r1_y + row_height + m.key_spacing_v;
         for &(ch_str, sub, alts) in rows_data[1] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r2_x,
@@ -191,7 +203,10 @@ impl LayoutBuilder {
         let r3_y = r2_y + row_height + m.key_spacing_v;
         let r3_letter_count = rows_data[2].len() as f32; // 9
         let shift_backspace_w = r1_key_w * 1.45;
-        let available_w = m.total_width - 2.0 * m.padding_horizontal - 2.0 * shift_backspace_w - 10.0 * m.key_spacing_h;
+        let available_w = m.total_width
+            - 2.0 * m.padding_horizontal
+            - 2.0 * shift_backspace_w
+            - 10.0 * m.key_spacing_h;
         let r3_letter_w = available_w / r3_letter_count;
 
         // Shift Key
@@ -214,7 +229,11 @@ impl LayoutBuilder {
         let mut r3_x = m.padding_horizontal + shift_backspace_w + m.key_spacing_h;
         for &(ch_str, sub, alts) in rows_data[2] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r3_x,
@@ -257,7 +276,8 @@ impl LayoutBuilder {
         let comma_w = r1_key_w;
         let dot_w = r1_key_w;
 
-        let total_fixed = mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
+        let total_fixed =
+            mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
         let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
 
         let mut r4_x = m.padding_horizontal;
@@ -397,12 +417,18 @@ impl LayoutBuilder {
 
         // Row 1: 10 keys
         let r1_count = 10.0;
-        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let r1_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
+                / r1_count;
         let mut curr_x = m.padding_horizontal;
         let r1_y = m.key_area_top;
         for &(ch_str, sub, alts) in rows_data[0] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 curr_x,
@@ -430,7 +456,11 @@ impl LayoutBuilder {
         let r2_y = r1_y + row_height + m.key_spacing_v;
         for &(ch_str, sub, alts) in rows_data[1] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r2_x,
@@ -454,7 +484,9 @@ impl LayoutBuilder {
 
         // Row 3: Shift + 7 letters + Backspace
         let r3_y = r2_y + row_height + m.key_spacing_v;
-        let shift_backspace_w = (m.total_width - 2.0 * m.padding_horizontal - 7.0 * r1_key_w - 8.0 * m.key_spacing_h) * 0.5;
+        let shift_backspace_w =
+            (m.total_width - 2.0 * m.padding_horizontal - 7.0 * r1_key_w - 8.0 * m.key_spacing_h)
+                * 0.5;
 
         keys.push(Key::new(
             key_id,
@@ -475,7 +507,11 @@ impl LayoutBuilder {
         let mut r3_x = m.padding_horizontal + shift_backspace_w + m.key_spacing_h;
         for &(ch_str, sub, alts) in rows_data[2] {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r3_x,
@@ -517,7 +553,8 @@ impl LayoutBuilder {
         let comma_w = r1_key_w;
         let dot_w = r1_key_w;
 
-        let total_fixed = mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
+        let total_fixed =
+            mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
         let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
 
         let mut r4_x = m.padding_horizontal;
@@ -622,12 +659,18 @@ impl LayoutBuilder {
 
         // Row 1
         let r1_count = r1.len() as f32;
-        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let r1_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
+                / r1_count;
         let mut curr_x = m.padding_horizontal;
         let r1_y = m.key_area_top;
         for &(ch_str, sub, alts) in r1 {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 curr_x,
@@ -652,7 +695,10 @@ impl LayoutBuilder {
         // Row 2
         let r2_count = r2.len() as f32;
         let r2_indent = if r2_count < r1_count {
-            (m.total_width - 2.0 * m.padding_horizontal - (r2_count * r1_key_w + (r2_count - 1.0) * m.key_spacing_h)) * 0.5
+            (m.total_width
+                - 2.0 * m.padding_horizontal
+                - (r2_count * r1_key_w + (r2_count - 1.0) * m.key_spacing_h))
+                * 0.5
         } else {
             0.0
         };
@@ -660,7 +706,11 @@ impl LayoutBuilder {
         let r2_y = r1_y + row_height + m.key_spacing_v;
         for &(ch_str, sub, alts) in r2 {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r2_x,
@@ -687,11 +737,13 @@ impl LayoutBuilder {
         let r3_count = r3.len() as f32;
         let r3_available = m.total_width - 2.0 * m.padding_horizontal;
         let (shift_w, backspace_w, r3_letter_w) = if r3_count <= 8.0 {
-            let sb_w = (r3_available - (r3_count * r1_key_w) - (r3_count + 1.0) * m.key_spacing_h) * 0.5;
+            let sb_w =
+                (r3_available - (r3_count * r1_key_w) - (r3_count + 1.0) * m.key_spacing_h) * 0.5;
             (sb_w.max(r1_key_w * 1.3), sb_w.max(r1_key_w * 1.3), r1_key_w)
         } else {
             let sb_w = r1_key_w * 1.45;
-            let letter_w = (r3_available - 2.0 * sb_w - (r3_count + 1.0) * m.key_spacing_h) / r3_count;
+            let letter_w =
+                (r3_available - 2.0 * sb_w - (r3_count + 1.0) * m.key_spacing_h) / r3_count;
             (sb_w, sb_w, letter_w)
         };
 
@@ -715,7 +767,11 @@ impl LayoutBuilder {
         let mut r3_x = m.padding_horizontal + shift_w + m.key_spacing_h;
         for &(ch_str, sub, alts) in r3 {
             let ch = ch_str.chars().next().unwrap();
-            let final_ch = if is_upper { ch.to_uppercase().next().unwrap() } else { ch };
+            let final_ch = if is_upper {
+                ch.to_uppercase().next().unwrap()
+            } else {
+                ch
+            };
             let mut key = Key::new(
                 key_id,
                 r3_x,
@@ -758,7 +814,8 @@ impl LayoutBuilder {
         let comma_w = r1_key_w;
         let dot_w = r1_key_w;
 
-        let total_fixed = mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
+        let total_fixed =
+            mode_btn_w + lang_btn_w + comma_w + dot_w + enter_w + 5.0 * m.key_spacing_h;
         let space_w = (m.total_width - 2.0 * m.padding_horizontal - total_fixed).max(60.0);
 
         let mut r4_x = m.padding_horizontal;
@@ -1209,7 +1266,9 @@ impl LayoutBuilder {
 
         let r1_symbols = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
         let r1_count = 10.0;
-        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let r1_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
+                / r1_count;
         let mut curr_x = m.padding_horizontal;
         let r1_y = m.key_area_top;
 
@@ -1253,7 +1312,12 @@ impl LayoutBuilder {
         let backspace_w = r1_key_w * 1.35;
         let r3_symbols = ["*", "\"", "'", ":", ";", "!", "?"];
         let mid_count = r3_symbols.len() as f32;
-        let mid_w = (m.total_width - 2.0 * m.padding_horizontal - more_sym_w - backspace_w - 8.0 * m.key_spacing_h) / mid_count;
+        let mid_w = (m.total_width
+            - 2.0 * m.padding_horizontal
+            - more_sym_w
+            - backspace_w
+            - 8.0 * m.key_spacing_h)
+            / mid_count;
 
         keys.push(Key::new(
             key_id,
@@ -1395,7 +1459,9 @@ impl LayoutBuilder {
 
         let r1_symbols = ["~", "`", "|", "•", "√", "π", "÷", "×", "¶", "∆"];
         let r1_count = 10.0;
-        let r1_key_w = (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h) / r1_count;
+        let r1_key_w =
+            (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
+                / r1_count;
         let mut curr_x = m.padding_horizontal;
         let r1_y = m.key_area_top;
 
@@ -1439,7 +1505,12 @@ impl LayoutBuilder {
         let backspace_w = r1_key_w * 1.35;
         let r3_symbols = ["%", "©", "®", "™", "✓", "<", ">"];
         let mid_count = r3_symbols.len() as f32;
-        let mid_w = (m.total_width - 2.0 * m.padding_horizontal - prev_mode_w - backspace_w - 8.0 * m.key_spacing_h) / mid_count;
+        let mid_w = (m.total_width
+            - 2.0 * m.padding_horizontal
+            - prev_mode_w
+            - backspace_w
+            - 8.0 * m.key_spacing_h)
+            / mid_count;
 
         keys.push(Key::new(
             key_id,

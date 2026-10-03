@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -21,14 +23,51 @@ android {
 
     ndkVersion = "26.3.11579264"
 
+    signingConfigs {
+        create("release") {
+            val localProps = Properties()
+            val localPropsFile = rootProject.file("local.properties")
+            if (localPropsFile.exists()) {
+                localProps.load(localPropsFile.inputStream())
+            }
+
+            val keystorePath = System.getenv("RYNK_KEYSTORE_PATH")
+                ?: System.getenv("RYNK_RELEASE_STORE_FILE")
+                ?: localProps.getProperty("rynk.release.storeFile")
+            val keystorePass = System.getenv("RYNK_KEYSTORE_PASSWORD")
+                ?: System.getenv("RYNK_RELEASE_STORE_PASSWORD")
+                ?: localProps.getProperty("rynk.release.storePassword")
+            val keyAliasStr = System.getenv("RYNK_KEY_ALIAS")
+                ?: System.getenv("RYNK_RELEASE_KEY_ALIAS")
+                ?: localProps.getProperty("rynk.release.keyAlias")
+            val keyPassStr = System.getenv("RYNK_KEY_PASSWORD")
+                ?: System.getenv("RYNK_RELEASE_KEY_PASSWORD")
+                ?: localProps.getProperty("rynk.release.keyPassword")
+
+            if (!keystorePath.isNullOrBlank() && file(keystorePath).exists() &&
+                !keystorePass.isNullOrBlank() && !keyAliasStr.isNullOrBlank() && !keyPassStr.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePass
+                keyAlias = keyAliasStr
+                keyPassword = keyPassStr
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                signingConfig = releaseSigning
+            } else {
+                signingConfig = null
+            }
         }
         debug {
             isDebuggable = true
@@ -45,6 +84,12 @@ android {
             jniLibs.srcDirs("src/main/jniLibs")
         }
     }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        disable.addAll(listOf("MissingTranslation", "ClickableViewAccessibility"))
+    }
 }
 
 kotlin {
@@ -57,6 +102,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 // Gradle task to build Rust Core using cargo and the installed NDK

@@ -4,12 +4,12 @@ pub mod font;
 pub mod popup;
 pub mod theme;
 
+use crate::keyboard::key::{Key, KeyAction, KeyType};
+use crate::keyboard::KeyboardEngine;
 use animation::AnimationManager;
 use canvas::Canvas;
 use popup::PopupRenderer;
 use theme::RynkTheme;
-use crate::keyboard::key::{Key, KeyAction, KeyType};
-use crate::keyboard::KeyboardEngine;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextLabel {
@@ -22,7 +22,7 @@ pub struct TextLabel {
     pub color_b: u8,
     pub color_a: u8,
     pub is_bold: bool,
-    pub label_type: u8,  // 0=key_primary, 1=key_secondary, 2=suggestion, 3=popup, 4=brand
+    pub label_type: u8, // 0=key_primary, 1=key_secondary, 2=suggestion, 3=popup, 4=brand
 }
 
 pub struct KeyboardRenderer {
@@ -72,7 +72,8 @@ impl KeyboardRenderer {
         }
 
         // 4. Tap Ripples and interactive animations
-        self.animation_mgr.render_and_update(canvas, current_time_ms);
+        self.animation_mgr
+            .render_and_update(canvas, current_time_ms);
 
         // 5. Active Key Popup or Long-press strip
         self.render_popups(canvas, engine, density);
@@ -98,7 +99,13 @@ impl KeyboardRenderer {
         canvas.fill_rect(0.0, 0.0, m.total_width, bar_h, self.theme.suggestion_bar_bg);
 
         // Subtle divider
-        canvas.fill_rect(0.0, bar_h - 1.0, m.total_width, 1.0, self.theme.divider_color);
+        canvas.fill_rect(
+            0.0,
+            bar_h - 1.0,
+            m.total_width,
+            1.0,
+            self.theme.divider_color,
+        );
 
         if !suggestions.is_empty() {
             // Typing mode: 3 symmetric candidate chips spanning the full width
@@ -239,7 +246,13 @@ impl KeyboardRenderer {
         }
     }
 
-    fn render_key(&mut self, canvas: &mut Canvas, key: &Key, density: f32, state: &crate::keyboard::state::KeyboardState) {
+    fn render_key(
+        &mut self,
+        canvas: &mut Canvas,
+        key: &Key,
+        density: f32,
+        state: &crate::keyboard::state::KeyboardState,
+    ) {
         let dp = density.max(1.0);
         let radius = 7.0 * dp;
 
@@ -248,7 +261,15 @@ impl KeyboardRenderer {
 
         // Key elevation shadow (only if not pressed)
         if !key.is_pressed {
-            canvas.draw_drop_shadow(key.x, key.y, key.width, key.height, radius, 2.2 * dp, self.theme.key_shadow);
+            canvas.draw_drop_shadow(
+                key.x,
+                key.y,
+                key.width,
+                key.height,
+                radius,
+                2.2 * dp,
+                self.theme.key_shadow,
+            );
         }
 
         // Fill color
@@ -298,7 +319,11 @@ impl KeyboardRenderer {
         } else {
             let is_icon = matches!(
                 key.action,
-                KeyAction::Shift | KeyAction::Backspace | KeyAction::Enter | KeyAction::SwitchLanguage | KeyAction::SwitchEmoji
+                KeyAction::Shift
+                    | KeyAction::Backspace
+                    | KeyAction::Enter
+                    | KeyAction::SwitchLanguage
+                    | KeyAction::SwitchEmoji
             );
             // Draw main label (rendered via hardware-accelerated SVG vectors or system typography)
             self.text_labels.push(TextLabel {
@@ -310,11 +335,11 @@ impl KeyboardRenderer {
                 color_g: primary_color.g,
                 color_b: primary_color.b,
                 color_a: primary_color.a,
-                is_bold: matches!(key.key_type, KeyType::Accent) || matches!(key.action, KeyAction::Character(_)),
+                is_bold: matches!(key.key_type, KeyType::Accent)
+                    || matches!(key.action, KeyAction::Character(_)),
                 label_type: if is_icon { 5 } else { 0 },
             });
         }
-
 
         // Secondary hint label in top right
         if let Some(ref sub) = key.sub_label {
@@ -356,12 +381,20 @@ impl KeyboardRenderer {
             }
         }
 
-        // Normal key preview on press
-        if let Some(key_id) = engine.active_popup_key_id {
-            if let Some(key) = engine.keys.iter().find(|k| k.id == key_id) {
-                // Show popup only for character keys
-                if matches!(key.action, KeyAction::Character(_)) {
-                    PopupRenderer::draw_preview(canvas, key, &self.theme, density, &mut self.text_labels);
+        // Normal key preview on press (respects popup_enabled setting)
+        if engine.popup_enabled {
+            if let Some(key_id) = engine.active_popup_key_id {
+                if let Some(key) = engine.keys.iter().find(|k| k.id == key_id) {
+                    // Show popup only for character keys
+                    if matches!(key.action, KeyAction::Character(_)) {
+                        PopupRenderer::draw_preview(
+                            canvas,
+                            key,
+                            &self.theme,
+                            density,
+                            &mut self.text_labels,
+                        );
+                    }
                 }
             }
         }

@@ -54,6 +54,8 @@ class SettingsActivity : AppCompatActivity() {
         val switchProfanity = findViewById<SwitchMaterial>(R.id.switchProfanity)
         val btnKeyboardLanguages = findViewById<MaterialButton>(R.id.btnKeyboardLanguages)
         val switchHaptics = findViewById<SwitchMaterial>(R.id.switchHaptics)
+        val switchAdaptiveLearning = findViewById<SwitchMaterial>(R.id.switchAdaptiveLearning)
+        val btnClearAdaptiveData = findViewById<MaterialButton>(R.id.btnClearAdaptiveData)
 
         val btnAddUserWord = findViewById<MaterialButton>(R.id.btnAddUserWord)
         btnViewUserWords = findViewById(R.id.btnViewUserWords)
@@ -72,6 +74,7 @@ class SettingsActivity : AppCompatActivity() {
         switchPopup.isChecked = prefs.getBoolean("pref_popup", true)
         switchProfanity.isChecked = prefs.getBoolean("pref_profanity", false)
         switchHaptics.isChecked = prefs.getBoolean("pref_haptics", true)
+        switchAdaptiveLearning.isChecked = prefs.getBoolean("pref_adaptive_learning", true)
 
         rgThemes.setOnCheckedChangeListener { _, checkedId ->
             val themeId = when (checkedId) {
@@ -95,6 +98,9 @@ class SettingsActivity : AppCompatActivity() {
 
         switchPopup.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("pref_popup", isChecked).apply()
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeSetPopupEnabled(isChecked)
+            }
         }
 
         switchProfanity.setOnCheckedChangeListener { _, isChecked ->
@@ -110,6 +116,26 @@ class SettingsActivity : AppCompatActivity() {
 
         switchHaptics.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("pref_haptics", isChecked).apply()
+        }
+
+        switchAdaptiveLearning.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_adaptive_learning", isChecked).apply()
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeSetAdaptiveLearningEnabled(isChecked)
+            }
+        }
+
+        btnClearAdaptiveData.setOnClickListener {
+            if (NativeBridge.isLibraryLoaded()) {
+                NativeBridge.nativeClearAdaptiveData()
+            }
+            try {
+                val file = java.io.File(filesDir, "adaptive_dict.bin")
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (ignored: Exception) {}
+            Toast.makeText(this, getString(R.string.adaptive_data_cleared), Toast.LENGTH_SHORT).show()
         }
 
         updateUserWordCount()

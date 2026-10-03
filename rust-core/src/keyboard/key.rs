@@ -49,7 +49,16 @@ pub struct Key {
 
 impl Key {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(id: u32, x: f32, y: f32, width: f32, height: f32, action: KeyAction, label: impl Into<String>, key_type: KeyType) -> Self {
+    pub fn new(
+        id: u32,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        action: KeyAction,
+        label: impl Into<String>,
+        key_type: KeyType,
+    ) -> Self {
         Self {
             id,
             x,

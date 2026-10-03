@@ -19,6 +19,29 @@ object NativeBridge {
 
     fun isLibraryLoaded(): Boolean = isLoaded
 
+    // InputFieldMode constants
+    const val INPUT_MODE_NORMAL = 0
+    const val INPUT_MODE_PASSWORD = 1
+    const val INPUT_MODE_VISIBLE_PASSWORD = 2
+    const val INPUT_MODE_EMAIL = 3
+    const val INPUT_MODE_URI = 4
+    const val INPUT_MODE_NUMBER = 5
+    const val INPUT_MODE_PHONE = 6
+    const val INPUT_MODE_DATE = 7
+    const val INPUT_MODE_TIME = 8
+    const val INPUT_MODE_MULTILINE = 9
+
+    // Binary event constants
+    const val EVENT_COMMIT_TEXT = 1
+    const val EVENT_DELETE_SURROUNDING = 2
+    const val EVENT_SEND_KEY_EVENT = 3
+    const val EVENT_PERFORM_HAPTIC = 4
+    const val EVENT_MOVE_CURSOR = 5
+    const val EVENT_DELETE_WORD = 6
+    const val EVENT_OPEN_SETTINGS = 7
+    const val EVENT_SWITCH_IME = 8
+    const val EVENT_HIDE_KEYBOARD = 9
+
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()
     external fun nativeResize(width: Float, height: Float, density: Float)
@@ -27,9 +50,11 @@ object NativeBridge {
     external fun nativeSetEnabledLanguages(langCodes: String)
     external fun nativeSetProfanityEnabled(enabled: Boolean)
     external fun nativeSetAutocorrectEnabled(enabled: Boolean)
+    external fun nativeSetMode(modeId: Int)
     external fun nativeOnTouchEvent(action: Int, pointerId: Int, x: Float, y: Float, timeMs: Long): Boolean
     external fun nativeRender(bitmap: Bitmap, timeMs: Long): Boolean
     external fun nativePollEvents(): String
+    external fun nativePollEventsBinary(): ByteArray?
     external fun nativeGetTextLabels(): String
     external fun nativeReset()
     external fun nativeHandleBack(): Boolean
@@ -43,5 +68,13 @@ object NativeBridge {
     external fun nativeSetClipboardText(text: String?)
     external fun nativeGetSuggestionAt(x: Float, y: Float): String
     external fun nativeGetMode(): Int
+
+    // Production-ready enhancements: InputFieldMode, Popups & Adaptive Dictionary
+    external fun nativeSetInputFieldMode(modeId: Int)
+    external fun nativeSetPopupEnabled(enabled: Boolean)
+    external fun nativeSetAdaptiveLearningEnabled(enabled: Boolean)
+    external fun nativeClearAdaptiveData()
+    external fun nativeSaveAdaptiveData(): ByteArray?
+    external fun nativeLoadAdaptiveData(data: ByteArray)
 }
 

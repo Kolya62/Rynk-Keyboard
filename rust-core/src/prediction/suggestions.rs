@@ -11,7 +11,11 @@ impl SuggestionEngine {
         is_ru: bool,
         dict: &Dictionary,
     ) -> Vec<String> {
-        let lang = if is_ru { Language::Russian } else { Language::English };
+        let lang = if is_ru {
+            Language::Russian
+        } else {
+            Language::English
+        };
         Self::get_suggestions_for_lang(input, last_word, lang, dict)
     }
 
@@ -45,7 +49,9 @@ impl SuggestionEngine {
             return vec![input.to_string(), formatted, format!("{}...", input)];
         }
 
-        let context_nexts = last_word.map(|lw| dict.get_context_predictions(lw, lang)).unwrap_or_default();
+        let context_nexts = last_word
+            .map(|lw| dict.get_context_predictions(lw, lang))
+            .unwrap_or_default();
 
         let mut target_lang = lang;
         let trie = dict.get_trie(target_lang);
@@ -61,7 +67,10 @@ impl SuggestionEngine {
         if completions.is_empty() {
             let alt_lang = if clean.chars().all(|c| c.is_ascii_alphabetic()) {
                 Some(Language::English)
-            } else if clean.chars().any(|c| ('\u{0400}'..='\u{04FF}').contains(&c)) {
+            } else if clean
+                .chars()
+                .any(|c| ('\u{0400}'..='\u{04FF}').contains(&c))
+            {
                 Some(Language::Russian)
             } else {
                 None
@@ -86,7 +95,10 @@ impl SuggestionEngine {
         // 4. Exact match prioritization:
         // If the user's typed word matches a dictionary word case-insensitively,
         // it must ALWAYS be the primary candidate (Slot 1, Center chip)!
-        if let Some(pos) = completions.iter().position(|(w, _)| w.to_lowercase() == clean) {
+        if let Some(pos) = completions
+            .iter()
+            .position(|(w, _)| w.to_lowercase() == clean)
+        {
             let exact = completions.remove(pos);
             let mut top_candidates = Vec::with_capacity(3);
 
@@ -110,30 +122,45 @@ impl SuggestionEngine {
 
         // 5. Typo or Prefix matching:
         // Combine prefix completions and fuzzy autocorrect, ranking by score_candidate
-        let mut candidates_map: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+        let mut candidates_map: std::collections::HashMap<String, f32> =
+            std::collections::HashMap::new();
 
         for (comp, freq) in &completions {
             let comp_lower = comp.to_lowercase();
             let score = if comp_lower.starts_with(&clean) {
-                let remaining = (comp_lower.chars().count().saturating_sub(clean.chars().count())) as f32;
+                let remaining = (comp_lower
+                    .chars()
+                    .count()
+                    .saturating_sub(clean.chars().count())) as f32;
                 let penalty = remaining * 0.15;
                 let freq_weight = (*freq as f32).min(1500.0) / 1500.0 * 1.5;
                 4.0 - penalty + freq_weight
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };
-            let ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == comp_lower) { 0.8 } else { 0.0 };
+            let ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == comp_lower) {
+                0.8
+            } else {
+                0.0
+            };
             candidates_map.insert(comp.clone(), score + ctx_bonus);
         }
 
-        let wordlist = dict.get_word_list(target_lang);
-        for &(w, freq) in wordlist {
-            if dict.removed_words.contains(w) || (!dict.profanity_enabled && dict.profanity.contains(w)) {
+        // Fast fuzzy candidates: query small indexed candidate pool (~50-150 words) instead of scanning 50,000 words!
+        let fuzzy_pool = dict.get_fuzzy_candidates(&clean, target_lang);
+        for &(w, freq) in &fuzzy_pool {
+            if dict.removed_words.contains(w)
+                || (!dict.profanity_enabled && dict.profanity.contains(w))
+            {
                 continue;
             }
-            let score = Autocorrect::score_candidate(&clean, &w.to_lowercase(), freq);
+            let score = Autocorrect::score_candidate(&clean, w, freq);
             if score > 1.8 {
-                let ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == w.to_lowercase()) { 0.8 } else { 0.0 };
+                let ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(w)) {
+                    0.8
+                } else {
+                    0.0
+                };
                 let entry = candidates_map.entry(w.to_string()).or_insert(0.0);
                 if score + ctx_bonus > *entry {
                     *entry = score + ctx_bonus;
@@ -149,7 +176,7 @@ impl SuggestionEngine {
             let second_fix = scored.get(1).map(|s| s.0.as_str()).unwrap_or("");
 
             vec![
-                input.to_string(), // Left: literal input
+                input.to_string(),                 // Left: literal input
                 Self::match_case(input, best_fix), // Center: autocorrect / best completion
                 if second_fix.is_empty() {
                     format!("{}...", input)
@@ -166,7 +193,9 @@ impl SuggestionEngine {
     pub fn match_case(template: &str, target: &str) -> String {
         let input_all_upper = !template.is_empty()
             && template.chars().any(|c| c.is_alphabetic())
-            && template.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+            && template
+                .chars()
+                .all(|c| !c.is_alphabetic() || c.is_uppercase());
         let input_first_upper = template.chars().next().is_some_and(|c| c.is_uppercase());
 
         let target_has_upper = target.chars().any(|c| c.is_uppercase());

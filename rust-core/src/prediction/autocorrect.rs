@@ -2,11 +2,28 @@ pub struct Autocorrect;
 
 impl Autocorrect {
     /// Computes Damerau-Levenshtein distance (insertions, deletions, substitutions, transpositions)
+    /// Optimized with early length-difference exit and stack buffers (zero heap allocations for words <= 48 chars)
     pub fn edit_distance(s1: &str, s2: &str) -> usize {
-        let v1: Vec<char> = s1.chars().collect();
-        let v2: Vec<char> = s2.chars().collect();
-        let len1 = v1.len();
-        let len2 = v2.len();
+        if s1 == s2 {
+            return 0;
+        }
+
+        let mut v1_buf = ['\0'; 48];
+        let mut v2_buf = ['\0'; 48];
+        let mut len1 = 0;
+        for (i, c) in s1.chars().enumerate() {
+            if i < 48 {
+                v1_buf[i] = c;
+            }
+            len1 += 1;
+        }
+        let mut len2 = 0;
+        for (i, c) in s2.chars().enumerate() {
+            if i < 48 {
+                v2_buf[i] = c;
+            }
+            len2 += 1;
+        }
 
         if len1 == 0 {
             return len2;
@@ -15,30 +32,76 @@ impl Autocorrect {
             return len1;
         }
 
-        let mut d = vec![vec![0usize; len2 + 1]; len1 + 1];
-
-        for (i, row) in d.iter_mut().enumerate().take(len1 + 1) {
-            row[0] = i;
-        }
-        for (j, val) in d[0].iter_mut().enumerate().take(len2 + 1) {
-            *val = j;
+        let diff = (len1 as isize - len2 as isize).unsigned_abs();
+        if diff > 2 {
+            return diff;
         }
 
-        for i in 1..=len1 {
-            for j in 1..=len2 {
-                let cost = if v1[i - 1] == v2[j - 1] { 0 } else { 1 };
+        if len1 <= 48 && len2 <= 48 {
+            let width = len2 + 1;
+            let mut d = [0usize; 49 * 49];
 
-                d[i][j] = (d[i - 1][j] + 1)
-                    .min(d[i][j - 1] + 1)
-                    .min(d[i - 1][j - 1] + cost);
+            for i in 0..=len1 {
+                d[i * width] = i;
+            }
+            for (j, item) in d.iter_mut().enumerate().take(len2 + 1) {
+                *item = j;
+            }
 
-                if i > 1 && j > 1 && v1[i - 1] == v2[j - 2] && v1[i - 2] == v2[j - 1] {
-                    d[i][j] = d[i][j].min(d[i - 2][j - 2] + 1);
+            for i in 1..=len1 {
+                for j in 1..=len2 {
+                    let cost = if v1_buf[i - 1] == v2_buf[j - 1] { 0 } else { 1 };
+
+                    let del = d[(i - 1) * width + j] + 1;
+                    let ins = d[i * width + (j - 1)] + 1;
+                    let sub = d[(i - 1) * width + (j - 1)] + cost;
+
+                    let mut val = del.min(ins).min(sub);
+
+                    if i > 1
+                        && j > 1
+                        && v1_buf[i - 1] == v2_buf[j - 2]
+                        && v1_buf[i - 2] == v2_buf[j - 1]
+                    {
+                        let trans = d[(i - 2) * width + (j - 2)] + 1;
+                        val = val.min(trans);
+                    }
+
+                    d[i * width + j] = val;
                 }
             }
-        }
 
-        d[len1][len2]
+            d[len1 * width + len2]
+        } else {
+            // Fallback for unusually long input strings
+            let v1: Vec<char> = s1.chars().collect();
+            let v2: Vec<char> = s2.chars().collect();
+            let width = len2 + 1;
+            let mut d = vec![0usize; (len1 + 1) * width];
+
+            for i in 0..=len1 {
+                d[i * width] = i;
+            }
+            for (j, item) in d.iter_mut().enumerate().take(len2 + 1) {
+                *item = j;
+            }
+
+            for i in 1..=len1 {
+                for j in 1..=len2 {
+                    let cost = if v1[i - 1] == v2[j - 1] { 0 } else { 1 };
+                    let del = d[(i - 1) * width + j] + 1;
+                    let ins = d[i * width + (j - 1)] + 1;
+                    let sub = d[(i - 1) * width + (j - 1)] + cost;
+                    let mut val = del.min(ins).min(sub);
+
+                    if i > 1 && j > 1 && v1[i - 1] == v2[j - 2] && v1[i - 2] == v2[j - 1] {
+                        val = val.min(d[(i - 2) * width + (j - 2)] + 1);
+                    }
+                    d[i * width + j] = val;
+                }
+            }
+            d[len1 * width + len2]
+        }
     }
 
     /// Computes match score combining edit distance, length similarity, and frequency
@@ -85,8 +148,16 @@ impl Autocorrect {
         let len_diff = (input_len as f32 - cand_len as f32).abs();
         let len_penalty = len_diff * 0.35;
 
-        let first_bonus = if input.chars().next() == candidate.chars().next() { 0.5 } else { 0.0 };
-        let prefix_bonus = if candidate.starts_with(input) { 0.6 } else { 0.0 };
+        let first_bonus = if input.chars().next() == candidate.chars().next() {
+            0.5
+        } else {
+            0.0
+        };
+        let prefix_bonus = if candidate.starts_with(input) {
+            0.6
+        } else {
+            0.0
+        };
 
         // Meaningful frequency weight: normalized + log component
         let freq_weight = (frequency as f32).min(1500.0) / 1500.0 * 1.5;

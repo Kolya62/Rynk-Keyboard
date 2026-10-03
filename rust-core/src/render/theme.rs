@@ -38,12 +38,12 @@ impl RynkTheme {
     pub fn dark() -> Self {
         Self {
             id: ThemeId::Dark,
-            bg_color: Color::rgb(42, 44, 51),             // Modern Yandex Dark #2A2C33
-            key_normal: Color::rgb(60, 63, 74),           // Visible elevated keys #3C3F4A
-            key_pressed: Color::rgb(76, 80, 94),          // Tactile press #4C505E
-            key_modifier: Color::rgb(50, 52, 62),         // Dark modifier tint #32343E
-            key_accent: Color::rgb(255, 219, 77),         // Signature Yandex Warm Gold #FFDB4D
-            key_accent_text: Color::rgb(26, 27, 34),      // Deep text on accent
+            bg_color: Color::rgb(42, 44, 51), // Modern Yandex Dark #2A2C33
+            key_normal: Color::rgb(60, 63, 74), // Visible elevated keys #3C3F4A
+            key_pressed: Color::rgb(76, 80, 94), // Tactile press #4C505E
+            key_modifier: Color::rgb(50, 52, 62), // Dark modifier tint #32343E
+            key_accent: Color::rgb(255, 219, 77), // Signature Yandex Warm Gold #FFDB4D
+            key_accent_text: Color::rgb(26, 27, 34), // Deep text on accent
             key_shadow: Color::rgba(0, 0, 0, 40),
             text_primary: Color::rgb(255, 255, 255),
             text_secondary: Color::rgb(157, 161, 175),
@@ -65,18 +65,18 @@ impl RynkTheme {
     pub fn light() -> Self {
         Self {
             id: ThemeId::Light,
-            bg_color: Color::rgb(238, 240, 245),          // Original clean Yandex light #EEF0F5
-            key_normal: Color::rgb(255, 255, 255),        // Pure snow-white elevated keys #FFFFFF
-            key_pressed: Color::rgb(222, 226, 235),       // Soft tactile press #DEE2EB
-            key_modifier: Color::rgb(214, 218, 227),      // Distinct Yandex light-slate modifier #D6DAE3
-            key_accent: Color::rgb(255, 219, 77),         // Signature Yandex Warm Gold #FFDB4D
-            key_accent_text: Color::rgb(26, 27, 34),      // Sharp contrast dark on accent
-            key_shadow: Color::rgba(0, 0, 0, 28),         // Soft natural drop shadow
-            text_primary: Color::rgb(28, 30, 36),         // Crisp deep graphite text #1C1E24
-            text_secondary: Color::rgb(134, 138, 150),    // Secondary sub-label hints #868A96
-            brand_accent: Color::rgb(255, 219, 77),       // Warm signature gold
+            bg_color: Color::rgb(238, 240, 245), // Original clean Yandex light #EEF0F5
+            key_normal: Color::rgb(255, 255, 255), // Pure snow-white elevated keys #FFFFFF
+            key_pressed: Color::rgb(222, 226, 235), // Soft tactile press #DEE2EB
+            key_modifier: Color::rgb(214, 218, 227), // Distinct Yandex light-slate modifier #D6DAE3
+            key_accent: Color::rgb(255, 219, 77), // Signature Yandex Warm Gold #FFDB4D
+            key_accent_text: Color::rgb(26, 27, 34), // Sharp contrast dark on accent
+            key_shadow: Color::rgba(0, 0, 0, 28), // Soft natural drop shadow
+            text_primary: Color::rgb(28, 30, 36), // Crisp deep graphite text #1C1E24
+            text_secondary: Color::rgb(134, 138, 150), // Secondary sub-label hints #868A96
+            brand_accent: Color::rgb(255, 219, 77), // Warm signature gold
             suggestion_bar_bg: Color::rgb(238, 240, 245), // Seamless with keyboard body
-            suggestion_chip_bg: Color::rgb(255, 255, 255),// Crisp white suggestion pill
+            suggestion_chip_bg: Color::rgb(255, 255, 255), // Crisp white suggestion pill
             suggestion_chip_active: Color::rgb(255, 219, 77), // Active gold chip
             suggestion_text: Color::rgb(28, 30, 36),
             suggestion_text_active: Color::rgb(26, 27, 34),
@@ -92,11 +92,11 @@ impl RynkTheme {
     pub fn amoled() -> Self {
         Self {
             id: ThemeId::Amoled,
-            bg_color: Color::rgb(0, 0, 0),                // Pitch black
+            bg_color: Color::rgb(0, 0, 0), // Pitch black
             key_normal: Color::rgb(18, 18, 18),
             key_pressed: Color::rgb(35, 35, 35),
             key_modifier: Color::rgb(12, 12, 12),
-            key_accent: Color::rgb(0, 245, 212),          // Electric Neon
+            key_accent: Color::rgb(0, 245, 212), // Electric Neon
             key_accent_text: Color::rgb(0, 0, 0),
             key_shadow: Color::rgba(0, 0, 0, 0),
             text_primary: Color::rgb(255, 255, 255),
@@ -119,11 +119,11 @@ impl RynkTheme {
     pub fn sunset() -> Self {
         Self {
             id: ThemeId::Sunset,
-            bg_color: Color::rgb(30, 22, 42),             // Twilight Purple
+            bg_color: Color::rgb(30, 22, 42), // Twilight Purple
             key_normal: Color::rgb(45, 34, 62),
             key_pressed: Color::rgb(65, 48, 90),
             key_modifier: Color::rgb(35, 26, 50),
-            key_accent: Color::rgb(255, 107, 139),        // Neon Coral / Rose
+            key_accent: Color::rgb(255, 107, 139), // Neon Coral / Rose
             key_accent_text: Color::rgb(255, 255, 255),
             key_shadow: Color::rgba(0, 0, 0, 80),
             text_primary: Color::rgb(250, 245, 255),

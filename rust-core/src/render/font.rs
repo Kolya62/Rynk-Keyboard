@@ -47,7 +47,9 @@ impl FontRenderer {
         match ch {
             ' ' => font_size * 0.45,
             '.' | ',' | '\'' | '!' | ':' | ';' | '|' | 'i' | 'l' => font_size * 0.35,
-            'm' | 'w' | 'M' | 'W' | 'ж' | 'ш' | 'щ' | 'ю' | 'Ж' | 'Ш' | 'Щ' | 'Ю' => font_size * 0.85,
+            'm' | 'w' | 'M' | 'W' | 'ж' | 'ш' | 'щ' | 'ю' | 'Ж' | 'Ш' | 'Щ' | 'Ю' => {
+                font_size * 0.85
+            }
             '⇧' | '⬆' | '⇪' | '⌫' | '↵' => font_size * 0.85,
             '🌐' | '😊' | '⚙' => font_size * 0.95,
             _ => font_size * 0.60,
@@ -130,7 +132,14 @@ impl FontRenderer {
         }
     }
 
-    fn draw_icon_shift(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_shift(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let h = size * 0.5;
         let w = size * 0.45;
         // Peak of arrow
@@ -143,14 +152,61 @@ impl FontRenderer {
 
         Self::draw_line(canvas, top_x, top_y, left_x, left_y, stroke, color);
         Self::draw_line(canvas, top_x, top_y, right_x, right_y, stroke, color);
-        Self::draw_line(canvas, left_x, left_y, left_x + w * 0.4, left_y, stroke, color);
-        Self::draw_line(canvas, right_x, right_y, right_x - w * 0.4, right_y, stroke, color);
-        Self::draw_line(canvas, left_x + w * 0.4, left_y, left_x + w * 0.4, cy + h * 0.7, stroke, color);
-        Self::draw_line(canvas, right_x - w * 0.4, right_y, right_x - w * 0.4, cy + h * 0.7, stroke, color);
-        Self::draw_line(canvas, left_x + w * 0.4, cy + h * 0.7, right_x - w * 0.4, cy + h * 0.7, stroke, color);
+        Self::draw_line(
+            canvas,
+            left_x,
+            left_y,
+            left_x + w * 0.4,
+            left_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            right_x,
+            right_y,
+            right_x - w * 0.4,
+            right_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            left_x + w * 0.4,
+            left_y,
+            left_x + w * 0.4,
+            cy + h * 0.7,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            right_x - w * 0.4,
+            right_y,
+            right_x - w * 0.4,
+            cy + h * 0.7,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            left_x + w * 0.4,
+            cy + h * 0.7,
+            right_x - w * 0.4,
+            cy + h * 0.7,
+            stroke,
+            color,
+        );
     }
 
-    fn draw_icon_shift_solid(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_shift_solid(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let h = size * 0.50;
         let w = size * 0.44;
 
@@ -177,14 +233,61 @@ impl FontRenderer {
 
         Self::draw_line(canvas, cx, top_y, cx - w, wing_y, stroke, color);
         Self::draw_line(canvas, cx, top_y, cx + w, wing_y, stroke, color);
-        Self::draw_line(canvas, cx - w, wing_y, cx - shaft_w * 0.5, wing_y, stroke, color);
-        Self::draw_line(canvas, cx + w, wing_y, cx + shaft_w * 0.5, wing_y, stroke, color);
-        Self::draw_line(canvas, cx - shaft_w * 0.5, wing_y, cx - shaft_w * 0.5, shaft_bot_y, stroke, color);
-        Self::draw_line(canvas, cx + shaft_w * 0.5, wing_y, cx + shaft_w * 0.5, shaft_bot_y, stroke, color);
-        Self::draw_line(canvas, cx - shaft_w * 0.5, shaft_bot_y, cx + shaft_w * 0.5, shaft_bot_y, stroke, color);
+        Self::draw_line(
+            canvas,
+            cx - w,
+            wing_y,
+            cx - shaft_w * 0.5,
+            wing_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx + w,
+            wing_y,
+            cx + shaft_w * 0.5,
+            wing_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx - shaft_w * 0.5,
+            wing_y,
+            cx - shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx + shaft_w * 0.5,
+            wing_y,
+            cx + shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx - shaft_w * 0.5,
+            shaft_bot_y,
+            cx + shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
     }
 
-    fn draw_icon_caps_lock(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_caps_lock(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let h = size * 0.52;
         let w = size * 0.44;
 
@@ -212,11 +315,51 @@ impl FontRenderer {
 
         Self::draw_line(canvas, cx, top_y, cx - w, wing_y, stroke, color);
         Self::draw_line(canvas, cx, top_y, cx + w, wing_y, stroke, color);
-        Self::draw_line(canvas, cx - w, wing_y, cx - shaft_w * 0.5, wing_y, stroke, color);
-        Self::draw_line(canvas, cx + w, wing_y, cx + shaft_w * 0.5, wing_y, stroke, color);
-        Self::draw_line(canvas, cx - shaft_w * 0.5, wing_y, cx - shaft_w * 0.5, shaft_bot_y, stroke, color);
-        Self::draw_line(canvas, cx + shaft_w * 0.5, wing_y, cx + shaft_w * 0.5, shaft_bot_y, stroke, color);
-        Self::draw_line(canvas, cx - shaft_w * 0.5, shaft_bot_y, cx + shaft_w * 0.5, shaft_bot_y, stroke, color);
+        Self::draw_line(
+            canvas,
+            cx - w,
+            wing_y,
+            cx - shaft_w * 0.5,
+            wing_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx + w,
+            wing_y,
+            cx + shaft_w * 0.5,
+            wing_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx - shaft_w * 0.5,
+            wing_y,
+            cx - shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx + shaft_w * 0.5,
+            wing_y,
+            cx + shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cx - shaft_w * 0.5,
+            shaft_bot_y,
+            cx + shaft_w * 0.5,
+            shaft_bot_y,
+            stroke,
+            color,
+        );
 
         // Distinct Bottom Horizontal Bar (Caps Lock base bar)
         let bar_y = cy + h * 0.72;
@@ -233,7 +376,14 @@ impl FontRenderer {
         );
     }
 
-    fn draw_icon_backspace(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_backspace(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let w = size * 0.65;
         let h = size * 0.45;
         let tip_x = cx - w;
@@ -252,31 +402,93 @@ impl FontRenderer {
         // 'x' inside
         let cross_size = h * 0.45;
         let cross_cx = cx + w * 0.2;
-        Self::draw_line(canvas, cross_cx - cross_size, cy - cross_size, cross_cx + cross_size, cy + cross_size, stroke, color);
-        Self::draw_line(canvas, cross_cx - cross_size, cy + cross_size, cross_cx + cross_size, cy - cross_size, stroke, color);
+        Self::draw_line(
+            canvas,
+            cross_cx - cross_size,
+            cy - cross_size,
+            cross_cx + cross_size,
+            cy + cross_size,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            cross_cx - cross_size,
+            cy + cross_size,
+            cross_cx + cross_size,
+            cy - cross_size,
+            stroke,
+            color,
+        );
     }
 
-    fn draw_icon_enter(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_enter(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let w = size * 0.5;
         let h = size * 0.4;
         // Arrow tip
         let tip_x = cx - w * 0.6;
         let tip_y = cy + h * 0.3;
-        Self::draw_line(canvas, tip_x, tip_y, tip_x + w * 0.4, tip_y - h * 0.4, stroke, color);
-        Self::draw_line(canvas, tip_x, tip_y, tip_x + w * 0.4, tip_y + h * 0.4, stroke, color);
+        Self::draw_line(
+            canvas,
+            tip_x,
+            tip_y,
+            tip_x + w * 0.4,
+            tip_y - h * 0.4,
+            stroke,
+            color,
+        );
+        Self::draw_line(
+            canvas,
+            tip_x,
+            tip_y,
+            tip_x + w * 0.4,
+            tip_y + h * 0.4,
+            stroke,
+            color,
+        );
         // Shaft curving up
         Self::draw_line(canvas, tip_x, tip_y, cx + w * 0.5, tip_y, stroke, color);
-        Self::draw_line(canvas, cx + w * 0.5, tip_y, cx + w * 0.5, cy - h * 0.6, stroke, color);
+        Self::draw_line(
+            canvas,
+            cx + w * 0.5,
+            tip_y,
+            cx + w * 0.5,
+            cy - h * 0.6,
+            stroke,
+            color,
+        );
     }
 
-    fn draw_icon_globe(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_globe(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let r = size * 0.45;
         // Outer ring
         let steps = 24;
         for i in 0..steps {
             let a0 = (i as f32 / steps as f32) * std::f32::consts::TAU;
             let a1 = ((i + 1) as f32 / steps as f32) * std::f32::consts::TAU;
-            Self::draw_line(canvas, cx + a0.cos() * r, cy + a0.sin() * r, cx + a1.cos() * r, cy + a1.sin() * r, stroke, color);
+            Self::draw_line(
+                canvas,
+                cx + a0.cos() * r,
+                cy + a0.sin() * r,
+                cx + a1.cos() * r,
+                cy + a1.sin() * r,
+                stroke,
+                color,
+            );
         }
         // Equator
         Self::draw_line(canvas, cx - r, cy, cx + r, cy, stroke, color);
@@ -284,25 +496,64 @@ impl FontRenderer {
         Self::draw_line(canvas, cx, cy - r, cx, cy + r, stroke, color);
     }
 
-    fn draw_icon_smiley(canvas: &mut Canvas, cx: f32, cy: f32, size: f32, stroke: f32, color: Color) {
+    fn draw_icon_smiley(
+        canvas: &mut Canvas,
+        cx: f32,
+        cy: f32,
+        size: f32,
+        stroke: f32,
+        color: Color,
+    ) {
         let r = size * 0.45;
         let steps = 24;
         for i in 0..steps {
             let a0 = (i as f32 / steps as f32) * std::f32::consts::TAU;
             let a1 = ((i + 1) as f32 / steps as f32) * std::f32::consts::TAU;
-            Self::draw_line(canvas, cx + a0.cos() * r, cy + a0.sin() * r, cx + a1.cos() * r, cy + a1.sin() * r, stroke, color);
+            Self::draw_line(
+                canvas,
+                cx + a0.cos() * r,
+                cy + a0.sin() * r,
+                cx + a1.cos() * r,
+                cy + a1.sin() * r,
+                stroke,
+                color,
+            );
         }
         // Eyes
         let eye_r = stroke * 0.8;
-        canvas.fill_rounded_rect(cx - r * 0.35 - eye_r, cy - r * 0.25 - eye_r, eye_r * 2.0, eye_r * 2.0, eye_r, color);
-        canvas.fill_rounded_rect(cx + r * 0.35 - eye_r, cy - r * 0.25 - eye_r, eye_r * 2.0, eye_r * 2.0, eye_r, color);
+        canvas.fill_rounded_rect(
+            cx - r * 0.35 - eye_r,
+            cy - r * 0.25 - eye_r,
+            eye_r * 2.0,
+            eye_r * 2.0,
+            eye_r,
+            color,
+        );
+        canvas.fill_rounded_rect(
+            cx + r * 0.35 - eye_r,
+            cy - r * 0.25 - eye_r,
+            eye_r * 2.0,
+            eye_r * 2.0,
+            eye_r,
+            color,
+        );
         // Smile
         let smile_steps = 10;
         for i in 0..smile_steps {
-            let a0 = std::f32::consts::PI * 0.15 + (i as f32 / smile_steps as f32) * std::f32::consts::PI * 0.7;
-            let a1 = std::f32::consts::PI * 0.15 + ((i + 1) as f32 / smile_steps as f32) * std::f32::consts::PI * 0.7;
+            let a0 = std::f32::consts::PI * 0.15
+                + (i as f32 / smile_steps as f32) * std::f32::consts::PI * 0.7;
+            let a1 = std::f32::consts::PI * 0.15
+                + ((i + 1) as f32 / smile_steps as f32) * std::f32::consts::PI * 0.7;
             let sr = r * 0.55;
-            Self::draw_line(canvas, cx + a0.cos() * sr, cy + a0.sin() * sr * 0.6 + r * 0.1, cx + a1.cos() * sr, cy + a1.sin() * sr * 0.6 + r * 0.1, stroke, color);
+            Self::draw_line(
+                canvas,
+                cx + a0.cos() * sr,
+                cy + a0.sin() * sr * 0.6 + r * 0.1,
+                cx + a1.cos() * sr,
+                cy + a1.sin() * sr * 0.6 + r * 0.1,
+                stroke,
+                color,
+            );
         }
     }
 
@@ -328,7 +579,15 @@ impl FontRenderer {
             'a' | 'а' => {
                 Self::draw_line(canvas, l, b, m_x, t, stroke, color);
                 Self::draw_line(canvas, r, b, m_x, t, stroke, color);
-                Self::draw_line(canvas, l + w * 0.3, m_y + h * 0.2, r - w * 0.3, m_y + h * 0.2, stroke, color);
+                Self::draw_line(
+                    canvas,
+                    l + w * 0.3,
+                    m_y + h * 0.2,
+                    r - w * 0.3,
+                    m_y + h * 0.2,
+                    stroke,
+                    color,
+                );
             }
             'b' | 'в' => {
                 Self::draw_line(canvas, l, t, l, b, stroke, color);
@@ -382,7 +641,15 @@ impl FontRenderer {
                 Self::draw_line(canvas, r, t, r, b, stroke, color);
                 Self::draw_line(canvas, r, t, l, b, stroke, color);
                 // Brief stroke above
-                Self::draw_line(canvas, m_x - w * 0.4, t - h * 0.35, m_x + w * 0.4, t - h * 0.35, stroke, color);
+                Self::draw_line(
+                    canvas,
+                    m_x - w * 0.4,
+                    t - h * 0.35,
+                    m_x + w * 0.4,
+                    t - h * 0.35,
+                    stroke,
+                    color,
+                );
             }
             'k' | 'к' => {
                 Self::draw_line(canvas, l, t, l, b, stroke, color);
@@ -496,12 +763,34 @@ impl FontRenderer {
             }
             '.' => {
                 let dot_r = stroke * 1.1;
-                canvas.fill_rounded_rect(cx - dot_r, b - dot_r * 2.0, dot_r * 2.0, dot_r * 2.0, dot_r, color);
+                canvas.fill_rounded_rect(
+                    cx - dot_r,
+                    b - dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r,
+                    color,
+                );
             }
             ',' => {
                 let dot_r = stroke * 1.1;
-                canvas.fill_rounded_rect(cx - dot_r, b - dot_r * 2.0, dot_r * 2.0, dot_r * 2.0, dot_r, color);
-                Self::draw_line(canvas, cx, b - dot_r, cx - dot_r, b + dot_r * 1.5, stroke * 0.8, color);
+                canvas.fill_rounded_rect(
+                    cx - dot_r,
+                    b - dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r,
+                    color,
+                );
+                Self::draw_line(
+                    canvas,
+                    cx,
+                    b - dot_r,
+                    cx - dot_r,
+                    b + dot_r * 1.5,
+                    stroke * 0.8,
+                    color,
+                );
             }
             '?' => {
                 Self::draw_line(canvas, l, t + h * 0.3, m_x, t, stroke, color);
@@ -509,12 +798,26 @@ impl FontRenderer {
                 Self::draw_line(canvas, r, t + h * 0.3, m_x, m_y, stroke, color);
                 Self::draw_line(canvas, m_x, m_y, m_x, m_y + h * 0.3, stroke, color);
                 let dot_r = stroke * 1.0;
-                canvas.fill_rounded_rect(cx - dot_r, b - dot_r * 1.5, dot_r * 2.0, dot_r * 2.0, dot_r, color);
+                canvas.fill_rounded_rect(
+                    cx - dot_r,
+                    b - dot_r * 1.5,
+                    dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r,
+                    color,
+                );
             }
             '!' => {
                 Self::draw_line(canvas, cx, t, cx, m_y + h * 0.3, stroke, color);
                 let dot_r = stroke * 1.0;
-                canvas.fill_rounded_rect(cx - dot_r, b - dot_r * 1.5, dot_r * 2.0, dot_r * 2.0, dot_r, color);
+                canvas.fill_rounded_rect(
+                    cx - dot_r,
+                    b - dot_r * 1.5,
+                    dot_r * 2.0,
+                    dot_r * 2.0,
+                    dot_r,
+                    color,
+                );
             }
             '-' => {
                 Self::draw_line(canvas, l, m_y, r, m_y, stroke, color);

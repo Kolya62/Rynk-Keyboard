@@ -22,10 +22,25 @@ impl PopupRenderer {
         let radius = 10.0 * dp;
 
         // Soft elevation shadow
-        canvas.draw_drop_shadow(popup_x, popup_y, popup_w, popup_h, radius, 4.0 * dp, theme.key_shadow);
+        canvas.draw_drop_shadow(
+            popup_x,
+            popup_y,
+            popup_w,
+            popup_h,
+            radius,
+            4.0 * dp,
+            theme.key_shadow,
+        );
 
         // Body fill with subtle border
-        canvas.fill_rounded_rect(popup_x, popup_y, popup_w, popup_h, radius, theme.popup_border);
+        canvas.fill_rounded_rect(
+            popup_x,
+            popup_y,
+            popup_w,
+            popup_h,
+            radius,
+            theme.popup_border,
+        );
 
         let border_stroke = 1.0 * dp;
         canvas.fill_rounded_rect(
@@ -92,7 +107,15 @@ impl PopupRenderer {
         let radius = 10.0 * dp;
 
         // Shadow
-        canvas.draw_drop_shadow(start_x, start_y, total_w, total_h, radius, 6.0 * dp, theme.key_shadow);
+        canvas.draw_drop_shadow(
+            start_x,
+            start_y,
+            total_w,
+            total_h,
+            radius,
+            6.0 * dp,
+            theme.key_shadow,
+        );
 
         // Container
         canvas.fill_rounded_rect(start_x, start_y, total_w, total_h, radius, theme.popup_bg);

@@ -21,6 +21,7 @@ class RynkInputMethodService : InputMethodService() {
     private var keyboardView: RynkKeyboardView? = null
     private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
     private var isDispatchingEvents = false
+    private var currentInputFieldMode: Int = NativeBridge.INPUT_MODE_NORMAL
 
     override fun onCreate() {
         super.onCreate()
@@ -31,16 +32,57 @@ class RynkInputMethodService : InputMethodService() {
             updateClipboardChip()
         }
         clipboard?.addPrimaryClipChangedListener(clipboardListener)
+
+        loadAdaptiveDictionary()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        saveAdaptiveDictionary()
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener?.let { clipboard?.removePrimaryClipChangedListener(it) }
     }
 
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        saveAdaptiveDictionary()
+    }
+
+    private fun saveAdaptiveDictionary() {
+        if (!NativeBridge.isLibraryLoaded()) return
+        try {
+            val data = NativeBridge.nativeSaveAdaptiveData() ?: return
+            val file = java.io.File(filesDir, "adaptive_dict.bin")
+            file.writeBytes(data)
+        } catch (e: Exception) {
+            android.util.Log.e("RynkIME", "Failed to save adaptive dictionary", e)
+        }
+    }
+
+    private fun loadAdaptiveDictionary() {
+        if (!NativeBridge.isLibraryLoaded()) return
+        try {
+            val file = java.io.File(filesDir, "adaptive_dict.bin")
+            if (file.exists() && file.length() > 0) {
+                val bytes = file.readBytes()
+                NativeBridge.nativeLoadAdaptiveData(bytes)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RynkIME", "Failed to load adaptive dictionary", e)
+        }
+    }
+
     private fun updateClipboardChip() {
         if (!NativeBridge.isLibraryLoaded()) return
+
+        // Privacy: Never read or display clipboard content when editing password fields
+        if (currentInputFieldMode == NativeBridge.INPUT_MODE_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_VISIBLE_PASSWORD) {
+            NativeBridge.nativeSetClipboardText(null)
+            keyboardView?.invalidate()
+            return
+        }
+
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         val clip = clipboard.primaryClip
         if (clip != null && clip.itemCount > 0) {
@@ -78,9 +120,52 @@ class RynkInputMethodService : InputMethodService() {
         return view
     }
 
+    fun determineInputFieldMode(info: EditorInfo?): Int {
+        if (info == null) return NativeBridge.INPUT_MODE_NORMAL
+        val inputType = info.inputType
+        val clazz = inputType and EditorInfo.TYPE_MASK_CLASS
+        val variation = inputType and EditorInfo.TYPE_MASK_VARIATION
+
+        return when (clazz) {
+            EditorInfo.TYPE_CLASS_TEXT -> {
+                when (variation) {
+                    EditorInfo.TYPE_TEXT_VARIATION_PASSWORD,
+                    EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD -> NativeBridge.INPUT_MODE_PASSWORD
+                    EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD -> NativeBridge.INPUT_MODE_VISIBLE_PASSWORD
+                    EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                    EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS -> NativeBridge.INPUT_MODE_EMAIL
+                    EditorInfo.TYPE_TEXT_VARIATION_URI -> NativeBridge.INPUT_MODE_URI
+                    else -> {
+                        if ((inputType and EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE) != 0) {
+                            NativeBridge.INPUT_MODE_MULTILINE
+                        } else {
+                            NativeBridge.INPUT_MODE_NORMAL
+                        }
+                    }
+                }
+            }
+            EditorInfo.TYPE_CLASS_NUMBER -> NativeBridge.INPUT_MODE_NUMBER
+            EditorInfo.TYPE_CLASS_PHONE -> NativeBridge.INPUT_MODE_PHONE
+            EditorInfo.TYPE_CLASS_DATETIME -> {
+                when (variation) {
+                    EditorInfo.TYPE_DATETIME_VARIATION_DATE -> NativeBridge.INPUT_MODE_DATE
+                    EditorInfo.TYPE_DATETIME_VARIATION_TIME -> NativeBridge.INPUT_MODE_TIME
+                    else -> NativeBridge.INPUT_MODE_DATE
+                }
+            }
+            else -> NativeBridge.INPUT_MODE_NORMAL
+        }
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         keyboardView?.resetState()
+
+        currentInputFieldMode = determineInputFieldMode(info)
+        if (NativeBridge.isLibraryLoaded()) {
+            NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
+        }
+
         updateClipboardChip()
 
         val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
@@ -117,6 +202,12 @@ class RynkInputMethodService : InputMethodService() {
 
         val autocorrectEnabled = prefs.getBoolean("pref_autocorrect", true)
         NativeBridge.nativeSetAutocorrectEnabled(autocorrectEnabled)
+
+        val popupEnabled = prefs.getBoolean("pref_popup", true)
+        NativeBridge.nativeSetPopupEnabled(popupEnabled)
+
+        val adaptiveEnabled = prefs.getBoolean("pref_adaptive_learning", true)
+        NativeBridge.nativeSetAdaptiveLearningEnabled(adaptiveEnabled)
     }
 
     override fun onUpdateSelection(
@@ -216,6 +307,81 @@ class RynkInputMethodService : InputMethodService() {
     private fun pollAndDispatchOutputEvents() {
         if (!NativeBridge.isLibraryLoaded()) return
 
+        val binaryBytes = NativeBridge.nativePollEventsBinary()
+        if (binaryBytes == null || binaryBytes.size < 4) {
+            pollAndDispatchOutputEventsText()
+            return
+        }
+
+        val buffer = java.nio.ByteBuffer.wrap(binaryBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val eventCount = buffer.int
+        if (eventCount <= 0) return
+
+        val ic = currentInputConnection
+        isDispatchingEvents = true
+        ic?.beginBatchEdit()
+        try {
+            for (i in 0 until eventCount) {
+                if (!buffer.hasRemaining()) break
+                val type = buffer.get().toInt() and 0xFF
+                val len = buffer.int
+                if (buffer.remaining() < len) break
+
+                when (type) {
+                    NativeBridge.EVENT_COMMIT_TEXT -> {
+                        val strBytes = ByteArray(len)
+                        buffer.get(strBytes)
+                        val text = String(strBytes, java.nio.charset.StandardCharsets.UTF_8)
+                        ic?.commitText(text, 1)
+                    }
+                    NativeBridge.EVENT_DELETE_SURROUNDING -> {
+                        val before = buffer.int
+                        val after = buffer.int
+                        ic?.deleteSurroundingText(before, after)
+                    }
+                    NativeBridge.EVENT_SEND_KEY_EVENT -> {
+                        val keyCode = buffer.int
+                        ic?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                        ic?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                    }
+                    NativeBridge.EVENT_PERFORM_HAPTIC -> {
+                        val hapticCode = buffer.get().toInt() and 0xFF
+                        hapticManager.performHaptic(hapticCode)
+                    }
+                    NativeBridge.EVENT_MOVE_CURSOR -> {
+                        val delta = buffer.int
+                        if (delta != 0) {
+                            moveCursor(delta)
+                        }
+                    }
+                    NativeBridge.EVENT_DELETE_WORD -> {
+                        deletePreviousWord()
+                    }
+                    NativeBridge.EVENT_OPEN_SETTINGS -> {
+                        val intent = Intent(this, SettingsActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                    }
+                    NativeBridge.EVENT_SWITCH_IME -> {
+                        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                        imm?.showInputMethodPicker()
+                    }
+                    NativeBridge.EVENT_HIDE_KEYBOARD -> {
+                        requestHideSelf(0)
+                    }
+                    else -> {
+                        buffer.position(buffer.position() + len)
+                    }
+                }
+            }
+        } finally {
+            ic?.endBatchEdit()
+            isDispatchingEvents = false
+        }
+    }
+
+    private fun pollAndDispatchOutputEventsText() {
         val eventsString = NativeBridge.nativePollEvents()
         if (eventsString.isEmpty()) return
 

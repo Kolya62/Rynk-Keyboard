@@ -56,6 +56,10 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_delete">Delete</string>
     <string name="no_user_words">Personal dictionary is empty. Add your first words!</string>
+    <string name="pref_adaptive_learning">Adaptive word learning</string>
+    <string name="pref_adaptive_learning_desc">Learn frequently typed words and word pairs locally</string>
+    <string name="btn_clear_adaptive_data">Clear learned history</string>
+    <string name="adaptive_data_cleared">Learned typing history cleared</string>
     
     <string name="pref_category_feedback">Haptic Feedback</string>
     <string name="pref_haptics">Key press vibration</string>

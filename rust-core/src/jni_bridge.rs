@@ -1,15 +1,15 @@
-use std::sync::Mutex;
-use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jboolean, jfloat, jint, jlong, jobject, jstring};
+use jni::JNIEnv;
+use std::sync::Mutex;
 
+use crate::emoji::{EmojiManager, EmojiTouchResult};
 use crate::keyboard::key::{KeyAction, KeyboardMode};
 use crate::keyboard::state::{HapticFeedbackType, KeyboardOutputEvent, Language};
 use crate::keyboard::touch::TouchAction;
 use crate::keyboard::KeyboardEngine;
 use crate::render::theme::{RynkTheme, ThemeId};
 use crate::render::KeyboardRenderer;
-use crate::emoji::{EmojiManager, EmojiTouchResult};
 
 #[cfg(target_os = "android")]
 use crate::render::canvas::Canvas;
@@ -39,10 +39,7 @@ extern "C" {
         addr_ptr: *mut *mut std::ffi::c_void,
     ) -> i32;
 
-    pub fn AndroidBitmap_unlockPixels(
-        env: *mut jni::sys::JNIEnv,
-        jbitmap: jobject,
-    ) -> i32;
+    pub fn AndroidBitmap_unlockPixels(env: *mut jni::sys::JNIEnv, jbitmap: jobject) -> i32;
 }
 
 pub struct RynkCore {
@@ -157,7 +154,11 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEnabledLangu
             .split(',')
             .filter_map(|s| {
                 let trimmed = s.trim();
-                trimmed.parse::<i32>().ok().map(Language::from_id).or_else(|| Language::from_code(trimmed))
+                trimmed
+                    .parse::<i32>()
+                    .ok()
+                    .map(Language::from_id)
+                    .or_else(|| Language::from_code(trimmed))
             })
             .collect();
 
@@ -233,15 +234,27 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
     if let Some(core) = guard.as_mut() {
         // Emoji mode handling
         if core.engine.state.mode == KeyboardMode::Emoji {
-            let res = core.emoji_mgr.handle_touch_event(touch_act, x, y, &core.engine.metrics);
+            let res = core
+                .emoji_mgr
+                .handle_touch_event(touch_act, x, y, &core.engine.metrics);
             match res {
                 EmojiTouchResult::SelectEmoji(em) => {
-                    core.engine.state.push_event(KeyboardOutputEvent::CommitText(em.to_string()));
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::CommitText(em.to_string()));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                 }
                 EmojiTouchResult::SwitchToAlphabet => {
                     core.engine.set_mode(KeyboardMode::Alphabet);
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                 }
                 EmojiTouchResult::Backspace => {
                     core.engine.execute_key_action(KeyAction::Backspace);
@@ -256,37 +269,41 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
 
         // Check suggestion bar tap on Up
         if touch_act == TouchAction::Up && y < core.engine.metrics.suggestion_bar_height {
-            let m = &core.engine.metrics;
-            let dp = (m.suggestion_bar_height / 44.0).max(1.0);
+            let total_w = core.engine.metrics.total_width;
+            let dp = (core.engine.metrics.suggestion_bar_height / 44.0).max(1.0);
 
-            let suggestions = core.engine.prediction.get_suggestions(
-                &core.engine.state.composing_text,
-                if core.engine.state.last_committed_word.is_empty() {
-                    None
-                } else {
-                    Some(&core.engine.state.last_committed_word)
-                },
-                core.engine.state.language == Language::Russian,
-            );
+            if !core.engine.state.field_mode.allows_suggestions() {
+                return 1;
+            }
+
+            let suggestions = core.engine.get_or_update_suggestions().to_vec();
 
             if !suggestions.is_empty() {
                 let num_cands = suggestions.len().min(3);
-                let chip_w = m.total_width / num_cands as f32;
+                let chip_w = total_w / num_cands as f32;
                 let idx = (x / chip_w) as usize;
 
                 if let Some(word) = suggestions.get(idx) {
-                    let before_count = core.engine.state.composing_text.encode_utf16().count() as u32;
+                    let before_count =
+                        core.engine.state.composing_text.encode_utf16().count() as u32;
                     if before_count > 0 {
-                        core.engine.state.push_event(KeyboardOutputEvent::DeleteSurroundingText {
-                            before: before_count,
-                            after: 0,
-                        });
+                        core.engine
+                            .state
+                            .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                before: before_count,
+                                after: 0,
+                            });
                     }
-                    core.engine.state.push_event(KeyboardOutputEvent::CommitText(format!("{} ", word)));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::CommitText(format!("{} ", word)));
 
                     // FlorisBoard Undo behavior: if suggestion replaced raw typing, allow Backspace to undo!
-                    if !core.engine.state.composing_text.is_empty() && &core.engine.state.composing_text != word {
-                        core.engine.state.last_autocorrect_original = Some(core.engine.state.composing_text.clone());
+                    if !core.engine.state.composing_text.is_empty()
+                        && &core.engine.state.composing_text != word
+                    {
+                        core.engine.state.last_autocorrect_original =
+                            Some(core.engine.state.composing_text.clone());
                         core.engine.state.last_autocorrect_replacement = Some(word.clone());
                     } else {
                         core.engine.state.last_autocorrect_original = None;
@@ -294,33 +311,58 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                     }
                     core.engine.state.rejected_autocorrect_word = None;
 
-                    if idx == 0 {
-                        // User explicitly tapped literal typed word (FlorisBoard behavior: prioritize/learn user word)
-                        core.engine.prediction.add_user_word(word, core.engine.state.language == Language::Russian);
-                    } else {
-                        core.engine.prediction.learn_word(word, core.engine.state.language == Language::Russian);
-                    }
+                    if core.engine.state.field_mode.allows_learning() {
+                        if idx == 0 {
+                            // User explicitly tapped literal typed word (FlorisBoard behavior: prioritize/learn user word)
+                            core.engine.prediction.add_user_word(
+                                word,
+                                core.engine.state.language == Language::Russian,
+                            );
+                        } else {
+                            core.engine
+                                .prediction
+                                .learn_word(word, core.engine.state.language == Language::Russian);
+                        }
 
-                    if !core.engine.state.last_committed_word.is_empty() {
-                        core.engine.prediction.learn_bigram(&core.engine.state.last_committed_word, word);
+                        if !core.engine.state.last_committed_word.is_empty() {
+                            core.engine
+                                .prediction
+                                .learn_bigram(&core.engine.state.last_committed_word, word);
+                        }
                     }
                     core.engine.state.last_committed_word = word.clone();
                     core.engine.state.composing_text.clear();
                     core.engine.state.last_char_was_space = true;
                     core.engine.suggestions_dirty = true;
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                     return 1;
                 }
             } else if let Some(clip_text) = core.engine.state.clipboard_preview.clone() {
                 let settings_w = 40.0 * dp;
                 if x <= settings_w {
-                    core.engine.state.push_event(KeyboardOutputEvent::OpenSettings);
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::OpenSettings);
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                     return 1;
                 } else {
                     core.engine.state.clipboard_preview = None;
-                    core.engine.state.push_event(KeyboardOutputEvent::CommitText(clip_text));
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::CommitText(clip_text));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                     return 1;
                 }
             } else {
@@ -328,21 +370,33 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
 
                 // Settings icon tap on left
                 if x <= settings_w {
-                    core.engine.state.push_event(KeyboardOutputEvent::OpenSettings);
-                    core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::OpenSettings);
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyClick,
+                        ));
                     return 1;
                 }
 
                 // Shortcuts across the remainder of the bar
                 let shortcuts = [",", ".", "!", "?", "—", ";", ":"];
-                let available_w = m.total_width - settings_w - 8.0 * dp;
+                let available_w = total_w - settings_w - 8.0 * dp;
                 let item_w = available_w / shortcuts.len() as f32;
                 let rel_x = x - (settings_w + 4.0 * dp);
                 if rel_x >= 0.0 {
                     let idx = (rel_x / item_w) as usize;
                     if let Some(&sc) = shortcuts.get(idx) {
-                        core.engine.state.push_event(KeyboardOutputEvent::CommitText(format!("{} ", sc)));
-                        core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+                        core.engine
+                            .state
+                            .push_event(KeyboardOutputEvent::CommitText(format!("{} ", sc)));
+                        core.engine
+                            .state
+                            .push_event(KeyboardOutputEvent::PerformHaptic(
+                                HapticFeedbackType::KeyTick,
+                            ));
                         return 1;
                     }
                 }
@@ -361,7 +415,8 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
         }
 
         // Regular keyboard touch
-        core.engine.on_touch(touch_act, pointer_id, x, y, time_ms as u64);
+        core.engine
+            .on_touch(touch_act, pointer_id, x, y, time_ms as u64);
         return 1;
     }
     0
@@ -408,7 +463,9 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRender(
             }
 
             let mut pixels_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-            if AndroidBitmap_lockPixels(raw_env, bitmap, &mut pixels_ptr) != 0 || pixels_ptr.is_null() {
+            if AndroidBitmap_lockPixels(raw_env, bitmap, &mut pixels_ptr) != 0
+                || pixels_ptr.is_null()
+            {
                 return 0;
             }
 
@@ -416,22 +473,33 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRender(
             let total_pixels = stride_u32 * info.height as usize;
             let slice = std::slice::from_raw_parts_mut(pixels_ptr as *mut u32, total_pixels);
 
-            let mut canvas = Canvas::new(slice, info.width as usize, info.height as usize, stride_u32);
+            let mut canvas =
+                Canvas::new(slice, info.width as usize, info.height as usize, stride_u32);
 
             if core.engine.state.mode == KeyboardMode::Emoji {
                 core.renderer.text_labels.clear();
-                core.emoji_mgr.render(&mut canvas, &core.engine.metrics, &core.renderer.theme, &mut core.renderer.text_labels);
+                core.emoji_mgr.render(
+                    &mut canvas,
+                    &core.engine.metrics,
+                    &core.renderer.theme,
+                    &mut core.renderer.text_labels,
+                );
                 if core.renderer.text_labels != core.renderer.previous_labels {
                     core.renderer.labels_version = core.renderer.labels_version.wrapping_add(1);
                     core.renderer.previous_labels = core.renderer.text_labels.clone();
                 }
             } else {
                 let suggestions = core.engine.get_or_update_suggestions().to_vec();
-                core.renderer.render(&mut canvas, &core.engine, time_ms as u64, &suggestions);
+                core.renderer
+                    .render(&mut canvas, &core.engine, time_ms as u64, &suggestions);
             }
 
             AndroidBitmap_unlockPixels(raw_env, bitmap);
-            return if core.renderer.animation_mgr.has_active_animations() { 1 } else { 0 };
+            return if core.renderer.animation_mgr.has_active_animations() {
+                1
+            } else {
+                0
+            };
         }
 
         #[cfg(not(target_os = "android"))]
@@ -534,8 +602,13 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetTextLabels(
             out.push_str(&format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                 escaped_text,
-                label.cx, label.cy, label.font_size,
-                label.color_r, label.color_g, label.color_b, label.color_a,
+                label.cx,
+                label.cy,
+                label.font_size,
+                label.color_r,
+                label.color_g,
+                label.color_b,
+                label.color_a,
                 if label.is_bold { 1 } else { 0 },
                 label.label_type
             ));
@@ -572,7 +645,9 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeIsBackspaceAt(
         if core.engine.state.mode == KeyboardMode::Emoji {
             let dp = (core.engine.metrics.suggestion_bar_height / 44.0).max(1.0);
             let bottom_bar_h = 44.0 * dp;
-            let bot_y = core.engine.metrics.total_height - core.engine.metrics.bottom_bar_height - bottom_bar_h;
+            let bot_y = core.engine.metrics.total_height
+                - core.engine.metrics.bottom_bar_height
+                - bottom_bar_h;
             let bs_w = 64.0 * dp;
             let bs_x = core.engine.metrics.total_width - bs_w - 6.0 * dp;
             if y >= bot_y && y < (bot_y + bottom_bar_h) && x >= bs_x {
@@ -609,8 +684,17 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRepeatBackspace
             }
         }
         core.engine.suggestions_dirty = true;
-        core.engine.state.push_event(KeyboardOutputEvent::DeleteSurroundingText { before: cnt, after: 0 });
-        core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+        core.engine
+            .state
+            .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                before: cnt,
+                after: 0,
+            });
+        core.engine
+            .state
+            .push_event(KeyboardOutputEvent::PerformHaptic(
+                HapticFeedbackType::KeyTick,
+            ));
     }
 }
 
@@ -625,21 +709,15 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetSuggestionAt
     if let Some(core) = guard.as_ref() {
         let m = &core.engine.metrics;
         if y < m.suggestion_bar_height {
-            let suggestions = core.engine.prediction.get_suggestions(
-                &core.engine.state.composing_text,
-                if core.engine.state.last_committed_word.is_empty() {
-                    None
-                } else {
-                    Some(&core.engine.state.last_committed_word)
-                },
-                core.engine.state.language == Language::Russian,
-            );
+            let suggestions = &core.engine.cached_suggestions;
             if !suggestions.is_empty() {
                 let num_cands = suggestions.len().min(3);
                 let chip_w = m.total_width / num_cands as f32;
                 let idx = (x / chip_w) as usize;
                 if let Some(word) = suggestions.get(idx) {
-                    return env.new_string(word).unwrap().into_raw();
+                    if let Ok(js) = env.new_string(word) {
+                        return js.into_raw();
+                    }
                 }
             }
         }
@@ -753,3 +831,115 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetMode(
     0
 }
 
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativePollEventsBinary(
+    env: JNIEnv,
+    _class: JClass,
+) -> jni::sys::jbyteArray {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        let events = core.engine.state.drain_events();
+        if events.is_empty() {
+            return std::ptr::null_mut();
+        }
+        let binary_bytes = crate::keyboard::state::serialize_events_binary(&events);
+        if let Ok(byte_array) = env.byte_array_from_slice(&binary_bytes) {
+            return byte_array.into_raw();
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetInputFieldMode(
+    _env: JNIEnv,
+    _class: JClass,
+    mode_id: jint,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine
+            .set_input_field_mode(crate::keyboard::state::InputFieldMode::from_id(mode_id));
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetPopupEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.popup_enabled = enabled != 0;
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetAdaptiveLearningEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.prediction.dictionary.adaptive_dict.enabled = enabled != 0;
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeClearAdaptiveData(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.prediction.dictionary.adaptive_dict.clear();
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSaveAdaptiveData(
+    env: JNIEnv,
+    _class: JClass,
+) -> jni::sys::jbyteArray {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        if core.engine.prediction.dictionary.adaptive_dict.is_dirty {
+            let data = core
+                .engine
+                .prediction
+                .dictionary
+                .adaptive_dict
+                .serialize_binary();
+            core.engine.prediction.dictionary.adaptive_dict.is_dirty = false;
+            if let Ok(arr) = env.byte_array_from_slice(&data) {
+                return arr.into_raw();
+            }
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeLoadAdaptiveData(
+    env: JNIEnv,
+    _class: JClass,
+    data: jni::objects::JByteArray,
+) {
+    if data.is_null() {
+        return;
+    }
+    let Ok(byte_vec) = env.convert_byte_array(&data) else {
+        return;
+    };
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine
+            .prediction
+            .dictionary
+            .adaptive_dict
+            .deserialize_binary(&byte_vec);
+    }
+}

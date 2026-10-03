@@ -22,7 +22,8 @@ class RynkKeyboardView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private var renderBitmap: Bitmap? = null
+    private var frontBitmap: Bitmap? = null
+    private var backBitmap: Bitmap? = null
     private var onEventsReadyListener: (() -> Unit)? = null
     private var isInitialized = false
     private var bottomInset: Int = 0
@@ -130,9 +131,11 @@ class RynkKeyboardView @JvmOverloads constructor(
 
         val contentH = (h - bottomInset).coerceAtLeast(1)
 
-        if (renderBitmap == null || renderBitmap?.width != w || renderBitmap?.height != contentH) {
-            renderBitmap?.recycle()
-            renderBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
+        if (frontBitmap == null || frontBitmap?.width != w || frontBitmap?.height != contentH) {
+            frontBitmap?.recycle()
+            backBitmap?.recycle()
+            frontBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
+            backBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
         }
 
         val density = resources.displayMetrics.density
@@ -184,14 +187,59 @@ class RynkKeyboardView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!NativeBridge.isLibraryLoaded()) return super.onTouchEvent(event)
 
-        val actionIndex = event.actionIndex
-        val pointerId = event.getPointerId(actionIndex)
+        val contentH = (height - bottomInset).toFloat()
         val actionMasked = event.actionMasked
-        val x = event.getX(actionIndex)
-        val y = event.getY(actionIndex)
         val timeMs = event.eventTime
 
-        val contentH = (height - bottomInset).toFloat()
+        // Multitouch: Iterate over all active pointers on ACTION_MOVE
+        if (actionMasked == MotionEvent.ACTION_MOVE) {
+            var anyHandled = false
+            for (i in 0 until event.pointerCount) {
+                val pid = event.getPointerId(i)
+                val px = event.getX(i)
+                val py = event.getY(i)
+                if (py > contentH) continue
+
+                val distSq = (px - longPressStartX) * (px - longPressStartX) + (py - longPressStartY) * (py - longPressStartY)
+                if (distSq > 500f && !isLongPressTriggered) {
+                    longPressHandler.removeCallbacks(longPressRunnable)
+                }
+                if (px < longPressStartX - 25f) {
+                    repeatHandler.removeCallbacks(backspaceRepeatRunnable)
+                }
+
+                val h = NativeBridge.nativeOnTouchEvent(2 /* Move */, pid, px, py, timeMs)
+                if (h) anyHandled = true
+            }
+            checkModeChange()
+            onEventsReadyListener?.invoke()
+            invalidate()
+            return anyHandled || true
+        }
+
+        // Multitouch: Handle ACTION_CANCEL cleanly for all active touches
+        if (actionMasked == MotionEvent.ACTION_CANCEL) {
+            repeatHandler.removeCallbacks(backspaceRepeatRunnable)
+            longPressHandler.removeCallbacks(longPressRunnable)
+            isBackspaceRepeating = false
+            isLongPressTriggered = false
+            for (i in 0 until event.pointerCount) {
+                val pid = event.getPointerId(i)
+                val px = event.getX(i)
+                val py = event.getY(i)
+                NativeBridge.nativeOnTouchEvent(3 /* Cancel */, pid, px, py, timeMs)
+            }
+            checkModeChange()
+            onEventsReadyListener?.invoke()
+            invalidate()
+            return true
+        }
+
+        val actionIndex = event.actionIndex
+        val pointerId = event.getPointerId(actionIndex)
+        val x = event.getX(actionIndex)
+        val y = event.getY(actionIndex)
+
         if (y > contentH) {
             repeatHandler.removeCallbacks(backspaceRepeatRunnable)
             longPressHandler.removeCallbacks(longPressRunnable)
@@ -212,16 +260,7 @@ class RynkKeyboardView @JvmOverloads constructor(
                 repeatHandler.removeCallbacks(backspaceRepeatRunnable)
                 repeatHandler.postDelayed(backspaceRepeatRunnable, 350L)
             }
-        } else if (actionMasked == MotionEvent.ACTION_MOVE) {
-            val distSq = (x - longPressStartX) * (x - longPressStartX) + (y - longPressStartY) * (y - longPressStartY)
-            if (distSq > 500f && !isLongPressTriggered) {
-                longPressHandler.removeCallbacks(longPressRunnable)
-            }
-            // Cancel backspace hold-repeat if user is swiping left to delete word
-            if (x < longPressStartX - 25f) {
-                repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-            }
-        } else if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_POINTER_UP || actionMasked == MotionEvent.ACTION_CANCEL) {
+        } else if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_POINTER_UP) {
             repeatHandler.removeCallbacks(backspaceRepeatRunnable)
             longPressHandler.removeCallbacks(longPressRunnable)
 
@@ -243,8 +282,6 @@ class RynkKeyboardView @JvmOverloads constructor(
         val rustAction = when (actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> 0
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> 1
-            MotionEvent.ACTION_MOVE -> 2
-            MotionEvent.ACTION_CANCEL -> 3
             else -> return super.onTouchEvent(event)
         }
 
@@ -266,13 +303,19 @@ class RynkKeyboardView @JvmOverloads constructor(
         val bgColor = getThemeBgColor(currentThemeId)
         canvas.drawColor(bgColor)
 
-        val bmp = renderBitmap ?: return
+        val targetBmp = backBitmap ?: return
         if (!NativeBridge.isLibraryLoaded()) return
 
-        // 2. Rust renders keys and effects into the keyboard content area bitmap
+        // 2. Double-buffered Rust rendering: render into backBitmap then swap
         val nowMs = SystemClock.uptimeMillis()
-        val hasActiveAnimation = NativeBridge.nativeRender(bmp, nowMs)
-        canvas.drawBitmap(bmp, 0f, 0f, null)
+        val hasActiveAnimation = NativeBridge.nativeRender(targetBmp, nowMs)
+
+        val temp = frontBitmap
+        frontBitmap = backBitmap
+        backBitmap = temp
+
+        val readyBmp = frontBitmap ?: return
+        canvas.drawBitmap(readyBmp, 0f, 0f, null)
 
         // 3. Draw text labels on top using native Android system font (including color emojis)
         drawSystemTextLabels(canvas)
@@ -410,8 +453,11 @@ class RynkKeyboardView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-        renderBitmap?.recycle()
-        renderBitmap = null
+        longPressHandler.removeCallbacks(longPressRunnable)
+        frontBitmap?.recycle()
+        frontBitmap = null
+        backBitmap?.recycle()
+        backBitmap = null
         if (isInitialized && NativeBridge.isLibraryLoaded()) {
             NativeBridge.nativeDestroy()
             isInitialized = false

@@ -60,9 +60,13 @@
    - **Rynk Light (Sapphire)** — чистая жемчужная тема с сапфировым акцентом.
    - **AMOLED Black** — абсолютный чёрный (`#000000`) для экономии батареи на OLED-экранах.
    - **Sunset Twilight** — тёплая вечерняя палитра.
-7. **Конфиденциальность 100%**:
-   - Никаких сетевых разрешений (`INTERNET` отсутствует в манифесте).
-   - Ваши пароли, сообщения и персональные данные никогда не покидают устройство.
+7. **Конфиденциальность и безопасность (Privacy-First)**:
+   - Никаких сетевых разрешений (`INTERNET` отсутствует в AndroidManifest.xml).
+   - Интеллектуальное распознавание типов полей ввода (`EditorInfo`): подсказки, автозамена, локальное обучение и превью буфера обмена автоматически блокируются в полях ввода паролей.
+   - Локальные словари защищены правилами резервного копирования (`backup_rules.xml`, `data_extraction_rules.xml`) и никогда не отправляются в облако.
+8. **Высокоскоростной бинарный JNI-протокол и двойная буферизация**:
+   - Обмен событиями через бинарный формат `[count: u32 LE] [type: u8][len: u32 LE][payload: N]`, исключающий строковые аллокации.
+   - Двойная буферизация кадров (`frontBitmap` / `backBitmap`) с прямым замком пикселей в Rust.
 
 ---
 
@@ -123,15 +127,18 @@ Rynk/
 
 #### Команды сборки:
 ```bash
-# 1. Прогон всех unit-тестов Rust ядра (14 тестов)
+# 1. Прогон всех unit-тестов и бенчмарков Rust ядра (18 тестов)
 cargo test --manifest-path rust-core/Cargo.toml
 
-# 2. Компиляция Rust библиотек и сборка Android APK
+# 2. Прогон модульных тестов Android и проверка Lint
 export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
-./gradlew buildRustCore assembleDebug
+./gradlew test lint
+
+# 3. Компиляция Rust библиотек и сборка Release APK (с R8 и сжатием ресурсов)
+./gradlew buildRustCore assembleRelease
 
 # Готовый APK будет расположен по пути:
-# app/build/outputs/apk/debug/app-debug.apk
+# app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 ---
@@ -179,8 +186,12 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
    - **AMOLED Black** — Pure `#000000` dark theme for maximum OLED battery savings.
    - **Sunset Twilight** — Warm gradient evening palette.
 7. **100% Privacy by Design**:
-   - Zero internet permissions in `AndroidManifest.xml`.
-   - Your keystrokes, personal dictionary, and clipboard stay completely on-device.
+   - Zero network permissions (`INTERNET` is completely absent from `AndroidManifest.xml`).
+   - Sensitive field intelligence (`EditorInfo`): suggestions, autocorrect, n-gram learning, and clipboard preview are strictly suppressed when editing password fields.
+   - User dictionaries and adaptive learning history are excluded from cloud backups via `backup_rules.xml` and `data_extraction_rules.xml`.
+8. **High-Throughput Binary Protocol & Double Buffering**:
+   - Length-prefixed binary event protocol `[count: u32 LE] [type: u8][len: u32 LE][payload: N]` eliminating string allocations during typing.
+   - Double-buffered frame presentation (`frontBitmap` / `backBitmap`) delivering consistent 120 FPS frame rates.
 
 ---
 
@@ -193,15 +204,18 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
 
 #### Build Instructions:
 ```bash
-# 1. Run full Rust core test suite (14 unit tests)
+# 1. Run full Rust core test suite and benchmarks (18 unit tests)
 cargo test --manifest-path rust-core/Cargo.toml
 
-# 2. Build native .so libraries and generate debug APK
+# 2. Run Android unit tests and Lint check
 export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
-./gradlew buildRustCore assembleDebug
+./gradlew test lint
+
+# 3. Build native .so libraries and generate optimized Release APK (with R8 and resource shrinking)
+./gradlew buildRustCore assembleRelease
 
 # Output APK:
-# app/build/outputs/apk/debug/app-debug.apk
+# app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 ---

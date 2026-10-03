@@ -57,11 +57,13 @@ impl Default for AnimationManager {
 
 impl AnimationManager {
     pub fn add_ripple(&mut self, cx: f32, cy: f32, radius: f32, time_ms: u64, color: Color) {
-        self.ripples.push(RippleAnimation::new(cx, cy, radius, time_ms, color));
+        self.ripples
+            .push(RippleAnimation::new(cx, cy, radius, time_ms, color));
     }
 
     pub fn render_and_update(&mut self, canvas: &mut Canvas, current_time_ms: u64) {
-        self.ripples.retain(|ripple| !ripple.render(canvas, current_time_ms));
+        self.ripples
+            .retain(|ripple| !ripple.render(canvas, current_time_ms));
     }
 
     pub fn has_active_animations(&self) -> bool {
