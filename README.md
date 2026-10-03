@@ -9,7 +9,7 @@
 [![Core](https://img.shields.io/badge/Core-Rust%202021-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
 [![Rendering](https://img.shields.io/badge/Rendering-Direct%20SDF%20Pixel%20Buffer-blue?style=for-the-badge)](https://github.com)
 [![Performance](https://img.shields.io/badge/Performance-120%20FPS%20%7C%20%3C1ms%20Latency-purple?style=for-the-badge)](https://github.com)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-MPL%202.0-blue?style=for-the-badge)](LICENSE)
 
 [🇷🇺 Русский](#-на-русском) • [🇬🇧 English](#-in-english)
 
@@ -205,7 +205,9 @@ export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
 
 ---
 
-### 📄 License
+### 📄 Лицензия / License
 
-Distributed under the MIT License. See `LICENSE` for details.
+- **Русский:** Проект распространяется под свободной лицензией **Mozilla Public License Version 2.0 (MPL-2.0)**. Подробности в файле `LICENSE`.
+- **English:** Distributed under the **Mozilla Public License Version 2.0 (MPL-2.0)**. See `LICENSE` for details.
+
 Designed and crafted with passion for performance.
