@@ -389,8 +389,10 @@ class RynkKeyboardView @JvmOverloads constructor(
         val bot_y = (height - bottomInset).toFloat() - elevation_h - bottom_bar_h
 
         for (item in cachedLabels) {
-            // Clip emoji labels to visible emoji grid area
-            if (item.labelType == 6 && (item.cy < tab_bar_h || item.cy > bot_y)) {
+            // Clip emoji labels: in normal emoji mode they must be in grid area (below tab bar, above bottom bar)
+            // In search mode the strip emojis (labelType==6) can be in header area, so we only clip
+            // those below the keyboard content area (navigation zone)
+            if (item.labelType == 6 && item.cy > bot_y) {
                 continue
             }
 

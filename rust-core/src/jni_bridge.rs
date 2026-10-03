@@ -234,9 +234,14 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
     if let Some(core) = guard.as_mut() {
         // Emoji mode handling
         if core.engine.state.mode == KeyboardMode::Emoji {
-            let res = core
-                .emoji_mgr
-                .handle_touch_event(touch_act, x, y, &core.engine.metrics);
+            let current_language = core.engine.state.language;
+            let res = core.emoji_mgr.handle_touch_event(
+                touch_act,
+                x,
+                y,
+                &core.engine.metrics,
+                current_language,
+            );
             match res {
                 EmojiTouchResult::SelectEmoji(em) => {
                     core.engine
@@ -261,6 +266,12 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                 }
                 EmojiTouchResult::Space => {
                     core.engine.execute_key_action(KeyAction::Space);
+                }
+                EmojiTouchResult::OpenSearch | EmojiTouchResult::CloseSearch => {}
+                EmojiTouchResult::Haptic(h) => {
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(h));
                 }
                 EmojiTouchResult::None => {}
             }
@@ -625,6 +636,10 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeHandleBack(
 ) -> jboolean {
     let mut guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_mut() {
+        if core.engine.state.mode == KeyboardMode::Emoji && core.emoji_mgr.is_search_active {
+            core.emoji_mgr.close_search();
+            return 1;
+        }
         if core.engine.state.mode != KeyboardMode::Alphabet {
             core.engine.set_mode(KeyboardMode::Alphabet);
             return 1;
@@ -643,12 +658,16 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeIsBackspaceAt(
     let guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_ref() {
         if core.engine.state.mode == KeyboardMode::Emoji {
-            let dp = (core.engine.metrics.suggestion_bar_height / 44.0).max(1.0);
-            let bottom_bar_h = 44.0 * dp;
+            if core.emoji_mgr.is_search_active {
+                // In search mode, no dedicated backspace hold (backspace is inline key)
+                return 0;
+            }
+            let dp = (core.engine.metrics.suggestion_bar_height / 40.0).max(1.0);
+            let bottom_bar_h = 40.0 * dp;
             let bot_y = core.engine.metrics.total_height
                 - core.engine.metrics.bottom_bar_height
                 - bottom_bar_h;
-            let bs_w = 64.0 * dp;
+            let bs_w = 56.0 * dp;
             let bs_x = core.engine.metrics.total_width - bs_w - 6.0 * dp;
             if y >= bot_y && y < (bot_y + bottom_bar_h) && x >= bs_x {
                 return 1;
