@@ -1,16 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settingsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/rynk_bg_dark"
-    android:fillViewport="true">
+    android:orientation="vertical"
+    android:background="@color/rynk_bg_dark">
 
-    <LinearLayout
+    <!-- Static, immovable Toolbar positioned safely under status bar and camera cutout -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:minHeight="?attr/actionBarSize"
+        android:background="@color/rynk_card_dark"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/rynk_text_white"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/rynk_text_white" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/rynk_card_stroke" />
+
+    <ScrollView
+        android:id="@+id/settingsScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/rynk_bg_dark"
+        android:overScrollMode="never"
+        android:scrollbars="vertical"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
 
         <!-- Theme Selection Category -->
         <TextView
@@ -298,3 +326,4 @@
 
     </LinearLayout>
 </ScrollView>
+</LinearLayout>

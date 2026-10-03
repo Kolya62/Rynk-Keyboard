@@ -116,7 +116,7 @@ class RynkKeyboardView @JvmOverloads constructor(
         val density = resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        val desiredHeightDp = if (isLandscape) 220f else if (isEmojiMode) 380f else 320f
+        val desiredHeightDp = if (isLandscape) 200f else if (isEmojiMode) 350f else 280f
         val contentHeight = (desiredHeightDp * density).toInt()
         val totalHeight = contentHeight + bottomInset
 
@@ -383,9 +383,9 @@ class RynkKeyboardView @JvmOverloads constructor(
         }
 
         val dp = resources.displayMetrics.density
-        val tab_bar_h = 42f * dp
-        val bottom_bar_h = 44f * dp
-        val elevation_h = 42f * dp
+        val tab_bar_h = 40f * dp
+        val bottom_bar_h = 40f * dp
+        val elevation_h = 36f * dp
         val bot_y = (height - bottomInset).toFloat() - elevation_h - bottom_bar_h
 
         for (item in cachedLabels) {

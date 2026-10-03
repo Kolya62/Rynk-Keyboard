@@ -11,6 +11,12 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
+import android.widget.ScrollView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 
@@ -35,10 +41,35 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_settings)
 
+        val root = findViewById<View>(R.id.settingsRoot)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        val scrollView = findViewById<ScrollView>(R.id.settingsScrollView)
+
+        setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.settings_title)
+        toolbar.setNavigationOnClickListener { finish() }
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            // Lower top part taking into account status bar and camera cutout
+            toolbar.updatePadding(
+                top = insets.top,
+                left = insets.left,
+                right = insets.right
+            )
+            scrollView.updatePadding(
+                left = insets.left,
+                right = insets.right,
+                bottom = insets.bottom + (16 * resources.displayMetrics.density).toInt()
+            )
+            windowInsets
+        }
 
         val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
         dictManager = UserDictionaryManager(this)

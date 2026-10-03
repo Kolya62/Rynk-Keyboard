@@ -6,8 +6,13 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 
@@ -21,7 +26,22 @@ class SetupWizardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_setup_wizard)
+
+        val root = findViewById<View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            v.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom,
+                left = insets.left,
+                right = insets.right
+            )
+            windowInsets
+        }
 
         cardStep1 = findViewById(R.id.cardStep1)
         cardStep2 = findViewById(R.id.cardStep2)

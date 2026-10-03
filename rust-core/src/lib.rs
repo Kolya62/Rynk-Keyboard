@@ -374,8 +374,8 @@ mod tests {
         assert!(matches!(top_exit, EmojiTouchResult::SwitchToAlphabet));
 
         // Tap on bottom-left ABC button
-        let dp = (metrics.suggestion_bar_height / 44.0).max(1.0);
-        let bottom_bar_h = 44.0 * dp;
+        let dp = (metrics.suggestion_bar_height / 40.0).max(1.0);
+        let bottom_bar_h = 40.0 * dp;
         let abc_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h + 10.0;
         let bot_exit = mgr.handle_touch(30.0, abc_y, &metrics);
         assert!(matches!(bot_exit, EmojiTouchResult::SwitchToAlphabet));

@@ -12,7 +12,10 @@
         <item name="colorPrimaryVariant">@color/rynk_primary_variant</item>
         <item name="colorSecondary">@color/rynk_accent</item>
         <item name="android:windowBackground">@color/rynk_bg_dark</item>
-        <item name="android:statusBarColor">@color/rynk_bg_dark</item>
-        <item name="android:navigationBarColor">@color/rynk_bg_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowSwipeToDismiss">false</item>
+        <item name="android:windowIsFloating">false</item>
     </style>
 </resources>

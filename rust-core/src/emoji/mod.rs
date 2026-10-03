@@ -52,9 +52,9 @@ impl EmojiManager {
         theme: &RynkTheme,
         text_labels: &mut Vec<TextLabel>,
     ) {
-        let dp = (metrics.suggestion_bar_height / 44.0).max(1.0);
-        let tab_bar_h = 42.0 * dp;
-        let bottom_bar_h = 44.0 * dp;
+        let dp = (metrics.suggestion_bar_height / 40.0).max(1.0);
+        let tab_bar_h = 40.0 * dp;
+        let bottom_bar_h = 40.0 * dp;
         let bot_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h;
         let content_y = tab_bar_h;
         let content_h = (bot_y - tab_bar_h).max(10.0);
@@ -278,15 +278,15 @@ impl EmojiManager {
         y: f32,
         metrics: &LayoutMetrics,
     ) -> EmojiTouchResult {
-        let dp = (metrics.suggestion_bar_height / 44.0).max(1.0);
-        let tab_bar_h = 42.0 * dp;
-        let bottom_bar_h = 44.0 * dp;
+        let dp = (metrics.suggestion_bar_height / 40.0).max(1.0);
+        let tab_bar_h = 40.0 * dp;
+        let bottom_bar_h = 40.0 * dp;
         let bot_y = metrics.total_height - metrics.bottom_bar_height - bottom_bar_h;
         let back_btn_w = 46.0 * dp;
 
         let content_y = tab_bar_h;
         let content_h = (bot_y - tab_bar_h).max(10.0);
-        let cell_h = 44.0 * dp;
+        let cell_h = 42.0 * dp;
         let total_rows = (self.active_category.emojis().len() as f32 / 7.0).ceil();
         let total_grid_h = total_rows * cell_h;
         let max_scroll = (total_grid_h - content_h + 16.0 * dp).max(0.0);

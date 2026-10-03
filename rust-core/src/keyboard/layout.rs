@@ -20,13 +20,13 @@ pub struct LayoutMetrics {
 impl LayoutMetrics {
     pub fn new(width: f32, height: f32, density: f32) -> Self {
         let dp = density.max(1.0);
-        let suggestion_bar_height = 44.0 * dp;
-        let padding_horizontal = 4.0 * dp;
-        let bottom_bar_height = 42.0 * dp; // Elevation zone for collapse arrow and nav bar
-        let padding_bottom = bottom_bar_height + 4.0 * dp;
-        let key_spacing_h = 4.0 * dp;
-        let key_spacing_v = 5.0 * dp;
-        let key_border_radius = 6.0 * dp;
+        let suggestion_bar_height = 40.0 * dp;
+        let padding_horizontal = 2.0 * dp;
+        let bottom_bar_height = 36.0 * dp; // Elevation zone for collapse arrow and nav bar
+        let padding_bottom = bottom_bar_height + 2.0 * dp;
+        let key_spacing_h = 3.0 * dp;
+        let key_spacing_v = 4.0 * dp;
+        let key_border_radius = 5.0 * dp;
 
         let key_area_top = suggestion_bar_height + 2.0 * dp;
         let key_area_height = (height - key_area_top - padding_bottom).max(10.0);
@@ -91,7 +91,6 @@ impl LayoutBuilder {
                 ("щ", Some("9"), &['9']),
                 ("з", Some("0"), &['0']),
                 ("х", Some("%"), &['%']),
-                ("ъ", Some("="), &['ь', '=']),
             ],
             &[
                 ("ф", Some("@"), &['@']),
@@ -114,7 +113,7 @@ impl LayoutBuilder {
                 ("м", Some(">"), &['>']),
                 ("и", Some("["), &['[']),
                 ("т", Some("]"), &[']']),
-                ("ь", Some("{"), &['ъ', '{']),
+                ("ь", Some("ъ"), &['ъ', '{']),
                 ("б", Some("}"), &['}']),
                 ("ю", Some(";"), &[';']),
                 // Backspace is added separately
@@ -202,7 +201,7 @@ impl LayoutBuilder {
         // Row 3: Shift + 9 letters + Backspace
         let r3_y = r2_y + row_height + m.key_spacing_v;
         let r3_letter_count = rows_data[2].len() as f32; // 9
-        let shift_backspace_w = r1_key_w * 1.45;
+        let shift_backspace_w = r1_key_w * 1.30;
         let available_w = m.total_width
             - 2.0 * m.padding_horizontal
             - 2.0 * shift_backspace_w
@@ -234,6 +233,12 @@ impl LayoutBuilder {
             } else {
                 ch
             };
+            let mut final_sub = sub.map(|s| s.to_string());
+            let mut final_alts = alts.to_vec();
+            if ch == 'ь' {
+                final_sub = Some(if is_upper { "Ъ".to_string() } else { "ъ".to_string() });
+                final_alts = if is_upper { vec!['Ъ', '{'] } else { vec!['ъ', '{'] };
+            }
             let mut key = Key::new(
                 key_id,
                 r3_x,
@@ -244,11 +249,11 @@ impl LayoutBuilder {
                 final_ch.to_string(),
                 KeyType::Normal,
             );
-            if let Some(s) = sub {
+            if let Some(ref s) = final_sub {
                 key = key.with_sub_label(s);
             }
-            if !alts.is_empty() {
-                key = key.with_alternates(alts.to_vec());
+            if !final_alts.is_empty() {
+                key = key.with_alternates(final_alts);
             }
             keys.push(key);
             key_id += 1;
