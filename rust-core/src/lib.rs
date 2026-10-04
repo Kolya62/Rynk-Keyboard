@@ -276,6 +276,14 @@ mod tests {
             ("thnaks", "thanks"),
             ("teh", "the"),
             ("definately", "definitely"),
+            ("пожалуйст", "пожалуйста"),
+            ("спасиб", "спасибо"),
+            ("пажалуста", "пожалуйста"),
+            ("здраствуйте", "здравствуйте"),
+            ("привеь", "привет"),
+            ("somethin", "something"),
+            ("differen", "different"),
+            ("seperate", "separate"),
         ];
 
         for (typo, expected) in test_cases {

@@ -279,7 +279,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
         }
 
         // Check suggestion bar tap on Up
-        if touch_act == TouchAction::Up && y < core.engine.metrics.suggestion_bar_height {
+        if touch_act == TouchAction::Up && y < (core.engine.metrics.suggestion_bar_height + 4.0) {
             let total_w = core.engine.metrics.total_width;
             let dp = (core.engine.metrics.suggestion_bar_height / 44.0).max(1.0);
 
@@ -629,7 +629,6 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeReset(
         core.engine.state.last_committed_word.clear();
         core.engine.suggestions_dirty = true;
         core.engine.active_popup_key_id = None;
-        core.engine.touch_tracker.pointers.clear();
     }
 }
 
@@ -711,7 +710,8 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeIsBackspaceAt(
                 return 1;
             }
         } else {
-            if let Some(key) = core.engine.keys.iter().find(|k| k.contains(x, y)) {
+            let dp = (core.engine.metrics.suggestion_bar_height / 40.0).max(1.0);
+            if let Some(key) = core.engine.keys.iter().find(|k| k.contains_expanded(x, y, 6.0 * dp)) {
                 if matches!(key.action, KeyAction::Backspace) {
                     return 1;
                 }

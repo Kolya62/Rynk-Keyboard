@@ -492,14 +492,22 @@ class RynkKeyboardView @JvmOverloads constructor(
         }
     }
 
-    fun resetState() {
-        cancelAllActivePointers()
+    fun hasActivePointers(): Boolean {
+        return activePointers.size() > 0
+    }
+
+    fun resetComposingState() {
         cachedLabelsVersion = -1L
         if (NativeBridge.isLibraryLoaded()) {
             NativeBridge.nativeReset()
             checkModeChange()
             invalidate()
         }
+    }
+
+    fun resetState() {
+        cancelAllActivePointers()
+        resetComposingState()
     }
 
     override fun onDetachedFromWindow() {

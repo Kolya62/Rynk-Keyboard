@@ -29,16 +29,9 @@ impl Autocorrect {
         }
     }
 
-    /// Checks if two characters are adjacent neighbors on QWERTY or ЙЦУКЕН layouts
-    pub fn is_layout_neighbor(c1: char, c2: char) -> bool {
-        let n1 = Self::strip_diacritics(c1);
-        let n2 = Self::strip_diacritics(c2);
-        if n1 == n2 {
-            return true;
-        }
-
-        // QWERTY adjacency
-        let qwerty_adj = match n1 {
+    pub fn get_adjacent_chars(c: char) -> &'static str {
+        let n = Self::strip_diacritics(c);
+        match n {
             'q' => "wa",
             'w' => "qesa",
             'e' => "wrsd",
@@ -65,53 +58,78 @@ impl Autocorrect {
             'b' => "vghn",
             'n' => "bhjm",
             'm' => "njk",
-            _ => "",
-        };
-        if qwerty_adj.contains(n2) {
-            return true;
-        }
-
-        // ЙЦУКЕН adjacency
-        let cyr_adj = match n1 {
-            'й' => "цф",
-            'ц' => "йуыф",
+            // Cyrillic ЙЦУКЕН + phonetics
+            'й' => "цфи",
+            'ц' => "йуыфч",
             'у' => "цквы",
-            'к' => "уеав",
-            'е' => "кнпа",
+            'к' => "уеавг",
+            'е' => "кнпаиё",
+            'ё' => "кнпаие",
             'н' => "егрп",
-            'г' => "ншор",
-            'ш' => "гщло",
+            'г' => "ншорк",
+            'ш' => "гщлож",
             'щ' => "шздл",
-            'з' => "щхжд",
+            'з' => "щхждс",
             'х' => "зэж",
-            'ф' => "йцыя",
-            'ы' => "цуфвяч",
-            'в' => "укыачс",
-            'а' => "кевпсм",
-            'п' => "енарим",
+            'ф' => "йцыяв",
+            'ы' => "цуфвячи",
+            'в' => "укыачсф",
+            'а' => "кевпсмо",
+            'п' => "енаримб",
             'р' => "нгпоит",
-            'о' => "гшрлт",
+            'о' => "гшрлта",
             'л' => "шщодьб",
-            'д' => "щзлжбю",
-            'ж' => "зхдэю",
+            'д' => "щзлжбют",
+            'ж' => "зхдэюш",
             'э' => "хж",
             'я' => "фыч",
-            'ч' => "яывс",
-            'с' => "чвам",
+            'ч' => "яывсц",
+            'с' => "чвамз",
             'м' => "сапи",
-            'и' => "мпрот",
-            'т' => "ироь",
-            'ь' => "толб",
-            'б' => "ьлдю",
+            'и' => "мпротеы",
+            'т' => "ироьд",
+            'ь' => "толбъ",
+            'ъ' => "толбь",
+            'б' => "ьлдюп",
             'ю' => "бдж",
             _ => "",
-        };
-        cyr_adj.contains(n2)
+        }
+    }
+
+    /// Checks if two characters are adjacent neighbors on QWERTY or ЙЦУКЕН layouts
+    pub fn is_layout_neighbor(c1: char, c2: char) -> bool {
+        let n1 = Self::strip_diacritics(c1);
+        let n2 = Self::strip_diacritics(c2);
+        if n1 == n2 {
+            return true;
+        }
+        Self::get_adjacent_chars(n1).contains(n2)
+    }
+
+    #[inline]
+    pub fn is_phonetic_confusion(c1: char, c2: char) -> bool {
+        let (a, b) = if c1 < c2 { (c1, c2) } else { (c2, c1) };
+        matches!(
+            (a, b),
+            ('а', 'о')
+                | ('е', 'и')
+                | ('з', 'с')
+                | ('д', 'т')
+                | ('б', 'п')
+                | ('в', 'ф')
+                | ('г', 'к')
+                | ('ж', 'ш')
+                | ('ё', 'е')
+                | ('и', 'й')
+                | ('ц', 'ч')
+                | ('ь', 'ъ')
+        )
     }
 
     /// Calculates substitution cost between two characters:
     /// 0.0 = identical
     /// 0.1 = exact base letter differing only by accent / diacritic (e.g. a vs ă, o vs ó, e vs ě)
+    /// 0.4 = unstressed vowel or phonetic consonant confusion
     /// 0.5 = physical keyboard layout neighbor
     /// 1.0 = distinct letters
     #[inline]
@@ -120,6 +138,8 @@ impl Autocorrect {
             0.0
         } else if Self::strip_diacritics(c1) == Self::strip_diacritics(c2) {
             0.1
+        } else if Self::is_phonetic_confusion(c1, c2) {
+            0.4
         } else if Self::is_layout_neighbor(c1, c2) {
             0.5
         } else {
@@ -285,7 +305,7 @@ impl Autocorrect {
         // 2. Exact match when stripping diacritics (e.g. "buna" -> "bună", "dziekuje" -> "dziękuję", "uber" -> "über")
         let t_norm: String = t.chars().map(Self::strip_diacritics).collect();
         let c_norm: String = c.chars().map(Self::strip_diacritics).collect();
-        if t_norm == c_norm && frequency >= 50 {
+        if t_norm == c_norm && frequency >= 25 {
             return true;
         }
 
@@ -293,36 +313,50 @@ impl Autocorrect {
         if crate::prediction::morphology::Morphology::analyze_prefix_match(&t, &c).is_some()
             || crate::prediction::morphology::Morphology::analyze_suffix_and_ending(&t, &c).is_some()
         {
-            if frequency >= 40 {
+            if frequency >= 25 {
                 return true;
             }
         }
 
-        // If candidate is a pure prefix extension of typed, do not auto-complete on space
+        // 4. Missing final 1-2 letters (e.g. "пожалуйст" -> "пожалуйста", "differen" -> "different", "спасиб" -> "спасибо")
         if c.starts_with(&t) {
+            if (c_len == t_len + 1 || (c_len == t_len + 2 && t_len >= 5)) && frequency >= 30 {
+                return true;
+            }
             return false;
         }
 
         let dist = Self::weighted_edit_distance(&t, &c);
         let first_matches = t.chars().next() == c.chars().next()
             || Self::strip_diacritics(t.chars().next().unwrap_or('\0'))
-                == Self::strip_diacritics(c.chars().next().unwrap_or('\0'));
-        let last_matches = t.chars().last() == c.chars().last();
+                == Self::strip_diacritics(c.chars().next().unwrap_or('\0'))
+            || (t.chars().next().is_some() && c.chars().next().is_some() && Self::is_layout_neighbor(t.chars().next().unwrap(), c.chars().next().unwrap()));
+        let last_matches = t.chars().last() == c.chars().last()
+            || (t.chars().last().is_some() && c.chars().last().is_some() && Self::is_layout_neighbor(t.chars().last().unwrap(), c.chars().last().unwrap()));
 
-        if dist <= 1.0 {
-            if (first_matches || last_matches) && frequency >= 50 {
+        if dist <= 1.2 {
+            if (first_matches || last_matches) && frequency >= 30 {
                 return true;
             }
-            if (t_len >= 4 || c_len >= 4) && frequency >= 100 {
+            if (t_len >= 3 || c_len >= 3) && frequency >= 50 {
                 return true;
             }
         }
 
-        if dist <= 1.6 {
-            if (t_len >= 4 && c_len >= 4) && first_matches && frequency >= 150 {
+        if dist <= 1.8 {
+            if (first_matches || last_matches) && frequency >= 40 {
                 return true;
             }
-            if (t_len >= 5 || c_len >= 5) && frequency >= 250 {
+            if (t_len >= 4 && c_len >= 4) && frequency >= 75 {
+                return true;
+            }
+        }
+
+        if dist <= 2.2 {
+            if (t_len >= 5 && c_len >= 5) && first_matches && frequency >= 60 {
+                return true;
+            }
+            if (t_len >= 6 && c_len >= 6) && frequency >= 120 {
                 return true;
             }
         }

@@ -305,11 +305,15 @@ class RynkInputMethodService : InputMethodService() {
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         if (isDispatchingEvents) return
+        if (keyboardView?.hasActivePointers() == true) return
         if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) {
-            val ic = currentInputConnection
-            val textBefore = ic?.getTextBeforeCursor(30, 0)?.toString() ?: ""
-            if (textBefore.isEmpty() || textBefore.last().isWhitespace() || !textBefore.last().isLetterOrDigit()) {
-                keyboardView?.resetState()
+            val delta = Math.abs(newSelStart - oldSelStart)
+            if (delta > 1) {
+                val ic = currentInputConnection
+                val textBefore = ic?.getTextBeforeCursor(30, 0)?.toString() ?: ""
+                if (textBefore.isEmpty() || textBefore.last().isWhitespace() || !textBefore.last().isLetterOrDigit()) {
+                    keyboardView?.resetComposingState()
+                }
             }
         }
     }
@@ -605,25 +609,39 @@ class RynkInputMethodService : InputMethodService() {
         val ic = currentInputConnection ?: return
         if (before <= 0 && after <= 0) return
 
-        if (before == 1 && after == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val textBefore = ic.getTextBeforeCursor(16, 0)?.toString()
-            if (!textBefore.isNullOrEmpty()) {
-                val it = android.icu.text.BreakIterator.getCharacterInstance()
-                it.setText(textBefore)
-                val last = it.last()
-                val prev = it.previous()
-                if (prev != android.icu.text.BreakIterator.DONE) {
-                    val codeUnitsToDelete = last - prev
-                    val res = ic.deleteSurroundingText(codeUnitsToDelete, 0)
-                    if (!res) {
-                        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+        if (before == 1 && after == 0) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val textBefore = ic.getTextBeforeCursor(16, 0)?.toString()
+                if (!textBefore.isNullOrEmpty()) {
+                    val it = android.icu.text.BreakIterator.getCharacterInstance()
+                    it.setText(textBefore)
+                    val last = it.last()
+                    val prev = it.previous()
+                    if (prev != android.icu.text.BreakIterator.DONE) {
+                        val codeUnitsToDelete = last - prev
+                        if (codeUnitsToDelete > 1) {
+                            var res = ic.deleteSurroundingText(codeUnitsToDelete, 0)
+                            if (!res) {
+                                for (k in 0 until codeUnitsToDelete) {
+                                    ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                    ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                }
+                            }
+                            return
+                        }
                     }
-                    return
                 }
             }
+
+            var res = ic.deleteSurroundingText(1, 0)
+            if (!res) {
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+            }
+            return
         }
-        val res = ic.deleteSurroundingText(before, after)
+
+        var res = ic.deleteSurroundingText(before, after)
         if (!res && before > 0) {
             for (k in 0 until before) {
                 ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))

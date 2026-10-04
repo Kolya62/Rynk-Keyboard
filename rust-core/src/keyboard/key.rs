@@ -116,6 +116,13 @@ impl Key {
             && py <= (self.hit_y + self.hit_height)
     }
 
+    pub fn contains_expanded(&self, px: f32, py: f32, margin: f32) -> bool {
+        px >= (self.hit_x - margin)
+            && px <= (self.hit_x + self.hit_width + margin)
+            && py >= (self.hit_y - margin)
+            && py <= (self.hit_y + self.hit_height + margin)
+    }
+
     pub fn contains_visual(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= (self.x + self.width) && py >= self.y && py <= (self.y + self.height)
     }

@@ -149,6 +149,7 @@ pub fn get_quick_correction(word: &str) -> Option<&'static str> {
         "dissappeared" => Some("disappeared"),
         "runing" => Some("running"),
         "swimmin" => Some("swimming"),
+        "somethin" => Some("something"),
         "comming" => Some("coming"),
         "happend" => Some("happened"),
         "stoped" => Some("stopped"),

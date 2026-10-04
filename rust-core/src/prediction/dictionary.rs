@@ -619,39 +619,69 @@ impl Dictionary {
         let c0 = chars.next();
         let c1 = chars.next();
 
-        let mut candidates = Vec::with_capacity(128);
-        let mut seen = HashSet::with_capacity(128);
+        let mut candidates = Vec::with_capacity(120);
+        let mut seen = HashSet::with_capacity(120);
 
-        for len in min_len..=max_len {
+        let mut lens: Vec<usize> = (min_len..=max_len).collect();
+        lens.sort_by_key(|&l| (l as isize - query_len as isize).abs());
+
+        for &len in &lens {
+            let take_c0 = if len == query_len { 50 } else { 20 };
+            let take_c1 = if len == query_len { 25 } else { 10 };
             if let Some(c) = c0 {
                 if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list.iter().take(25) {
+                    for &(w, freq) in list.iter().take(take_c0) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
-                            if candidates.len() >= 128 {
+                            if candidates.len() >= 100 {
                                 break;
                             }
                         }
                     }
                 }
             }
-            if candidates.len() >= 128 {
+            if candidates.len() >= 100 {
                 break;
             }
             if let Some(c) = c1 {
                 if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list.iter().take(25) {
+                    for &(w, freq) in list.iter().take(take_c1) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
-                            if candidates.len() >= 128 {
+                            if candidates.len() >= 100 {
                                 break;
                             }
                         }
                     }
                 }
             }
-            if candidates.len() >= 128 {
+            if candidates.len() >= 100 {
                 break;
+            }
+        }
+
+        // Layout neighbor and phonetic confusion check for c0 (if typo was on the first letter)
+        if let Some(c) = c0 {
+            let adj = crate::prediction::autocorrect::Autocorrect::get_adjacent_chars(c);
+            for adj_c in adj.chars() {
+                for &len in &lens {
+                    if candidates.len() >= 120 {
+                        break;
+                    }
+                    if let Some(list) = buckets.get(&(adj_c, len)) {
+                        for &(w, freq) in list.iter().take(15) {
+                            if seen.insert(w) {
+                                candidates.push((w, freq));
+                                if candidates.len() >= 120 {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if candidates.len() >= 120 {
+                    break;
+                }
             }
         }
 
@@ -666,15 +696,15 @@ impl Dictionary {
             _ => None,
         };
         if let Some(alt) = alt_c0 {
-            for len in min_len..=max_len {
-                if candidates.len() >= 128 {
+            for &len in &lens {
+                if candidates.len() >= 120 {
                     break;
                 }
                 if let Some(list) = buckets.get(&(alt, len)) {
-                    for &(w, freq) in list.iter().take(25) {
+                    for &(w, freq) in list.iter().take(20) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
-                            if candidates.len() >= 128 {
+                            if candidates.len() >= 120 {
                                 break;
                             }
                         }

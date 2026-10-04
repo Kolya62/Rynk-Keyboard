@@ -630,7 +630,7 @@ impl KeyboardEngine {
 
                         if suggestions.len() >= 2 {
                             let candidate = &suggestions[1];
-                            if !candidate.chars().any(|c| (c as u32) > 0x1F000) {
+                            if !candidate.ends_with("...") && !candidate.chars().any(|c| (c as u32) > 0x1F000) {
                                 let freq = self
                                     .prediction
                                     .dictionary
