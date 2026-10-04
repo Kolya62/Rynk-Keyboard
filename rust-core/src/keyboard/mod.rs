@@ -373,7 +373,7 @@ impl KeyboardEngine {
                 let is_punctuation =
                     ch == '.' || ch == ',' || ch == '!' || ch == '?' || ch == ';' || ch == ':';
                 if is_punctuation && self.state.mode == KeyboardMode::Alphabet {
-                    // Smart Punctuation (FlorisBoard style):
+                    // Smart Punctuation:
                     // If preceding character was a space, swallow it before punctuation
                     if self.state.last_char_was_space {
                         self.state

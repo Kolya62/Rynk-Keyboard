@@ -322,7 +322,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                         .push_event(KeyboardOutputEvent::CommitText(commit_str));
                     core.engine.hangul_composer.reset();
 
-                    // FlorisBoard Undo behavior: if suggestion replaced raw typing, allow Backspace to undo!
+                    // Autocorrect Undo behavior: if suggestion replaced raw typing, allow Backspace to undo!
                     if !core.engine.state.composing_text.is_empty()
                         && &core.engine.state.composing_text != word
                     {
@@ -337,7 +337,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
 
                     if core.engine.state.field_mode.allows_learning() {
                         if idx == 0 {
-                            // User explicitly tapped literal typed word (FlorisBoard behavior: prioritize/learn user word)
+                            // User explicitly tapped literal typed word (prioritize/learn user word)
                             core.engine.prediction.add_user_word(
                                 word,
                                 core.engine.state.language == Language::Russian,

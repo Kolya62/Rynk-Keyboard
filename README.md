@@ -40,7 +40,7 @@
    - Продвинутая автозамена с учётом соседних клавиш, опечаток, перестановок и диакритики.
    - Контекстное предсказание следующего слова по биграммам для всех поддерживаемых языков.
    - Канонический регистр аббревиатур (`OST`, `macOS`, `СПб`, `СНиП`, `хз`, `спс`).
-   - Принцип FlorisBoard: отмена автозамены одним нажатием Backspace с сохранением слова.
+   - Мгновенная отмена автозамены: нажатие Backspace сразу после пробела восстанавливает введённое слово и защищает его от повторной автокоррекции.
    - Защита словаря: опечатки не засоряют пользовательский лексикон.
 3. **Глобальная мультиязычность (85+ языков)**:
    - **Китайские языки**: Упрощённый китайский (中文 简体), Традиционный китайский (中文 繁體), Кантонский диалект (粵語 香港).
@@ -49,8 +49,8 @@
    - **Вьетнамский язык**: Вьетнамский ввод (Tiếng Việt) с полной поддержкой тонов и диакритических знаков.
    - **Европейские и мировые языки**: Русский, Английский, Арабский, Польский, Чешский, Румынский, Немецкий, Французский, Испанский, Итальянский, Турецкий, Украинский, Казахский, Иврит, Хинди и многие другие (более 85 языков мира).
    - Быстрое переключение раскладок свайпом влево/вправо по пробелу или клавишей глобуса.
-4. **Жесты и управление курсором**:
-   - **Свайп по пробелу**: плавное и точное перемещение текстового курсора без случайных нажатий.
+4. **Жесты и быстрое переключение**:
+   - **Свайп по пробелу**: быстрое переключение языка раскладки свайпом влево или вправо.
    - **Свайп влево от Backspace**: мгновенное удаление целого слова.
    - **Long-Press (удержание)**: всплывающее меню акцентов, цифр и спецсимволов.
    - Двойной тап по Shift для CapsLock с визуальным индикатором.
@@ -171,7 +171,7 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
    - Proximity-aware autocorrect accounting for keyboard geometry, transpositions, and diacritics.
    - Cross-language bigram next-word prediction.
    - Canonical abbreviation casing preservation (`OST`, `macOS`, `AFK`).
-   - FlorisBoard-style instant undo: tapping Backspace once after spacebar restores the exact user input and prevents re-correction.
+   - Instant autocorrect undo: tapping Backspace once after spacebar restores the exact user input and prevents re-correction.
    - Clean user dictionary guarantee: uncorrected typos never pollute the dictionary.
 3. **85+ Supported Languages**:
    - **Chinese**: Simplified Chinese (中文 简体), Traditional Chinese (中文 繁體), Cantonese (粵語 香港).
@@ -180,8 +180,8 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
    - **Vietnamese**: Vietnamese (Tiếng Việt) with full diacritic and tone mark handling.
    - **Global & European languages**: English, Russian, Arabic, Polish, Czech, Romanian, German, French, Spanish, Italian, Hebrew, Hindi, and 70+ more.
    - Instant language switching via spacebar swipe or dedicated globe key.
-4. **Precision Gestures & Cursor Control**:
-   - **Spacebar Swipe Cursor**: Glide left and right across the spacebar for character-accurate cursor positioning.
+4. **Precision Gestures**:
+   - **Spacebar Swipe Language Switch**: Swiftly switch keyboard language layout by swiping left or right across the spacebar.
    - **Backspace Swipe**: Swipe left from Backspace to delete whole words in one stroke.
    - **Long-Press Diacritics**: Hold any key to reveal alternative characters, symbols, and digits.
    - Double-tap Shift for persistent CapsLock with visual state indicator.

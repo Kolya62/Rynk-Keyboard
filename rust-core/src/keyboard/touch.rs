@@ -52,7 +52,7 @@ impl TouchTracker {
             long_press_threshold_ms: 350,
             space_drag_threshold_px: (12.0 * d).clamp(12.0, 25.0),
             backspace_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
-            space_swipe_threshold_px: (30.0 * d).clamp(30.0, 70.0),
+            space_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
             long_press_slop_sq: (18.0 * d).clamp(18.0, 36.0).powi(2),
             density: d,
         }
@@ -63,7 +63,7 @@ impl TouchTracker {
         self.density = d;
         self.space_drag_threshold_px = (12.0 * d).clamp(12.0, 25.0);
         self.backspace_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
-        self.space_swipe_threshold_px = (30.0 * d).clamp(30.0, 70.0);
+        self.space_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
         self.long_press_slop_sq = (18.0 * d).clamp(18.0, 36.0).powi(2);
     }
 }
@@ -161,28 +161,15 @@ impl TouchTracker {
                     pointer.current_x = x;
                     pointer.current_y = y;
 
-                    // Spacebar swipe left/right to switch language layout
+                    // Spacebar swipe left/right to switch language layout (arrow / cursor does NOT move)
                     if pointer.is_spacebar_drag && !pointer.has_swiped_language {
                         let total_dx = x - pointer.start_x;
                         if total_dx.abs() >= self.space_swipe_threshold_px {
                             pointer.has_swiped_language = true;
-                            pointer.has_dragged_cursor = true;
                             return TouchResult::SwitchLanguageSwipe {
                                 is_next: total_dx > 0.0,
                             };
                         }
-                    }
-
-                    // Spacebar cursor drag
-                    if pointer.is_spacebar_drag && !pointer.has_swiped_language {
-                        let dx = x - pointer.space_last_drag_x;
-                        if dx.abs() >= self.space_drag_threshold_px {
-                            let steps = (dx / self.space_drag_threshold_px) as i32;
-                            pointer.space_last_drag_x = x;
-                            pointer.has_dragged_cursor = true;
-                            return TouchResult::CursorMove { delta: steps };
-                        }
-                        return TouchResult::None;
                     }
 
                     // Backspace swipe left to delete word
@@ -226,8 +213,8 @@ impl TouchTracker {
                 self.pointers.retain(|p| p.id != pointer_id);
 
                 if let Some(p) = pointer {
-                    // Suppress tap release if spacebar was swiped or dragged
-                    if p.has_swiped_language || p.has_dragged_cursor {
+                    // Suppress tap release if spacebar was swiped
+                    if p.has_swiped_language {
                         return TouchResult::None;
                     }
 

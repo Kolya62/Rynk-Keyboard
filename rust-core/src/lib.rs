@@ -151,7 +151,7 @@ mod tests {
         });
         assert!(has_correct, "Typo 'превет' should autocorrect to 'привет '");
 
-        // 4. FlorisBoard feature: Immediate backspace after autocorrect restores original "превет "
+        // 4. Instant undo: Immediate backspace after autocorrect restores original "превет "
         engine.execute_key_action(keyboard::key::KeyAction::Backspace);
         let undo_events = engine.state.drain_events();
         let has_restored = undo_events.iter().any(|e| match e {
@@ -164,7 +164,7 @@ mod tests {
         );
         assert_eq!(engine.state.last_committed_word, "превет");
 
-        // 5. FlorisBoard feature: Hitting Space again after undo must NOT re-autocorrect!
+        // 5. Protected undo: Hitting Space again after undo must NOT re-autocorrect!
         engine.execute_key_action(keyboard::key::KeyAction::Space);
         let re_space_events = engine.state.drain_events();
         let re_delete = re_space_events.iter().any(|e| {
@@ -187,7 +187,7 @@ mod tests {
             "Rejected autocorrect word must be learned into user dictionary!"
         );
 
-        // 6. FlorisBoard feature: Removing word from dictionary (blacklist/forget word)
+        // 6. User dictionary management: Removing word from dictionary (blacklist/forget word)
         engine.prediction.remove_user_word("превет");
         assert!(
             !engine.prediction.dictionary.contains_word("превет", true),
@@ -562,22 +562,27 @@ mod tests {
             .unwrap()
             .clone();
         let (sx, sy) = space_key.center();
+        let initial_lang = engine.state.language;
         engine.on_touch(keyboard::touch::TouchAction::Down, 1, sx, sy, 100);
         let _ = engine.state.drain_events();
-        // Drag right by 35px
-        engine.on_touch(keyboard::touch::TouchAction::Move, 1, sx + 35.0, sy, 120);
+        // Swipe right by 40px
+        engine.on_touch(keyboard::touch::TouchAction::Move, 1, sx + 40.0, sy, 120);
         let move_events = engine.state.drain_events();
         let has_cursor = move_events
             .iter()
             .any(|e| matches!(e, KeyboardOutputEvent::MoveCursor(_)));
-        assert!(has_cursor, "Spacebar drag must emit MoveCursor event!");
+        assert!(!has_cursor, "Spacebar swipe must NOT move cursor!");
+        assert_ne!(
+            engine.state.language, initial_lang,
+            "Spacebar swipe must switch language!"
+        );
         // Release must NOT commit space
-        engine.on_touch(keyboard::touch::TouchAction::Up, 1, sx + 35.0, sy, 140);
+        engine.on_touch(keyboard::touch::TouchAction::Up, 1, sx + 40.0, sy, 140);
         let up_events = engine.state.drain_events();
         let has_space = up_events
             .iter()
             .any(|e| matches!(e, KeyboardOutputEvent::CommitText(_)));
-        assert!(!has_space, "Space drag release must not commit space!");
+        assert!(!has_space, "Space swipe release must not commit space!");
 
         // 5. Backspace swipe left emits DeleteWord
         let bksp_key = engine
