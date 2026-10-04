@@ -40,6 +40,8 @@ object Prefs {
 
     // Clipboard
     const val CLIPBOARD_CHIP = "pref_clipboard_chip"
+    const val CLIPBOARD_HISTORY = "pref_clipboard_history"
+    const val CLIPBOARD_TTL = "pref_clipboard_ttl"
 
     /** Pre-settings-screen boolean, migrated to [AUTOCORRECT_LEVEL] */
     private const val LEGACY_AUTOCORRECT = "pref_autocorrect"
@@ -117,4 +119,8 @@ object Prefs {
 
     /** 0 off, 1 left, 2 right */
     fun oneHanded(prefs: SharedPreferences): Int = prefs.getString(ONE_HANDED, null)?.toIntOrNull() ?: 0
+
+    /** How long unpinned clipboard history entries are kept */
+    fun clipboardTtlMillis(prefs: SharedPreferences): Long =
+        (prefs.getString(CLIPBOARD_TTL, null)?.toLongOrNull() ?: 60L) * 60_000L
 }

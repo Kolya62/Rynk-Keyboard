@@ -45,6 +45,7 @@ class RynkInputMethodService : InputMethodService() {
     private var wordSelectText: CharSequence = ""
     private val syncHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val delayedSync = Runnable { syncEditorContext() }
+    private val clipboardHistory by lazy { ClipboardHistory(java.io.File(filesDir, ClipboardHistory.FILE_NAME)) }
 
     override fun onCreate() {
         super.onCreate()
@@ -56,6 +57,7 @@ class RynkInputMethodService : InputMethodService() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
             consumedClipboardText = null
+            recordClipboard()
             updateClipboardChip()
         }
         clipboard?.addPrimaryClipChangedListener(clipboardListener)
@@ -86,7 +88,38 @@ class RynkInputMethodService : InputMethodService() {
         NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
         NativeBridge.nativeSetEnterAction(currentEnterAction)
         updateClipboardChip()
+        pushClipboardHistory()
         syncEditorContext()
+    }
+
+    /** Adds the new primary clip to the history unless disabled or marked sensitive. */
+    private fun recordClipboard() {
+        val prefs = Prefs.get(this)
+        if (!prefs.getBoolean(Prefs.CLIPBOARD_HISTORY, true)) return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        val clip = clipboard.primaryClip ?: return
+        // Password managers and the system mark secrets (Android 13+); never keep them
+        if (clip.description?.extras?.getBoolean("android.content.extra.IS_SENSITIVE") == true) return
+        if (isSensitiveField()) return
+        val text = clip.getItemAt(0)?.coerceToText(this)?.toString() ?: return
+        clipboardHistory.ttlMillis = Prefs.clipboardTtlMillis(prefs)
+        clipboardHistory.add(text, System.currentTimeMillis())
+        pushClipboardHistory()
+    }
+
+    private fun pushClipboardHistory() {
+        if (!NativeBridge.isCoreInitialized) return
+        val prefs = Prefs.get(this)
+        val items = if (prefs.getBoolean(Prefs.CLIPBOARD_HISTORY, true)) {
+            clipboardHistory.ttlMillis = Prefs.clipboardTtlMillis(prefs)
+            clipboardHistory.items(System.currentTimeMillis())
+        } else {
+            emptyList()
+        }
+        NativeBridge.nativeSetClipboardHistory(
+            items.map { it.text }.toTypedArray(),
+            BooleanArray(items.size) { items[it].pinned }
+        )
     }
 
     private fun isSensitiveField(): Boolean =
@@ -330,6 +363,8 @@ class RynkInputMethodService : InputMethodService() {
         val prefs = Prefs.get(this)
         updateThemeAndWindowColors(Prefs.theme(prefs))
         applySettings(prefs)
+        // Expired entries disappear from the panel
+        pushClipboardHistory()
     }
 
     /** Pushes every setting into the engine, the view and the feedback manager. */
@@ -364,6 +399,10 @@ class RynkInputMethodService : InputMethodService() {
         when (key) {
             Prefs.THEME, Prefs.THEME_LIST -> updateThemeAndWindowColors(Prefs.theme(prefs))
             Prefs.CLIPBOARD_CHIP -> updateClipboardChip()
+            Prefs.CLIPBOARD_HISTORY, Prefs.CLIPBOARD_TTL -> {
+                if (!prefs.getBoolean(Prefs.CLIPBOARD_HISTORY, true)) clipboardHistory.clearAll()
+                pushClipboardHistory()
+            }
         }
         keyboardView?.onEngineStateChanged()
     }
@@ -543,6 +582,17 @@ class RynkInputMethodService : InputMethodService() {
                         ic?.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, meta))
                         ic?.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, meta))
                         scheduleEditorSync()
+                    }
+                    NativeBridge.EVENT_CLIPBOARD_HISTORY_OP -> {
+                        val op = buffer.int
+                        val index = buffer.int
+                        val now = System.currentTimeMillis()
+                        when (op) {
+                            1 -> clipboardHistory.togglePin(index, now)
+                            2 -> clipboardHistory.delete(index, now)
+                            3 -> clipboardHistory.clearUnpinned()
+                        }
+                        pushClipboardHistory()
                     }
                     NativeBridge.EVENT_EDITOR_COMMAND -> {
                         runEditorCommand(buffer.int)

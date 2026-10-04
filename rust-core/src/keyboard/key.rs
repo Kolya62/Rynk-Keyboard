@@ -48,6 +48,8 @@ pub enum KeyboardMode {
     Emoji,
     /// Text editing panel: cursor keys, selection, clipboard, undo
     Edit,
+    /// Clipboard history panel (drawn by `clipboard_panel`, no keys)
+    Clipboard,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

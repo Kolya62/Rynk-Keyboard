@@ -117,7 +117,10 @@ impl LayoutBuilder {
             Self::add_number_row(&mut keys, metrics);
             Self::expand_invisible_hit_boxes(&mut keys, metrics);
         }
-        if mode != KeyboardMode::Emoji && options.one_handed != OneHanded::Off && !keys.is_empty() {
+        if !matches!(mode, KeyboardMode::Emoji | KeyboardMode::Clipboard)
+            && options.one_handed != OneHanded::Off
+            && !keys.is_empty()
+        {
             Self::make_one_handed(&mut keys, metrics, options.one_handed);
         }
         keys
@@ -237,6 +240,7 @@ impl LayoutBuilder {
             KeyboardMode::Numbers => Self::build_numbers(metrics),
             KeyboardMode::Symbols => Self::build_symbols(metrics),
             KeyboardMode::Emoji => Vec::new(),
+            KeyboardMode::Clipboard => Vec::new(),
             // Built by build_layout_with, which knows the selection state
             KeyboardMode::Edit => Self::build_edit(metrics, false),
         };

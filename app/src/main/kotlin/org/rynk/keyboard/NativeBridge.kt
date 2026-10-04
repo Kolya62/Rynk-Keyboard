@@ -55,6 +55,7 @@ object NativeBridge {
     const val EVENT_DELETE_SELECTION = 16
     const val EVENT_KEY_WITH_META = 17
     const val EVENT_EDITOR_COMMAND = 18
+    const val EVENT_CLIPBOARD_HISTORY_OP = 19
 
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()
@@ -98,6 +99,7 @@ object NativeBridge {
     external fun nativeSetEngineSettings(flags: Int, doubleSpace: Int, autocorrectLevel: Int)
     /** oneHanded: 0 off, 1 left, 2 right */
     external fun nativeSetLayoutOptions(numberRow: Boolean, oneHanded: Int, voiceKey: Boolean)
+    external fun nativeSetClipboardHistory(texts: Array<String>, pinned: BooleanArray)
     external fun nativeSetAssetManager(assets: android.content.res.AssetManager)
     /** Returns "composing\tlastCommittedWord" */
     external fun nativeGetComposingState(): String?

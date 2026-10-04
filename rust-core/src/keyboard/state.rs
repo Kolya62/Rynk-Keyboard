@@ -872,6 +872,9 @@ pub enum KeyboardOutputEvent {
     KeyWithMeta { code: i32, meta: i32 },
     /// Editor command: see `EditCommand`
     EditorCommand(i32),
+    /// Clipboard history change requested in the panel: op 1 toggle pin, 2 delete, 3 clear
+    /// unpinned; `index` into the list last pushed by the app
+    ClipboardHistoryOp { op: i32, index: i32 },
 }
 
 /// Codes of `KeyboardOutputEvent::EditorCommand`
@@ -979,6 +982,12 @@ impl KeyboardOutputEvent {
                 buf.push(18); // Type 18: EditorCommand
                 buf.extend_from_slice(&4u32.to_le_bytes());
                 buf.extend_from_slice(&cmd.to_le_bytes());
+            }
+            KeyboardOutputEvent::ClipboardHistoryOp { op, index } => {
+                buf.push(19); // Type 19: ClipboardHistoryOp
+                buf.extend_from_slice(&8u32.to_le_bytes());
+                buf.extend_from_slice(&op.to_le_bytes());
+                buf.extend_from_slice(&index.to_le_bytes());
             }
         }
     }

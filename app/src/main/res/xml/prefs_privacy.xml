@@ -7,6 +7,21 @@
         app:defaultValue="true"
         app:iconSpaceReserved="false" />
     <SwitchPreferenceCompat
+        app:key="pref_clipboard_history"
+        app:title="@string/pref_clipboard_history"
+        app:summary="@string/pref_clipboard_history_desc"
+        app:defaultValue="true"
+        app:iconSpaceReserved="false" />
+    <ListPreference
+        app:key="pref_clipboard_ttl"
+        app:title="@string/pref_clipboard_ttl"
+        app:dependency="pref_clipboard_history"
+        app:entries="@array/clipboard_ttl_entries"
+        app:entryValues="@array/clipboard_ttl_values"
+        app:defaultValue="60"
+        app:useSimpleSummaryProvider="true"
+        app:iconSpaceReserved="false" />
+    <SwitchPreferenceCompat
         app:key="pref_adaptive_learning"
         app:title="@string/pref_adaptive_learning"
         app:summary="@string/pref_adaptive_learning_desc"

@@ -5,10 +5,12 @@
         <exclude domain="sharedpref" path="rynk_user_dictionary.xml" />
         <exclude domain="file" path="adaptive_dict.bin" />
         <exclude domain="file" path="adaptive_dict.json" />
+        <exclude domain="file" path="clipboard_history.txt" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="rynk_user_dictionary.xml" />
         <exclude domain="file" path="adaptive_dict.bin" />
         <exclude domain="file" path="adaptive_dict.json" />
+        <exclude domain="file" path="clipboard_history.txt" />
     </device-transfer>
 </data-extraction-rules>

@@ -153,4 +153,10 @@ The model files are distributed under CC BY-SA 4.0.</string>
     <string name="pref_voice_key">Voice input button</string>
     <string name="pref_voice_key_desc">Microphone in the toolbar opens the system voice input</string>
     <string name="voice_unavailable">No voice input is enabled on this device</string>
+    <string name="pref_clipboard_history">Clipboard history</string>
+    <string name="pref_clipboard_history_desc">Keep recent copies in the toolbar panel; long press pins an entry</string>
+    <string name="pref_clipboard_ttl">Keep unpinned entries for</string>
+    <string name="clipboard_ttl_hour">1 hour</string>
+    <string name="clipboard_ttl_day">1 day</string>
+    <string name="clipboard_ttl_week">7 days</string>
 </resources>

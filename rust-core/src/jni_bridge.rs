@@ -46,6 +46,7 @@ pub struct RynkCore {
     pub engine: KeyboardEngine,
     pub renderer: KeyboardRenderer,
     pub emoji_mgr: EmojiManager,
+    pub clipboard_panel: crate::keyboard::clipboard_panel::ClipboardPanel,
 }
 
 impl RynkCore {
@@ -59,6 +60,7 @@ impl RynkCore {
             engine,
             renderer,
             emoji_mgr,
+            clipboard_panel: Default::default(),
         }
     }
 }
@@ -204,6 +206,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetMode(
         2 => KeyboardMode::Symbols,
         3 => KeyboardMode::Emoji,
         4 => KeyboardMode::Edit,
+        5 => KeyboardMode::Clipboard,
         _ => KeyboardMode::Alphabet,
     };
 
@@ -233,6 +236,34 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
 
     let mut guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_mut() {
+        if core.engine.state.mode == KeyboardMode::Clipboard {
+            use crate::keyboard::clipboard_panel::ClipboardPanelResult as R;
+            let result = core.clipboard_panel.handle_touch(touch_act, x, y, time_ms as u64, &core.engine.metrics);
+            let state = &mut core.engine.state;
+            match result {
+                R::Paste(text) => {
+                    state.push_event(KeyboardOutputEvent::CommitText(text));
+                    state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                    core.engine.set_mode(KeyboardMode::Alphabet);
+                }
+                R::TogglePin(i) => {
+                    state.push_event(KeyboardOutputEvent::ClipboardHistoryOp { op: 1, index: i as i32 });
+                    state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::LongPress));
+                }
+                R::Delete(i) => {
+                    state.push_event(KeyboardOutputEvent::ClipboardHistoryOp { op: 2, index: i as i32 });
+                    state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+                }
+                R::ClearUnpinned => {
+                    state.push_event(KeyboardOutputEvent::ClipboardHistoryOp { op: 3, index: -1 });
+                    state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyHeavyClick));
+                }
+                R::Close => core.engine.set_mode(KeyboardMode::Alphabet),
+                R::None => {}
+            }
+            return 1;
+        }
+
         // Emoji mode handling
         if core.engine.state.mode == KeyboardMode::Emoji {
             let current_language = core.engine.state.language;
@@ -435,7 +466,10 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                     Some(ToolbarItem::Edit) => {
                         core.engine.set_mode(KeyboardMode::Edit);
                     }
-                    Some(ToolbarItem::Clipboard) | None => {}
+                    Some(ToolbarItem::Clipboard) => {
+                        core.engine.set_mode(KeyboardMode::Clipboard);
+                    }
+                    None => {}
                 }
                 return 1;
             }
@@ -514,7 +548,19 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRender(
             let mut canvas =
                 Canvas::new(slice, info.width as usize, info.height as usize, stride_u32);
 
-            if core.engine.state.mode == KeyboardMode::Emoji {
+            if core.engine.state.mode == KeyboardMode::Clipboard {
+                core.renderer.text_labels.clear();
+                core.clipboard_panel.render(
+                    &mut canvas,
+                    &core.engine.metrics,
+                    &core.renderer.theme,
+                    &mut core.renderer.text_labels,
+                );
+                if core.renderer.text_labels != core.renderer.previous_labels {
+                    core.renderer.labels_version = core.renderer.labels_version.wrapping_add(1);
+                    core.renderer.previous_labels = core.renderer.text_labels.clone();
+                }
+            } else if core.engine.state.mode == KeyboardMode::Emoji {
                 core.renderer.text_labels.clear();
                 core.emoji_mgr.render(
                     &mut canvas,
@@ -853,6 +899,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetMode(
             KeyboardMode::Symbols => 2,
             KeyboardMode::Emoji => 3,
             KeyboardMode::Edit => 4,
+            KeyboardMode::Clipboard => 5,
         };
     }
     0
@@ -1071,5 +1118,30 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetLayoutOption
             crate::keyboard::layout::OneHanded::from_id(one_handed),
             voice_key != 0,
         );
+    }
+}
+
+/// Clipboard history as shown in the panel, newest/pinned first (texts and pinned flags).
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetClipboardHistory(
+    mut env: JNIEnv,
+    _class: JClass,
+    texts: jni::objects::JObjectArray,
+    pinned: jni::objects::JBooleanArray,
+) {
+    let len = env.get_array_length(&texts).unwrap_or(0).max(0) as usize;
+    let mut flags = vec![0u8; len];
+    if !pinned.is_null() && env.get_array_length(&pinned).unwrap_or(0) as usize == len {
+        let _ = env.get_boolean_array_region(&pinned, 0, &mut flags);
+    }
+    let mut items = Vec::with_capacity(len);
+    for (i, &flag) in flags.iter().enumerate() {
+        let Ok(obj) = env.get_object_array_element(&texts, i as i32) else { continue };
+        let text: String = env.get_string(&JString::from(obj)).map(|s| s.into()).unwrap_or_default();
+        items.push(crate::keyboard::clipboard_panel::ClipItem { text, pinned: flag != 0 });
+    }
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.clipboard_panel.set_items(items);
     }
 }

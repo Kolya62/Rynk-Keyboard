@@ -1,3 +1,4 @@
+pub mod clipboard_panel;
 pub mod context;
 pub mod hangul;
 pub mod key;
