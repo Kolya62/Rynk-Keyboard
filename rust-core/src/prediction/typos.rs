@@ -164,3 +164,15 @@ pub fn get_quick_correction(word: &str) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// The table entry for `word` if the table applies to `lang`: the Cyrillic entries are Russian,
+/// the Latin ones English ("im" is "I'm" in English but a word in German).
+pub fn get_quick_correction_for(word: &str, lang: crate::keyboard::state::Language) -> Option<&'static str> {
+    use crate::keyboard::state::Language;
+    let fix = get_quick_correction(word)?;
+    let cyrillic = word.chars().any(|c| ('\u{0400}'..='\u{04FF}').contains(&c));
+    match (cyrillic, lang) {
+        (true, Language::Russian) | (false, Language::English) => Some(fix),
+        _ => None,
+    }
+}

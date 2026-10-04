@@ -6,7 +6,38 @@
 //! top completions are precomputed.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::hash::{BuildHasherDefault, Hasher};
+use std::sync::{Arc, Mutex, MutexGuard};
+
+/// Multiply-rotate hasher (FxHash): the search does tens of map operations per expanded state,
+/// and the default SipHash dominated the decoding time.
+#[derive(Default, Clone, Copy)]
+pub struct FxHasher(u64);
+
+impl Hasher for FxHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.write_u64(b as u64);
+        }
+    }
+    fn write_u64(&mut self, v: u64) {
+        self.0 = (self.0.rotate_left(5) ^ v).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+    }
+    fn write_u32(&mut self, v: u32) {
+        self.write_u64(v as u64);
+    }
+    fn write_usize(&mut self, v: usize) {
+        self.write_u64(v as u64);
+    }
+}
+
+pub type FastMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
+
+/// Child ranges of a lexicon range: (next letter, lo, hi)
+pub type ChildRanges = Arc<Vec<(char, u32, u32)>>;
 
 /// Prefixes up to this many chars get precomputed top completions
 const PRECOMPUTED_PREFIX_CHARS: usize = 2;
@@ -29,6 +60,8 @@ pub struct LexiconBase {
     top_by_prefix: HashMap<String, Vec<u32>>,
     /// Model word id -> entry index
     by_model_id: Vec<u32>,
+    /// Spelling decoder cache, see `decoder::Decoder`
+    children_cache: Mutex<FastMap<(u32, u32, u32), ChildRanges>>,
 }
 
 /// A shared base word list plus this dictionary's runtime additions.
@@ -37,6 +70,8 @@ pub struct Lexicon {
     base: Arc<LexiconBase>,
     /// Runtime additions and frequency boosts (user / learned words), keyed by lowercase
     overlay: HashMap<String, (String, u32)>,
+    /// The overlay as sorted entries for the spelling decoder
+    overlay_entries: Vec<LexEntry>,
 }
 
 impl LexiconBase {
@@ -104,6 +139,7 @@ impl LexiconBase {
             entries,
             top_by_prefix,
             by_model_id,
+            children_cache: Mutex::default(),
         }
     }
 
@@ -124,6 +160,7 @@ impl Lexicon {
         Self {
             base,
             overlay: HashMap::new(),
+            overlay_entries: Vec::new(),
         }
     }
 
@@ -133,6 +170,11 @@ impl Lexicon {
 
     pub fn len(&self) -> usize {
         self.base.entries.len()
+    }
+
+    /// Decoder cache of the shared base word list (held for one decoding pass).
+    pub fn children_cache(&self) -> MutexGuard<'_, FastMap<(u32, u32, u32), ChildRanges>> {
+        self.base.children_cache.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -157,8 +199,31 @@ impl Lexicon {
             .find(&lower)
             .map(|e| e.canonical.to_string())
             .unwrap_or_else(|| word.to_string());
-        let slot = self.overlay.entry(lower).or_insert((canonical, 0));
+        let is_new = !self.overlay.contains_key(&lower);
+        let slot = self.overlay.entry(lower.clone()).or_insert((canonical, 0));
         slot.1 = slot.1.max(freq);
+        let (canonical, freq) = (slot.0.clone(), slot.1);
+        match self.overlay_entries.binary_search_by(|e| e.lower.cmp(lower.as_str())) {
+            Ok(i) => self.overlay_entries[i].freq = freq,
+            Err(i) => {
+                debug_assert!(is_new);
+                // Leaked like the base strings; the overlay is bounded by the user's vocabulary
+                self.overlay_entries.insert(
+                    i,
+                    LexEntry {
+                        lower: Box::leak(lower.into_boxed_str()),
+                        canonical: Box::leak(canonical.into_boxed_str()),
+                        freq,
+                        model_id: u32::MAX,
+                    },
+                );
+            }
+        }
+    }
+
+    /// User and learned words as sorted entries (searched by the decoder next to the base).
+    pub fn overlay_entries(&self) -> &[LexEntry] {
+        &self.overlay_entries
     }
 
     pub fn contains(&self, word: &str) -> bool {
@@ -171,6 +236,15 @@ impl Lexicon {
         let base = self.find(&lower).map(|e| e.freq);
         let over = self.overlay.get(&lower).map(|o| o.1);
         base.max(over)
+    }
+
+    /// Canonical spelling of a known word ("москва" -> "Москва").
+    pub fn canonical(&self, word: &str) -> Option<&str> {
+        let lower = word.to_lowercase();
+        if let Some(e) = self.find(&lower) {
+            return Some(e.canonical);
+        }
+        self.overlay.get(&lower).map(|o| o.0.as_str())
     }
 
     /// Canonical spelling for a model word id.

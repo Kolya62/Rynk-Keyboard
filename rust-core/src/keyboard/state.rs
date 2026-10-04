@@ -957,6 +957,9 @@ pub struct KeyboardState {
     pub shift_state: ShiftState,
     pub field_mode: InputFieldMode,
     pub composing_text: String,
+    /// Touch position of each letter of `composing_text` that came from a tap (letters adopted
+    /// from the editor have none); may lag behind, see `correction::observations`
+    pub composing_touches: Vec<Option<(f32, f32)>>,
     pub last_committed_word: String,
     /// Word before `last_committed_word` (trigram context)
     pub previous_word: String,
@@ -980,6 +983,7 @@ impl Default for KeyboardState {
             shift_state: ShiftState::Off,
             field_mode: InputFieldMode::Normal,
             composing_text: String::with_capacity(64),
+            composing_touches: Vec::with_capacity(32),
             last_committed_word: String::with_capacity(32),
             previous_word: String::with_capacity(32),
             context_at_sentence_start: true,
@@ -1048,6 +1052,8 @@ impl KeyboardState {
             let cluster_len = cluster.len();
             let new_len = self.composing_text.len().saturating_sub(cluster_len);
             self.composing_text.truncate(new_len);
+            let chars = self.composing_text.chars().count();
+            self.composing_touches.truncate(chars);
             let utf16_count = cluster.encode_utf16().count() as u32;
             Some(utf16_count)
         } else {

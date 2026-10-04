@@ -32,6 +32,13 @@ pub struct KeyboardEngine {
     pub hangul_composer: HangulComposer,
     /// Editor action performed by the Enter key (`EditorInfo.IME_ACTION_*`), 0 = plain Enter / newline
     pub enter_action: i32,
+    /// Letter key centers of the current layout, for the touch-aware spelling decoder
+    pub key_geometry: crate::prediction::decoder::KeyGeometry,
+    pub autocorrect_strength: crate::prediction::correction::AutocorrectStrength,
+    /// Where each pointer went down
+    touch_down_points: std::collections::HashMap<i32, (f32, f32)>,
+    /// Touch position of the key being executed, if it came from a tap
+    pending_touch: Option<(f32, f32)>,
 }
 
 impl KeyboardEngine {
@@ -42,7 +49,7 @@ impl KeyboardEngine {
             LayoutBuilder::build_layout(state.mode, state.language, state.shift_state, &metrics);
         let prediction = PredictionService::new();
 
-        Self {
+        let mut engine = Self {
             state,
             metrics,
             keys,
@@ -61,7 +68,35 @@ impl KeyboardEngine {
             enabled_languages: vec![Language::Russian, Language::English],
             hangul_composer: HangulComposer::new(),
             enter_action: 0,
+            key_geometry: Default::default(),
+            autocorrect_strength: Default::default(),
+            touch_down_points: std::collections::HashMap::new(),
+            pending_touch: None,
+        };
+        engine.key_geometry = Self::geometry_of(&engine.keys);
+        engine
+    }
+
+    /// Letter key centers (lowercase) and typical key size of a layout
+    fn geometry_of(keys: &[Key]) -> crate::prediction::decoder::KeyGeometry {
+        let mut g = crate::prediction::decoder::KeyGeometry::default();
+        let mut widths = Vec::new();
+        for key in keys {
+            if let KeyAction::Character(c) = key.action {
+                if c.is_alphabetic() {
+                    for l in c.to_lowercase() {
+                        g.centers.insert(l, key.center());
+                    }
+                    widths.push((key.width, key.height));
+                }
+            }
         }
+        widths.sort_by(|a, b| a.0.total_cmp(&b.0));
+        if let Some(&(w, h)) = widths.get(widths.len() / 2) {
+            g.key_width = w;
+            g.key_height = h;
+        }
+        g
     }
 
     pub fn resize(&mut self, width: f32, height: f32, density: f32) {
@@ -141,6 +176,9 @@ impl KeyboardEngine {
             self.state.shift_state,
             &self.metrics,
         );
+        if self.state.mode == KeyboardMode::Alphabet {
+            self.key_geometry = Self::geometry_of(&self.keys);
+        }
     }
 
     pub fn update_suggestions(&mut self) {
@@ -159,8 +197,11 @@ impl KeyboardEngine {
             self.cached_suggestions = if idle_with_clipboard {
                 Vec::new()
             } else {
-                self.prediction.get_suggestions_in_context(
+                self.prediction.get_suggestions_typed(
                     &self.state.composing_text,
+                    &self.state.composing_touches,
+                    Some(&self.key_geometry),
+                    self.autocorrect_strength,
                     &self.state.word_context(),
                     self.state.language,
                 )
@@ -263,6 +304,13 @@ impl KeyboardEngine {
 
     pub fn on_touch(&mut self, action: TouchAction, pointer_id: i32, x: f32, y: f32, time_ms: u64) {
         self.last_interaction_time_ms = time_ms;
+        match action {
+            TouchAction::Down => {
+                self.touch_down_points.insert(pointer_id, (x, y));
+            }
+            TouchAction::Cancel => self.touch_down_points.clear(),
+            _ => {}
+        }
         if action == TouchAction::Cancel {
             self.active_popup_key_id = None;
             for key in self.keys.iter_mut() {
@@ -290,7 +338,9 @@ impl KeyboardEngine {
                 if let Some(key) = self.keys.iter_mut().find(|k| k.id == key_id) {
                     key.is_pressed = false;
                 }
+                self.pending_touch = self.touch_down_points.remove(&pointer_id);
                 self.execute_key_action(action);
+                self.pending_touch = None;
             }
 
             TouchResult::AlternateKeyRelease { character } => {
@@ -483,7 +533,12 @@ impl KeyboardEngine {
                     }
                 } else {
                     self.state.last_char_was_space = false;
+                    if self.state.composing_text.is_empty() {
+                        // A new word: touches of the previous one are stale
+                        self.state.composing_touches.clear();
+                    }
                     self.state.composing_text.push(ch);
+                    self.state.composing_touches.push(self.pending_touch);
                     self.state
                         .push_event(KeyboardOutputEvent::CommitText(ch.to_string()));
                     let next_shift = self.state.shift_state.on_char_typed();
@@ -684,28 +739,24 @@ impl KeyboardEngine {
                         && self.autocorrect_enabled
                         && self.state.field_mode.allows_autocorrect()
                     {
-                        let suggestions = self.prediction.get_suggestions_in_context(
+                        let obs = crate::prediction::correction::observations(
                             &self.state.composing_text,
-                            &self.state.word_context(),
-                            self.state.language,
+                            &self.state.composing_touches,
                         );
-
-                        if suggestions.len() >= 2 {
-                            let candidate = &suggestions[1];
-                            if !candidate.ends_with("...") && !candidate.chars().any(|c| (c as u32) > 0x1F000) {
-                                let freq = self
-                                    .prediction
-                                    .dictionary
-                                    .get_word_frequency_for_lang(candidate, self.state.language);
-                                if crate::prediction::autocorrect::Autocorrect::is_confident_correction(
-                                    &self.state.composing_text,
-                                    candidate,
-                                    freq,
-                                    ) {
-                                    word_to_commit = candidate.clone();
-                                    did_autocorrect = true;
-                                }
-                            }
+                        let choice = self.prediction.dictionary.autocorrect_choice(
+                            self.state.language,
+                            &self.state.word_context(),
+                            &self.state.composing_text,
+                            &obs,
+                            Some(&self.key_geometry),
+                            self.autocorrect_strength,
+                        );
+                        if let Some(word) = choice {
+                            word_to_commit = crate::prediction::suggestions::SuggestionEngine::match_case(
+                                &self.state.composing_text,
+                                &word,
+                            );
+                            did_autocorrect = true;
                         }
                     }
 
@@ -735,19 +786,22 @@ impl KeyboardEngine {
                         self.state.last_autocorrect_replacement = None;
                     }
 
-                    if self.state.field_mode.allows_learning() {
-                        if !self.state.last_committed_word.is_empty() {
-                            self.prediction
-                                .learn_bigram(&self.state.last_committed_word, &word_to_commit);
+                    // A missing-space fix commits two words
+                    let words: Vec<String> = word_to_commit.split(' ').map(str::to_string).collect();
+                    for word in words {
+                        if self.state.field_mode.allows_learning() {
+                            if !self.state.last_committed_word.is_empty() {
+                                self.prediction.learn_bigram(&self.state.last_committed_word, &word);
+                            }
+                            let lang = self.state.language;
+                            if is_rejected {
+                                self.prediction.add_user_word_in(&word, lang);
+                            } else if is_valid_word || did_autocorrect {
+                                self.prediction.learn_word(&word, lang);
+                            }
                         }
-                        let lang = self.state.language;
-                        if is_rejected {
-                            self.prediction.add_user_word_in(&word_to_commit, lang);
-                        } else if is_valid_word || did_autocorrect {
-                            self.prediction.learn_word(&word_to_commit, lang);
-                        }
+                        self.state.commit_context_word(word);
                     }
-                    self.state.commit_context_word(word_to_commit);
                     self.state.composing_text.clear();
                     self.state.last_char_was_space = true;
                 } else {

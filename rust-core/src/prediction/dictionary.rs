@@ -8,18 +8,17 @@ pub static PROFANITY_RAW: &str = include_str!("data/profanity.txt");
 
 pub use super::adaptive::AdaptiveDictionary;
 
-pub type CandidateBucketMap = HashMap<(char, usize), Vec<(&'static str, u32)>>;
 
-/// Fuzzy candidate buckets keep only the most frequent words per (first letter, length)
-const BUCKET_CAP: usize = 50;
 /// Next-word predictions returned per context
 const CONTEXT_PREDICTIONS: usize = 6;
 /// Dictionary words below this frequency may still be autocorrected (see `dominant_alternative`)
-const RARE_WORD_FREQ: u32 = 400;
-const MIN_DOMINANT_FREQ: u32 = 1000;
+pub(crate) const RARE_WORD_FREQ: u32 = 400;
+pub(crate) const MIN_DOMINANT_FREQ: u32 = 1000;
 /// Frequency gap meaning "about 100× more common": the 0..=2500 scale spans ~5.7 decades of
 /// probability, so 2 decades ≈ 880 points
-const DOMINANCE_FREQ_GAP: u32 = 880;
+pub(crate) const DOMINANCE_FREQ_GAP: u32 = 880;
+/// Decoder cost of a single edit (a missing letter costs 2.0)
+pub(crate) const DOMINANCE_MAX_COST: f32 = 2.0;
 
 /// N-gram tables of one language model
 #[derive(Default)]
@@ -31,7 +30,6 @@ pub struct NgramModel {
 /// Immutable data of a loaded language, shared process-wide
 struct LoadedLanguage {
     lexicon: Arc<LexiconBase>,
-    buckets: Arc<CandidateBucketMap>,
     ngrams: Arc<NgramModel>,
 }
 
@@ -44,20 +42,8 @@ impl LoadedLanguage {
         let LanguageModelData { words, bigrams, trigrams } = model;
         let lexicon = LexiconBase::from_words(words.into_iter().map(|w| (w.word, w.freq as u32)).collect());
 
-        let mut buckets: CandidateBucketMap = HashMap::new();
-        for e in lexicon.entries() {
-            let c0 = e.lower.chars().next().unwrap_or('\0');
-            buckets.entry((c0, e.lower.chars().count())).or_default().push((e.canonical, e.freq));
-        }
-        for list in buckets.values_mut() {
-            list.sort_unstable_by_key(|e| std::cmp::Reverse(e.1));
-            list.truncate(BUCKET_CAP);
-            list.shrink_to_fit();
-        }
-
         Self {
             lexicon: Arc::new(lexicon),
-            buckets: Arc::new(buckets),
             ngrams: Arc::new(NgramModel { bigrams, trigrams }),
         }
     }
@@ -65,7 +51,6 @@ impl LoadedLanguage {
 
 pub struct Dictionary {
     pub lexicons: HashMap<Language, Lexicon>,
-    pub candidate_buckets: HashMap<Language, Arc<CandidateBucketMap>>,
     pub ngrams: HashMap<Language, Arc<NgramModel>>,
     pub profanity: HashSet<&'static str>,
     pub profanity_enabled: bool,
@@ -97,7 +82,6 @@ impl Dictionary {
 
         let mut dict = Self {
             lexicons: HashMap::new(),
-            candidate_buckets: HashMap::new(),
             ngrams: HashMap::new(),
             profanity,
             profanity_enabled: true,
@@ -142,7 +126,6 @@ impl Dictionary {
 
     fn attach(&mut self, lang: Language, loaded: &LoadedLanguage) {
         self.lexicons.insert(lang, Lexicon::new(loaded.lexicon.clone()));
-        self.candidate_buckets.insert(lang, loaded.buckets.clone());
         self.ngrams.insert(lang, loaded.ngrams.clone());
     }
 
@@ -161,123 +144,6 @@ impl Dictionary {
             .get(&lang)
             .or_else(|| self.lexicons.get(&Language::Russian))
             .unwrap_or_else(|| empty_lexicon())
-    }
-
-    pub fn get_fuzzy_candidates(&self, query: &str, lang: Language) -> Vec<(&'static str, u32)> {
-        let clean = query.trim().to_lowercase();
-        let query_len = clean.chars().count();
-        if query_len == 0 {
-            return Vec::new();
-        }
-
-        let buckets_opt = self.candidate_buckets.get(&lang).or_else(|| self.candidate_buckets.get(&Language::Russian));
-        let buckets = match buckets_opt {
-            Some(b) => b,
-            None => return Vec::new(),
-        };
-
-        let min_len = query_len.saturating_sub(2).max(1);
-        let max_len = query_len + 2;
-
-        let mut chars = clean.chars();
-        let c0 = chars.next();
-        let c1 = chars.next();
-
-        let mut candidates = Vec::with_capacity(120);
-        let mut seen = HashSet::with_capacity(120);
-
-        let mut lens: Vec<usize> = (min_len..=max_len).collect();
-        lens.sort_by_key(|&l| (l as isize - query_len as isize).abs());
-
-        for &len in &lens {
-            let take_c0 = if len == query_len { 50 } else { 20 };
-            let take_c1 = if len == query_len { 25 } else { 10 };
-            if let Some(c) = c0 {
-                if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list.iter().take(take_c0) {
-                        if seen.insert(w) {
-                            candidates.push((w, freq));
-                            if candidates.len() >= 100 {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if candidates.len() >= 100 {
-                break;
-            }
-            if let Some(c) = c1 {
-                if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list.iter().take(take_c1) {
-                        if seen.insert(w) {
-                            candidates.push((w, freq));
-                            if candidates.len() >= 100 {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if candidates.len() >= 100 {
-                break;
-            }
-        }
-
-        // Layout neighbor and phonetic confusion check for c0 (if typo was on the first letter)
-        if let Some(c) = c0 {
-            let adj = crate::prediction::autocorrect::Autocorrect::get_adjacent_chars(c);
-            for adj_c in adj.chars() {
-                for &len in &lens {
-                    if candidates.len() >= 120 {
-                        break;
-                    }
-                    if let Some(list) = buckets.get(&(adj_c, len)) {
-                        for &(w, freq) in list.iter().take(15) {
-                            if seen.insert(w) {
-                                candidates.push((w, freq));
-                                if candidates.len() >= 120 {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if candidates.len() >= 120 {
-                    break;
-                }
-            }
-        }
-
-        // Prefix variants check (e.g. зделал -> check 'с', unpossible -> check 'i', etc.)
-        let alt_c0 = match c0 {
-            Some('з') => Some('с'),
-            Some('с') => Some('з'),
-            Some('u') if clean.starts_with("un") => Some('i'),
-            Some('i') if clean.starts_with("in") || clean.starts_with("im") => Some('u'),
-            Some('d') if clean.starts_with("dis") => Some('m'),
-            Some('m') if clean.starts_with("mis") => Some('d'),
-            _ => None,
-        };
-        if let Some(alt) = alt_c0 {
-            for &len in &lens {
-                if candidates.len() >= 120 {
-                    break;
-                }
-                if let Some(list) = buckets.get(&(alt, len)) {
-                    for &(w, freq) in list.iter().take(20) {
-                        if seen.insert(w) {
-                            candidates.push((w, freq));
-                            if candidates.len() >= 120 {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        candidates
     }
 
     pub fn contains_word(&self, word: &str, _is_ru: bool) -> bool {
@@ -326,23 +192,20 @@ impl Dictionary {
         if self.removed_words.contains(&clean) {
             return 0;
         }
-        if let Some(&f) = self.user_dict.get(&clean) {
-            return f;
-        }
-        if let Some(&f) = self.adaptive_dict.learned_words.get(&clean) {
-            return f;
-        }
-        if self.profanity_enabled && self.profanity.contains(clean.as_str()) {
-            return 1000;
-        }
-        if let Some(f) = self.get_lexicon(lang).get_frequency(&clean) {
-            return f;
-        }
-        // Fallback check in Russian or English lexicon
-        [Language::Russian, Language::English]
-            .iter()
-            .find_map(|l| self.lexicons.get(l).and_then(|lex| lex.get_frequency(&clean)))
-            .unwrap_or(0)
+        // The strongest evidence wins: a learned word keeps its corpus frequency
+        let personal = self
+            .user_dict
+            .get(&clean)
+            .or_else(|| self.adaptive_dict.learned_words.get(&clean))
+            .copied();
+        let profanity = (self.profanity_enabled && self.profanity.contains(clean.as_str())).then_some(1000);
+        let lexicon = self.get_lexicon(lang).get_frequency(&clean).or_else(|| {
+            // Fallback check in Russian or English lexicon
+            [Language::Russian, Language::English]
+                .iter()
+                .find_map(|l| self.lexicons.get(l).and_then(|lex| lex.get_frequency(&clean)))
+        });
+        [personal, profanity, lexicon].into_iter().flatten().max().unwrap_or(0)
     }
 
     /// Adds a user word from the settings screen, where only Russian/other is known.
@@ -460,17 +323,20 @@ impl Dictionary {
             return None;
         }
         let min_freq = MIN_DOMINANT_FREQ.max(freq + DOMINANCE_FREQ_GAP);
-        let mut candidates = lexicon.find_completions(&clean, 8);
-        candidates.extend(self.get_fuzzy_candidates(&clean, lang).into_iter().map(|(w, f)| (w.to_string(), f)));
-        candidates
+        // Near-identical: one edit away (any kind), or the same word with one more final letter
+        let obs = super::correction::observations(&clean, &[]);
+        super::decoder::Decoder::new(lexicon, &obs, None)
+            .decode(DOMINANCE_MAX_COST, 20, true)
             .into_iter()
-            .filter(|(w, f)| {
-                let lower = w.to_lowercase();
-                *f >= min_freq
+            .filter(|c| {
+                let lower = c.word.to_lowercase();
+                c.freq >= min_freq
+                    && c.cost <= DOMINANCE_MAX_COST
+                    && c.completed_chars <= 1
                     && lower != clean
                     && !self.removed_words.contains(&lower)
-                    && super::autocorrect::Autocorrect::weighted_edit_distance(&clean, &lower) <= 1.2
             })
+            .map(|c| (c.word.to_string(), c.freq))
             .max_by_key(|(_, f)| *f)
     }
 }

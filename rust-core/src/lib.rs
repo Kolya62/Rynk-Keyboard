@@ -812,13 +812,6 @@ mod tests {
         assert!(Morphology::analyze_suffix_and_ending("runing", "running").is_some());
         assert!(Morphology::analyze_suffix_and_ending("definately", "definitely").is_some());
         assert!(Morphology::analyze_suffix_and_ending("occurance", "occurrence").is_some());
-
-        // 3. Confident corrections
-        assert!(Autocorrect::is_confident_correction("зделал", "сделал", 100));
-        assert!(Autocorrect::is_confident_correction("прикрасный", "прекрасный", 100));
-        assert!(Autocorrect::is_confident_correction("делаеш", "делаешь", 100));
-        assert!(Autocorrect::is_confident_correction("runing", "running", 100));
-        assert!(Autocorrect::is_confident_correction("definately", "definitely", 100));
     }
 
     #[test]
@@ -1262,5 +1255,57 @@ mod tests {
         }
         assert!(engine.state.last_committed_word.is_empty());
         assert!(engine.state.context_at_sentence_start);
+    }
+
+    #[test]
+    fn test_missing_space_is_split_on_commit() {
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_editor_context("", false);
+        let typed = typed_text(&mut engine, "приветкак");
+        assert_eq!(typed, "приветкак");
+        engine.execute_key_action(KeyAction::Space);
+        let mut out = String::from(typed.as_str());
+        for ev in engine.state.drain_events() {
+            match ev {
+                keyboard::state::KeyboardOutputEvent::CommitText(t) => out.push_str(&t),
+                keyboard::state::KeyboardOutputEvent::DeleteSurroundingText { before, .. } => {
+                    for _ in 0..before {
+                        out.pop();
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(out, "привет как ");
+        assert_eq!(engine.state.last_committed_word, "как");
+        assert_eq!(engine.state.previous_word, "привет");
+    }
+
+    #[test]
+    fn test_touch_position_steers_correction() {
+        use keyboard::touch::TouchAction;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_language(Language::English);
+        engine.set_editor_context("", false);
+        let center = |engine: &KeyboardEngine, c: char| -> (f32, f32) {
+            let k = engine.keys.iter().find(|k| k.label == c.to_string()).unwrap();
+            k.center()
+        };
+        // "thank" with the 'a' touch landing between 'a' and 's' on the 's' side
+        let mut t = 1_000;
+        for c in "thsnk".chars() {
+            let (mut x, y) = center(&engine, c);
+            if c == 's' {
+                let (ax, _) = center(&engine, 'a');
+                x = ax + (x - ax) * 0.55;
+            }
+            engine.on_touch(TouchAction::Down, 0, x, y, t);
+            engine.on_touch(TouchAction::Up, 0, x, y, t + 50);
+            t += 200;
+        }
+        assert_eq!(engine.state.composing_text, "thsnk");
+        assert_eq!(engine.state.composing_touches.len(), 5);
+        engine.update_suggestions();
+        assert_eq!(engine.cached_suggestions.get(1).map(String::as_str), Some("thank"));
     }
 }

@@ -1,11 +1,9 @@
-use super::autocorrect::Autocorrect;
 use super::dictionary::Dictionary;
+use super::correction::{observations, AutocorrectStrength};
+use super::decoder::KeyGeometry;
 use super::lm::WordContext;
 use crate::keyboard::state::Language;
 
-/// Score points per decade of probability the context adds to a candidate
-const CONTEXT_WEIGHT: f32 = 1.6;
-const MAX_CONTEXT_BONUS: f32 = 4.0;
 const NEXT_WORD_SLOTS: usize = 3;
 
 pub struct SuggestionEngine;
@@ -51,18 +49,23 @@ impl SuggestionEngine {
         words
     }
 
-    fn context_bonus(dict: &Dictionary, lang: Language, ctx: &WordContext, word: &str) -> f32 {
-        let mut bonus = (dict.context_gain(lang, ctx, word) * CONTEXT_WEIGHT).min(MAX_CONTEXT_BONUS);
-        if let Some(lw) = ctx.prev_word() {
-            if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, word, lang) {
-                bonus += 3.5;
-            }
-        }
-        bonus
-    }
-
     pub fn get_suggestions_in_context(
         input: &str,
+        ctx: &WordContext,
+        lang: Language,
+        dict: &Dictionary,
+    ) -> Vec<String> {
+        Self::get_suggestions_typed(input, &[], None, AutocorrectStrength::default(), ctx, lang, dict)
+    }
+
+    /// Suggestion chips for the word being typed: `[alternative/input, center, alternative]`,
+    /// where the center is what space commits. `touches` are the tap positions of the typed
+    /// letters (see `correction::observations`).
+    pub fn get_suggestions_typed(
+        input: &str,
+        touches: &[Option<(f32, f32)>],
+        geometry: Option<&KeyGeometry>,
+        strength: AutocorrectStrength,
         ctx: &WordContext,
         lang: Language,
         dict: &Dictionary,
@@ -81,7 +84,7 @@ impl SuggestionEngine {
         }
 
         // 3. Quick typo / phonetic table lookup (instant O(1) canonical correction)
-        if let Some(quick) = crate::prediction::typos::get_quick_correction(&clean) {
+        if let Some(quick) = crate::prediction::typos::get_quick_correction_for(&clean, lang) {
             let formatted = Self::match_case(input, quick);
             // The table also normalizes casing ("москва" -> "Москва"): nothing to fix if the
             // input already matches
@@ -111,83 +114,40 @@ impl SuggestionEngine {
         }
 
 
+        let obs = observations(input.trim(), touches);
         let mut target_lang = lang;
-        let trie = dict.get_lexicon(target_lang);
-        let mut completions = trie.find_completions(&clean, 16);
-        completions.retain(|(w, _)| !dict.removed_words.contains(w));
-
-        if !dict.profanity_enabled {
-            completions.retain(|(w, _)| !dict.profanity.contains(w.as_str()));
-        }
-
-        // Cross-script fallback: if no completions found in active language,
-        // check English for ASCII input or Russian for Cyrillic input
-        if completions.is_empty() {
-            let alt_lang = if clean.chars().all(|c| c.is_ascii_alphabetic()) {
+        let mut ranked = dict.rank_candidates(lang, ctx, &obs, geometry);
+        // Cross-script fallback: Latin letters typed while a non-Latin language is active, or
+        // Cyrillic while a non-Cyrillic one is
+        if ranked.is_empty() {
+            let alt = if clean.chars().all(|c| c.is_ascii_alphabetic()) {
                 Some(Language::English)
-            } else if clean
-                .chars()
-                .any(|c| ('\u{0400}'..='\u{04FF}').contains(&c))
-            {
+            } else if clean.chars().any(|c| ('\u{0400}'..='\u{04FF}').contains(&c)) {
                 Some(Language::Russian)
             } else {
                 None
             };
-
-            if let Some(alt) = alt_lang {
-                if alt != target_lang {
-                    let alt_trie = dict.get_lexicon(alt);
-                    let mut alt_completions = alt_trie.find_completions(&clean, 16);
-                    alt_completions.retain(|(w, _)| !dict.removed_words.contains(w));
-                    if !dict.profanity_enabled {
-                        alt_completions.retain(|(w, _)| !dict.profanity.contains(w.as_str()));
-                    }
-                    if !alt_completions.is_empty() {
-                        completions = alt_completions;
-                        target_lang = alt;
-                    }
-                }
+            if let Some(alt) = alt.filter(|&a| a != lang) {
+                ranked = dict.rank_candidates(alt, ctx, &obs, geometry);
+                target_lang = alt;
             }
         }
 
-        // 4. Exact match & Diacritic-equivalent match prioritization:
-        // If the user's typed word matches a dictionary word exactly or when ignoring diacritics
-        // (e.g. "buna" -> "bună", "dziekuje" -> "dziękuję", "uber" -> "über", "francais" -> "français"),
-        // it must ALWAYS be the primary candidate (Slot 1, Center chip)!
-        let clean_norm: String = clean.chars().map(Autocorrect::strip_diacritics).collect();
-        if let Some(pos) = completions
-            .iter()
-            .position(|(w, _)| {
-                let w_lower = w.to_lowercase();
-                if w_lower == clean {
-                    return true;
-                }
-                let w_norm: String = w_lower.chars().map(Autocorrect::strip_diacritics).collect();
-                w_norm == clean_norm
-            })
-            // A rare exact match with a far more frequent near-twin is ranked like a typo
-            .filter(|&p| {
-                completions[p].0.to_lowercase() != clean
-                    || dict.dominant_alternative(&clean, target_lang).is_none()
-            })
-        {
-            let exact = completions.remove(pos);
-            let center = Self::match_case(input, &exact.0);
-
-            // Other completions, most likely in this context first
-            completions.sort_by(|a, b| {
-                let sa = dict.context_log10(target_lang, ctx, &a.0);
-                let sb = dict.context_log10(target_lang, ctx, &b.0);
-                sb.total_cmp(&sa)
-            });
-            let mut alternatives = completions
+        // The typed word is a known word: it stays in the center (space keeps it)
+        if dict.is_intended_input(&clean, target_lang, &ranked) {
+            let canonical = dict
+                .get_lexicon(target_lang)
+                .canonical(&clean)
+                .map(str::to_string)
+                .unwrap_or_else(|| clean.clone());
+            let center = Self::match_case(input, &canonical);
+            let mut alternatives = ranked
                 .iter()
-                .map(|(w, _)| Self::match_case(input, w))
+                .map(|r| Self::match_case(input, &r.word))
                 .filter(|w| w.to_lowercase() != center.to_lowercase());
 
-            // Slot 1 (Center) is what space commits. When it is exactly the input, showing the
-            // input again on the left wastes a slot: offer another completion instead. Without
-            // alternatives only the real candidates are shown (a single chip is centered).
+            // Showing the input again on the left would waste a slot when the center already
+            // is the input: offer another candidate instead. Only real candidates are shown.
             let left = if center == input { alternatives.next() } else { Some(input.to_string()) };
             return match (left, alternatives.next()) {
                 (Some(left), Some(right)) => vec![left, center, right],
@@ -196,78 +156,21 @@ impl SuggestionEngine {
             };
         }
 
-        // 5. Typo, Diacritic, Context, or Prefix matching:
-        let mut candidates_map: std::collections::HashMap<String, f32> =
-            std::collections::HashMap::new();
-
-        for (comp, freq) in &completions {
-            let comp_lower = comp.to_lowercase();
-            let is_prefix = comp_lower.starts_with(&clean);
-            let score = if is_prefix {
-                let remaining = (comp_lower
-                    .chars()
-                    .count()
-                    .saturating_sub(clean.chars().count())) as f32;
-                let penalty = remaining * 0.15;
-                let freq_weight = (*freq as f32).min(2000.0) / 2000.0 * 2.0;
-                let user_bonus = if dict.adaptive_dict.learned_words.contains_key(&comp_lower)
-                    || dict.user_dict.contains_key(&comp_lower)
-                {
-                    3.0
-                } else {
-                    0.0
-                };
-                15.0 - penalty + freq_weight + user_bonus
-            } else {
-                Autocorrect::score_candidate(&clean, &comp_lower, *freq)
-            };
-            let ctx_bonus = Self::context_bonus(dict, target_lang, ctx, &comp_lower);
-            candidates_map.insert(comp.clone(), score + ctx_bonus);
+        // Center is what space will commit when autocorrect is confident, else the best guess
+        let choice = dict.choose_correction(target_lang, ctx, &clean, obs.len(), &ranked, strength);
+        let center = choice.or_else(|| ranked.first().map(|r| r.word.clone()));
+        let Some(center) = center.map(|w| Self::match_case(input, &w)) else {
+            return vec![input.to_string()];
+        };
+        let mut chips = vec![input.to_string(), center.clone()];
+        if let Some(right) = ranked
+            .iter()
+            .map(|r| Self::match_case(input, &r.word))
+            .find(|w| w.to_lowercase() != center.to_lowercase() && w.to_lowercase() != clean)
+        {
+            chips.push(right);
         }
-
-        // Fast fuzzy candidates: query small indexed candidate pool (~50-150 words)
-        let fuzzy_pool = dict.get_fuzzy_candidates(&clean, target_lang);
-        for &(w, freq) in &fuzzy_pool {
-            if dict.removed_words.contains(w)
-                || (!dict.profanity_enabled && dict.profanity.contains(w))
-            {
-                continue;
-            }
-            let score = Autocorrect::score_candidate(&clean, w, freq);
-            if score > 1.5 {
-                let ctx_bonus = Self::context_bonus(dict, target_lang, ctx, w);
-                let entry = candidates_map.entry(w.to_string()).or_insert(0.0);
-                if score + ctx_bonus > *entry {
-                    *entry = score + ctx_bonus;
-                }
-            }
-        }
-
-        let mut scored: Vec<(String, f32)> = candidates_map.into_iter().collect();
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-        if !scored.is_empty() {
-            let best_fix = &scored[0].0;
-            // The literal input already occupies the left slot
-            let second_fix = scored
-                .iter()
-                .skip(1)
-                .map(|s| s.0.as_str())
-                .find(|w| w.to_lowercase() != clean)
-                .unwrap_or("");
-
-            let mut chips = vec![
-                input.to_string(),                 // Left: literal input
-                Self::match_case(input, best_fix), // Center: autocorrect / best completion
-            ];
-            if !second_fix.is_empty() {
-                chips.push(Self::match_case(input, second_fix));
-            }
-            chips
-        } else {
-            // No correction found, return literal
-            vec![input.to_string()]
-        }
+        chips
     }
 
     pub fn match_case(template: &str, target: &str) -> String {

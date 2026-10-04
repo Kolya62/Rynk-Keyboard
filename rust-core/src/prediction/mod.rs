@@ -1,6 +1,8 @@
 pub mod adaptive;
 pub mod autocorrect;
+pub mod decoder;
 pub mod cjk;
+pub mod correction;
 pub mod dictionary;
 pub mod lexicon;
 pub mod lm;
@@ -55,6 +57,19 @@ impl PredictionService {
         lang: crate::keyboard::state::Language,
     ) -> Vec<String> {
         SuggestionEngine::get_suggestions_in_context(input, ctx, lang, &self.dictionary)
+    }
+
+    /// Suggestions for the word being typed, using tap positions for spelling correction.
+    pub fn get_suggestions_typed(
+        &self,
+        input: &str,
+        touches: &[Option<(f32, f32)>],
+        geometry: Option<&decoder::KeyGeometry>,
+        strength: correction::AutocorrectStrength,
+        ctx: &lm::WordContext,
+        lang: crate::keyboard::state::Language,
+    ) -> Vec<String> {
+        SuggestionEngine::get_suggestions_typed(input, touches, geometry, strength, ctx, lang, &self.dictionary)
     }
 
     pub fn set_profanity_enabled(&mut self, enabled: bool) {

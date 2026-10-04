@@ -18,7 +18,7 @@ use rynk_core::prediction::autocorrect::Autocorrect;
 use rynk_core::prediction::lm_data::{
     ctx_id, quantize, trigram_key, LanguageModelData, NgramTable, WordEntry, SENTENCE_START,
 };
-use rynk_core::prediction::typos::get_quick_correction;
+use rynk_core::prediction::typos::get_quick_correction_for;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use unicode_normalization::UnicodeNormalization;
@@ -588,7 +588,7 @@ fn main() {
     }
     // Known misspellings ("пожалуста", "вобще") occur in subtitles and news too; keeping them
     // would make the keyboard treat them as valid words and never correct them
-    scores.retain(|w, _| get_quick_correction(w).is_none_or(|fix| fix.to_lowercase() == *w));
+    scores.retain(|w, _| get_quick_correction_for(w, lang).is_none_or(|fix| fix.to_lowercase() == *w));
     let mut vocab: Vec<(String, f64, u32)> =
         scores.into_iter().map(|(w, (s, c))| (w, s, c)).collect();
     vocab.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
@@ -626,9 +626,11 @@ fn main() {
         let lower = w.to_lowercase();
         match index.get(&lower) {
             Some(&i) => {
-                // Curated casing wins (macOS, СПб, ООО)
+                // Curated casing wins (macOS, СПб, ООО); such hand-picked abbreviations are rare
+                // in corpora but meant to be typed, so their curated frequency is a floor
                 if w != lower {
                     words[i].word = w;
+                    words[i].freq = words[i].freq.max(f.min(CURATED_ONLY_MAX_FREQ) as u16);
                 }
             }
             None => {

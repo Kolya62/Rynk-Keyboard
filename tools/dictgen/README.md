@@ -10,6 +10,8 @@ python3 tools/dictgen/build_all.py          # all languages, or e.g.: build_all.
 cargo run --release -p dictgen --example inspect -- app/src/main/assets/lm/ru.rlm как спасибо
 cargo run --release -p dictgen --example load_bench
 cargo run --release -p dictgen --example context_demo -- ru "я иду в " "спасибо за "
+# Autocorrect quality: types sentences with simulated noisy touches (EVAL_VERBOSE=1 lists misses)
+cargo run --release -p dictgen --example eval_autocorrect -- ru tools/dictgen/.cache/tatoeba/rus-sentences.txt
 ```
 
 - Data per language (`sources.json`): a Leipzig news/wiki corpus, a Leipzig web corpus for the
