@@ -80,6 +80,16 @@ class RynkKeyboardView @JvmOverloads constructor(
     /** Keyboard height as a percentage of the default (settings: 80..130) */
     private var heightPercent: Int = Prefs.heightPercent(Prefs.get(context))
 
+    /** The number row adds a row: the keyboard grows instead of squeezing the letters */
+    private var numberRow: Boolean = Prefs.get(context).getBoolean(Prefs.NUMBER_ROW, false)
+
+    fun setNumberRow(enabled: Boolean) {
+        if (enabled != numberRow) {
+            numberRow = enabled
+            requestLayout()
+        }
+    }
+
     fun setHeightPercent(percent: Int) {
         if (percent != heightPercent) {
             heightPercent = percent
@@ -121,7 +131,8 @@ class RynkKeyboardView @JvmOverloads constructor(
         } else {
             if (isLandscape) 200f else if (isEmojiMode) 350f else 280f
         }
-        val contentHeight = (desiredHeightDp * heightPercent / 100f * density).toInt()
+        val rowFactor = if (numberRow && !isEmojiMode) NUMBER_ROW_HEIGHT_FACTOR else 1f
+        val contentHeight = (desiredHeightDp * heightPercent / 100f * rowFactor * density).toInt()
         val totalHeight = contentHeight + bottomInset
 
         setMeasuredDimension(width, totalHeight)
@@ -541,5 +552,10 @@ class RynkKeyboardView @JvmOverloads constructor(
         backBitmap?.recycle()
         backBitmap = null
         // The native core is owned by RynkInputMethodService and outlives this view
+    }
+
+    companion object {
+        /** Four letter rows become five: about a fifth more height keeps key size */
+        private const val NUMBER_ROW_HEIGHT_FACTOR = 1.18f
     }
 }

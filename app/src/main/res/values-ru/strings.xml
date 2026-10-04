@@ -143,4 +143,14 @@
 • FrequencyWords (OpenSubtitles 2018), Hermit Dave — CC BY-SA 4.0
 
 Файлы моделей распространяются по лицензии CC BY-SA 4.0.</string>
+    <string name="prefs_layout">Раскладка</string>
+    <string name="pref_number_row">Ряд цифр</string>
+    <string name="pref_number_row_desc">Цифры над буквами</string>
+    <string name="pref_one_handed">Режим одной руки</string>
+    <string name="one_handed_off">Выключен</string>
+    <string name="one_handed_left">Под левую руку</string>
+    <string name="one_handed_right">Под правую руку</string>
+    <string name="pref_voice_key">Кнопка голосового ввода</string>
+    <string name="pref_voice_key_desc">Микрофон на панели открывает системный голосовой ввод</string>
+    <string name="voice_unavailable">На устройстве не включён голосовой ввод</string>
 </resources>

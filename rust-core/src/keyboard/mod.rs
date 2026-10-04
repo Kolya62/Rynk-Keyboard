@@ -3,6 +3,7 @@ pub mod hangul;
 pub mod key;
 pub mod layout;
 pub mod state;
+pub mod toolbar;
 pub mod touch;
 
 use crate::prediction::PredictionService;
@@ -36,6 +37,9 @@ pub struct KeyboardEngine {
     pub key_geometry: crate::prediction::decoder::KeyGeometry,
     pub autocorrect_strength: crate::prediction::correction::AutocorrectStrength,
     pub settings: state::EngineSettings,
+    pub layout_options: layout::LayoutOptions,
+    /// Show the microphone in the toolbar (a voice input method is available)
+    pub voice_key: bool,
     /// Where each pointer went down
     touch_down_points: std::collections::HashMap<i32, (f32, f32)>,
     /// Touch position of the key being executed, if it came from a tap
@@ -72,6 +76,8 @@ impl KeyboardEngine {
             key_geometry: Default::default(),
             autocorrect_strength: Default::default(),
             settings: Default::default(),
+            layout_options: Default::default(),
+            voice_key: false,
             touch_down_points: std::collections::HashMap::new(),
             pending_touch: None,
         };
@@ -105,6 +111,25 @@ impl KeyboardEngine {
         self.metrics = LayoutMetrics::new(width, height, density);
         self.touch_tracker.update_density(density);
         self.rebuild_layout();
+    }
+
+    /// Number row, one-handed mode and the toolbar microphone (settings screen).
+    pub fn set_layout_options(&mut self, number_row: bool, one_handed: layout::OneHanded, voice_key: bool) {
+        let options = layout::LayoutOptions { number_row, one_handed };
+        self.voice_key = voice_key;
+        if options != self.layout_options {
+            self.layout_options = options;
+            self.rebuild_layout();
+        }
+    }
+
+    /// Switches one-handed mode from the keyboard itself; the app persists it.
+    pub fn set_one_handed(&mut self, mode: layout::OneHanded) {
+        if self.layout_options.one_handed != mode {
+            self.layout_options.one_handed = mode;
+            self.rebuild_layout();
+            self.state.push_event(KeyboardOutputEvent::OneHandedChanged(mode.to_id()));
+        }
     }
 
     /// Applies the settings screen: behavior flags, double-space action and autocorrect level
@@ -188,11 +213,12 @@ impl KeyboardEngine {
     }
 
     pub fn rebuild_layout(&mut self) {
-        self.keys = LayoutBuilder::build_layout(
+        self.keys = LayoutBuilder::build_layout_with(
             self.state.mode,
             self.state.language,
             self.state.shift_state,
             &self.metrics,
+            &self.layout_options,
         );
         if self.state.mode == KeyboardMode::Alphabet {
             self.key_geometry = Self::geometry_of(&self.keys);
@@ -895,6 +921,20 @@ impl KeyboardEngine {
                 self.state.push_event(KeyboardOutputEvent::PerformHaptic(
                     HapticFeedbackType::KeyClick,
                 ));
+            }
+
+            KeyAction::OneHandedSwitchSide => {
+                let other = match self.layout_options.one_handed {
+                    layout::OneHanded::Left => layout::OneHanded::Right,
+                    _ => layout::OneHanded::Left,
+                };
+                self.set_one_handed(other);
+                self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+            }
+
+            KeyAction::OneHandedOff => {
+                self.set_one_handed(layout::OneHanded::Off);
+                self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
             }
 
             KeyAction::None => {}

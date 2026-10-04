@@ -34,4 +34,14 @@
         <item>2</item>
         <item>3</item>
     </string-array>
+    <string-array name="one_handed_entries">
+        <item>@string/one_handed_off</item>
+        <item>@string/one_handed_left</item>
+        <item>@string/one_handed_right</item>
+    </string-array>
+    <string-array name="one_handed_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
 </resources>

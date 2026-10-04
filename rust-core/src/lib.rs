@@ -1357,4 +1357,46 @@ mod tests {
         engine.execute_key_action(KeyAction::Space);
         assert!(engine.state.drain_events().contains(&KeyboardOutputEvent::CommitText(" ".to_string())));
     }
+
+    #[test]
+    fn test_number_row_and_one_handed_layouts() {
+        use keyboard::layout::{LayoutOptions, OneHanded};
+        let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
+        let base = LayoutBuilder::build_layout(KeyboardMode::Alphabet, Language::Russian, ShiftState::Off, &metrics);
+        let with_row = LayoutBuilder::build_layout_with(
+            KeyboardMode::Alphabet,
+            Language::Russian,
+            ShiftState::Off,
+            &metrics,
+            &LayoutOptions { number_row: true, one_handed: OneHanded::Off },
+        );
+        assert_eq!(with_row.len(), base.len() + 10);
+        let one = with_row.iter().find(|k| k.action == KeyAction::Character('1')).unwrap();
+        let ya = with_row.iter().find(|k| k.label == "й").unwrap();
+        assert!(one.y + one.height <= ya.y, "digits above the letters");
+        assert!(with_row.iter().all(|k| k.y >= metrics.key_area_top - 0.5
+            && k.y + k.height <= metrics.key_area_top + metrics.key_area_height + 0.5));
+        let mut ids: Vec<u32> = with_row.iter().map(|k| k.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), with_row.len(), "unique key ids");
+
+        let right = LayoutBuilder::build_layout_with(
+            KeyboardMode::Alphabet,
+            Language::Russian,
+            ShiftState::Off,
+            &metrics,
+            &LayoutOptions { number_row: false, one_handed: OneHanded::Right },
+        );
+        let letters: Vec<_> = right.iter().filter(|k| matches!(k.action, KeyAction::Character(_))).collect();
+        assert!(letters.iter().all(|k| k.x >= 1080.0 * 0.18 - 1.0), "letters hug the right side");
+        assert!(right.iter().any(|k| k.action == KeyAction::OneHandedOff && k.x < 1080.0 * 0.18));
+
+        // The keyboard switches modes itself and reports it for persistence
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_one_handed(OneHanded::Left);
+        engine.execute_key_action(KeyAction::OneHandedSwitchSide);
+        assert_eq!(engine.layout_options.one_handed, OneHanded::Right);
+        assert!(engine.state.drain_events().contains(&keyboard::state::KeyboardOutputEvent::OneHandedChanged(2)));
+    }
 }

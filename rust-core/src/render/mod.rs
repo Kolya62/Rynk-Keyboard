@@ -230,42 +230,28 @@ impl KeyboardRenderer {
                 label_type: 5,
             });
         } else {
-            // Idle mode: Settings on left, clean punctuation shortcuts across the rest of the bar
-            let settings_w = 40.0 * dp;
-
-            // Settings icon
-            self.text_labels.push(TextLabel {
-                text: "⚙".to_string(),
-                cx: settings_w * 0.5,
-                cy: bar_h * 0.5,
-                font_size: 16.0 * dp,
-                color_r: self.theme.text_secondary.r,
-                color_g: self.theme.text_secondary.g,
-                color_b: self.theme.text_secondary.b,
-                color_a: self.theme.text_secondary.a,
-                is_bold: false,
-                label_type: 5,
-            });
-
-            let shortcuts = [",", ".", "!", "?", "—", ";", ":"];
-            let available_w = m.total_width - settings_w - 8.0 * dp;
-            let item_w = available_w / shortcuts.len() as f32;
-            let start_x = settings_w + 4.0 * dp;
-
-            for (i, &sc) in shortcuts.iter().enumerate() {
-                let cx = start_x + (i as f32 * item_w) + item_w * 0.5;
-                let cy = bar_h * 0.5;
+            // Idle mode: tool buttons and punctuation shortcuts (see keyboard::toolbar)
+            for (item, x, w) in crate::keyboard::toolbar::layout(m.total_width, dp, engine.voice_key) {
+                let active = item == crate::keyboard::toolbar::ToolbarItem::OneHanded
+                    && engine.layout_options.one_handed != crate::keyboard::layout::OneHanded::Off;
+                let color = if active {
+                    self.theme.suggestion_text_active
+                } else if item.is_icon() {
+                    self.theme.text_secondary
+                } else {
+                    self.theme.suggestion_text
+                };
                 self.text_labels.push(TextLabel {
-                    text: sc.to_string(),
-                    cx,
-                    cy,
+                    text: item.label().to_string(),
+                    cx: x + w * 0.5,
+                    cy: bar_h * 0.5,
                     font_size: 16.0 * dp,
-                    color_r: self.theme.suggestion_text.r,
-                    color_g: self.theme.suggestion_text.g,
-                    color_b: self.theme.suggestion_text.b,
-                    color_a: self.theme.suggestion_text.a,
+                    color_r: color.r,
+                    color_g: color.g,
+                    color_b: color.b,
+                    color_a: color.a,
                     is_bold: false,
-                    label_type: 2,
+                    label_type: if item.is_icon() { 5 } else { 2 },
                 });
             }
         }

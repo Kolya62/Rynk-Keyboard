@@ -328,7 +328,14 @@ class RynkInputMethodService : InputMethodService() {
         hapticManager.soundEnabled = prefs.getBoolean(Prefs.SOUND, false)
         hapticManager.soundVolume = Prefs.soundVolume(prefs) / 100f
         keyboardView?.setHeightPercent(Prefs.heightPercent(prefs))
+        val numberRow = prefs.getBoolean(Prefs.NUMBER_ROW, false)
+        keyboardView?.setNumberRow(numberRow)
         if (!NativeBridge.isLibraryLoaded()) return
+        NativeBridge.nativeSetLayoutOptions(
+            numberRow,
+            Prefs.oneHanded(prefs),
+            prefs.getBoolean(Prefs.VOICE_KEY, true) && voiceInputMethod() != null
+        )
         NativeBridge.nativeSetEnabledLanguages(Prefs.enabledLanguages(prefs))
         NativeBridge.nativeSetProfanityEnabled(prefs.getBoolean(Prefs.PROFANITY, true))
         NativeBridge.nativeSetPopupEnabled(prefs.getBoolean(Prefs.POPUP, true))
@@ -536,6 +543,11 @@ class RynkInputMethodService : InputMethodService() {
                         NativeBridge.nativeSetClipboardText(null)
                         keyboardView?.invalidate()
                     }
+                    NativeBridge.EVENT_VOICE_INPUT -> switchToVoiceInput()
+                    NativeBridge.EVENT_ONE_HANDED_CHANGED -> {
+                        val mode = buffer.int
+                        Prefs.get(this).edit().putString(Prefs.ONE_HANDED, mode.toString()).apply()
+                    }
                     NativeBridge.EVENT_PERFORM_EDITOR_ACTION -> {
                         val action = buffer.int
                         ic?.performEditorAction(action)
@@ -548,6 +560,34 @@ class RynkInputMethodService : InputMethodService() {
         } finally {
             ic?.endBatchEdit()
             isDispatchingEvents = false
+        }
+    }
+
+    /** An enabled voice input method and its voice subtype, if any. */
+    private fun voiceInputMethod(): Pair<android.view.inputmethod.InputMethodInfo, android.view.inputmethod.InputMethodSubtype>? {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return null
+        for (imi in imm.enabledInputMethodList) {
+            if (imi.packageName == packageName) continue
+            for (subtype in imm.getEnabledInputMethodSubtypeList(imi, true)) {
+                if (subtype.mode == "voice") return imi to subtype
+            }
+        }
+        return null
+    }
+
+    /** Hands over to the system voice keyboard (it returns to Rynk when done). */
+    private fun switchToVoiceInput() {
+        val (imi, subtype) = voiceInputMethod() ?: run {
+            Toast.makeText(this, R.string.voice_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            switchInputMethod(imi.id, subtype)
+        } else {
+            val token = window?.window?.attributes?.token ?: return
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            @Suppress("DEPRECATION")
+            imm?.setInputMethodAndSubtype(token, imi.id, subtype)
         }
     }
 

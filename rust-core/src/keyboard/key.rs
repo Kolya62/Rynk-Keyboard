@@ -11,6 +11,10 @@ pub enum KeyAction {
     Settings,
     HideKeyboard,
     SwitchInputMethod,
+    /// One-handed mode: move the keyboard to the other side
+    OneHandedSwitchSide,
+    /// One-handed mode: back to full width
+    OneHandedOff,
     None,
 }
 

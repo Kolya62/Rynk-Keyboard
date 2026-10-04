@@ -860,6 +860,10 @@ pub enum KeyboardOutputEvent {
     ClipboardPasted(String),
     /// Android `EditorInfo.IME_ACTION_*` code (Search, Send, Go, Next, Done, Previous)
     PerformEditorAction(i32),
+    /// Hand over to the system voice input method
+    VoiceInput,
+    /// One-handed mode changed on the keyboard (0 off, 1 left, 2 right), to be persisted
+    OneHandedChanged(i32),
 }
 
 impl KeyboardOutputEvent {
@@ -928,6 +932,15 @@ impl KeyboardOutputEvent {
                 buf.push(12); // Type 12: PerformEditorAction
                 buf.extend_from_slice(&4u32.to_le_bytes());
                 buf.extend_from_slice(&action.to_le_bytes());
+            }
+            KeyboardOutputEvent::VoiceInput => {
+                buf.push(13); // Type 13: VoiceInput
+                buf.extend_from_slice(&0u32.to_le_bytes());
+            }
+            KeyboardOutputEvent::OneHandedChanged(mode) => {
+                buf.push(14); // Type 14: OneHandedChanged
+                buf.extend_from_slice(&4u32.to_le_bytes());
+                buf.extend_from_slice(&mode.to_le_bytes());
             }
         }
     }

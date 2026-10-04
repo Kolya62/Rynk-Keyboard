@@ -18,6 +18,30 @@
         app:showSeekBarValue="true"
         app:iconSpaceReserved="false"
         xmlns:android="http://schemas.android.com/apk/res/android" />
+    <PreferenceCategory
+        app:title="@string/prefs_layout"
+        app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="pref_number_row"
+            app:title="@string/pref_number_row"
+            app:summary="@string/pref_number_row_desc"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            app:key="pref_one_handed"
+            app:title="@string/pref_one_handed"
+            app:entries="@array/one_handed_entries"
+            app:entryValues="@array/one_handed_values"
+            app:defaultValue="0"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            app:key="pref_voice_key"
+            app:title="@string/pref_voice_key"
+            app:summary="@string/pref_voice_key_desc"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
     <SwitchPreferenceCompat
         app:key="pref_popup"
         app:title="@string/pref_popup"

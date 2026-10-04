@@ -49,6 +49,13 @@ object SvgIcons {
         register("enter_done", "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z")
         iconPaths["back"]?.let { iconPaths["enter_previous"] = it }
 
+        // 11. Toolbar and one-handed mode
+        register("tb_mic", "M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z")
+        register("tb_one_handed", "M3 5h11v14H3z M16 5h5v14h-5z")
+        register("oh_left", "M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z")
+        register("oh_right", "M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z")
+        register("oh_full", "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z")
+
         // Direct aliases for Unicode character strings sent from keyboard layout
         iconPaths["shift_off"]?.let { iconPaths["⇧"] = it }
         iconPaths["shift_on"]?.let { iconPaths["⬆"] = it }

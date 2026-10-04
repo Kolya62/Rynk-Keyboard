@@ -47,10 +47,128 @@ impl LayoutMetrics {
     }
 }
 
+/// Which side the keys hug in one-handed mode
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OneHanded {
+    #[default]
+    Off,
+    Left,
+    Right,
+}
+
+impl OneHanded {
+    pub fn from_id(id: i32) -> Self {
+        match id {
+            1 => OneHanded::Left,
+            2 => OneHanded::Right,
+            _ => OneHanded::Off,
+        }
+    }
+
+    pub fn to_id(self) -> i32 {
+        match self {
+            OneHanded::Off => 0,
+            OneHanded::Left => 1,
+            OneHanded::Right => 2,
+        }
+    }
+}
+
+/// Settings that reshape any language's layout
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LayoutOptions {
+    /// A row of digits above the letters
+    pub number_row: bool,
+    pub one_handed: OneHanded,
+}
+
+/// Share of the width the keys keep in one-handed mode
+const ONE_HANDED_WIDTH: f32 = 0.82;
+
 pub struct LayoutBuilder;
 
 impl LayoutBuilder {
     pub fn build_layout(
+        mode: KeyboardMode,
+        language: Language,
+        shift_state: ShiftState,
+        metrics: &LayoutMetrics,
+    ) -> Vec<Key> {
+        Self::build_layout_with(mode, language, shift_state, metrics, &LayoutOptions::default())
+    }
+
+    /// Builds a layout, then applies the number row and one-handed mode on top of it, so every
+    /// language gets them without per-layout code.
+    pub fn build_layout_with(
+        mode: KeyboardMode,
+        language: Language,
+        shift_state: ShiftState,
+        metrics: &LayoutMetrics,
+        options: &LayoutOptions,
+    ) -> Vec<Key> {
+        let mut keys = Self::build_base_layout(mode, language, shift_state, metrics);
+        if mode == KeyboardMode::Alphabet && options.number_row && !keys.is_empty() {
+            Self::add_number_row(&mut keys, metrics);
+            Self::expand_invisible_hit_boxes(&mut keys, metrics);
+        }
+        if mode != KeyboardMode::Emoji && options.one_handed != OneHanded::Off && !keys.is_empty() {
+            Self::make_one_handed(&mut keys, metrics, options.one_handed);
+        }
+        keys
+    }
+
+    /// Squeezes the rows down and puts the digits 1..0 on top.
+    fn add_number_row(keys: &mut Vec<Key>, m: &LayoutMetrics) {
+        let rows = 1 + keys
+            .iter()
+            .map(|k| (k.y * 10.0).round() as i64)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len();
+        let row_h = (m.key_area_height - (rows as f32 - 1.0) * m.key_spacing_v) / rows as f32;
+        let top = m.key_area_top;
+        let offset = row_h + m.key_spacing_v;
+        let scale = (m.key_area_height - offset) / m.key_area_height;
+        for k in keys.iter_mut() {
+            k.y = top + offset + (k.y - top) * scale;
+            k.height *= scale;
+        }
+        let key_w = (m.total_width - 2.0 * m.padding_horizontal - 9.0 * m.key_spacing_h) / 10.0;
+        let mut id = keys.iter().map(|k| k.id).max().unwrap_or(0) + 1;
+        for (i, d) in "1234567890".chars().enumerate() {
+            let x = m.padding_horizontal + i as f32 * (key_w + m.key_spacing_h);
+            keys.push(Key::new(id, x, top, key_w, row_h, KeyAction::Character(d), d.to_string(), KeyType::Normal));
+            id += 1;
+        }
+    }
+
+    /// Narrows the keys towards one side and puts two control keys in the freed strip.
+    fn make_one_handed(keys: &mut Vec<Key>, m: &LayoutMetrics, side: OneHanded) {
+        let width = m.total_width * ONE_HANDED_WIDTH;
+        let shift = if side == OneHanded::Right { m.total_width - width } else { 0.0 };
+        for k in keys.iter_mut() {
+            k.x = shift + k.x * ONE_HANDED_WIDTH;
+            k.width *= ONE_HANDED_WIDTH;
+            k.hit_x = shift + k.hit_x * ONE_HANDED_WIDTH;
+            k.hit_width *= ONE_HANDED_WIDTH;
+        }
+        let strip_x = if side == OneHanded::Right { 0.0 } else { width };
+        let strip_w = m.total_width - width;
+        let pad = m.key_spacing_h * 2.0;
+        let half = (m.key_area_height - m.key_spacing_v) / 2.0;
+        let mut id = keys.iter().map(|k| k.id).max().unwrap_or(0) + 1;
+        let switch_label = if side == OneHanded::Right { "oh_left" } else { "oh_right" };
+        for (i, (action, label)) in
+            [(KeyAction::OneHandedSwitchSide, switch_label), (KeyAction::OneHandedOff, "oh_full")].into_iter().enumerate()
+        {
+            let y = m.key_area_top + i as f32 * (half + m.key_spacing_v);
+            let key = Key::new(id, strip_x + pad, y, strip_w - 2.0 * pad, half, action, label, KeyType::Modifier)
+                .with_hit_box(strip_x, y, strip_w, half);
+            keys.push(key);
+            id += 1;
+        }
+    }
+
+    fn build_base_layout(
         mode: KeyboardMode,
         language: Language,
         shift_state: ShiftState,

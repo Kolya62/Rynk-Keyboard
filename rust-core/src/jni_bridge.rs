@@ -407,40 +407,33 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                     return 1;
                 }
             } else {
-                let settings_w = 40.0 * dp;
-
-                // Settings icon tap on left
-                if x <= settings_w {
-                    core.engine
-                        .state
-                        .push_event(KeyboardOutputEvent::OpenSettings);
-                    core.engine
-                        .state
-                        .push_event(KeyboardOutputEvent::PerformHaptic(
-                            HapticFeedbackType::KeyClick,
-                        ));
-                    return 1;
-                }
-
-                // Shortcuts across the remainder of the bar
-                let shortcuts = [",", ".", "!", "?", "—", ";", ":"];
-                let available_w = total_w - settings_w - 8.0 * dp;
-                let item_w = available_w / shortcuts.len() as f32;
-                let rel_x = x - (settings_w + 4.0 * dp);
-                if rel_x >= 0.0 {
-                    let idx = (rel_x / item_w) as usize;
-                    if let Some(&sc) = shortcuts.get(idx) {
-                        core.engine
-                            .state
-                            .push_event(KeyboardOutputEvent::CommitText(format!("{} ", sc)));
-                        core.engine
-                            .state
-                            .push_event(KeyboardOutputEvent::PerformHaptic(
-                                HapticFeedbackType::KeyTick,
-                            ));
-                        return 1;
+                use crate::keyboard::toolbar::{hit, ToolbarItem};
+                let haptic = |core: &mut RynkCore, h| core.engine.state.push_event(KeyboardOutputEvent::PerformHaptic(h));
+                match hit(total_w, dp, core.engine.voice_key, x) {
+                    Some(ToolbarItem::Settings) => {
+                        core.engine.state.push_event(KeyboardOutputEvent::OpenSettings);
+                        haptic(core, HapticFeedbackType::KeyClick);
                     }
+                    Some(ToolbarItem::Voice) => {
+                        core.engine.state.push_event(KeyboardOutputEvent::VoiceInput);
+                        haptic(core, HapticFeedbackType::KeyClick);
+                    }
+                    Some(ToolbarItem::OneHanded) => {
+                        let next = if core.engine.layout_options.one_handed == crate::keyboard::layout::OneHanded::Off {
+                            crate::keyboard::layout::OneHanded::Right
+                        } else {
+                            crate::keyboard::layout::OneHanded::Off
+                        };
+                        core.engine.set_one_handed(next);
+                        haptic(core, HapticFeedbackType::KeyClick);
+                    }
+                    Some(ToolbarItem::Shortcut(sc)) => {
+                        core.engine.state.push_event(KeyboardOutputEvent::CommitText(format!("{} ", sc)));
+                        haptic(core, HapticFeedbackType::KeyTick);
+                    }
+                    Some(ToolbarItem::Clipboard) | Some(ToolbarItem::Edit) | None => {}
                 }
+                return 1;
             }
         }
 
@@ -1054,5 +1047,24 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEngineSettin
     let mut guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_mut() {
         core.engine.apply_settings(flags, double_space, autocorrect_level);
+    }
+}
+
+/// Layout settings: number row, one-handed mode (0 off, 1 left, 2 right), toolbar microphone.
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetLayoutOptions(
+    _env: JNIEnv,
+    _class: JClass,
+    number_row: jboolean,
+    one_handed: jint,
+    voice_key: jboolean,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.set_layout_options(
+            number_row != 0,
+            crate::keyboard::layout::OneHanded::from_id(one_handed),
+            voice_key != 0,
+        );
     }
 }

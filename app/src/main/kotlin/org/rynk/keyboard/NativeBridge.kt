@@ -49,6 +49,8 @@ object NativeBridge {
     const val EVENT_CLEAR_CLIPBOARD = 10
     const val EVENT_CLIPBOARD_PASTED = 11
     const val EVENT_PERFORM_EDITOR_ACTION = 12
+    const val EVENT_VOICE_INPUT = 13
+    const val EVENT_ONE_HANDED_CHANGED = 14
 
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()
@@ -90,6 +92,8 @@ object NativeBridge {
     /** Language models (assets/lm/<code>.rlm) are read through this; call before nativeInit. */
     /** flags: see Prefs.engineFlags; doubleSpace 0 language/1 period/2 nothing; level 0 off..3 */
     external fun nativeSetEngineSettings(flags: Int, doubleSpace: Int, autocorrectLevel: Int)
+    /** oneHanded: 0 off, 1 left, 2 right */
+    external fun nativeSetLayoutOptions(numberRow: Boolean, oneHanded: Int, voiceKey: Boolean)
     external fun nativeSetAssetManager(assets: android.content.res.AssetManager)
     /** Returns "composing\tlastCommittedWord" */
     external fun nativeGetComposingState(): String?

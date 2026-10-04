@@ -33,6 +33,11 @@ object Prefs {
     const val SOUND = "pref_sound"
     const val SOUND_VOLUME = "pref_sound_volume"
 
+    // Layout
+    const val NUMBER_ROW = "pref_number_row"
+    const val ONE_HANDED = "pref_one_handed"
+    const val VOICE_KEY = "pref_voice_key"
+
     // Clipboard
     const val CLIPBOARD_CHIP = "pref_clipboard_chip"
 
@@ -109,4 +114,7 @@ object Prefs {
 
     /** 0..100 */
     fun soundVolume(prefs: SharedPreferences): Int = prefs.getInt(SOUND_VOLUME, 40).coerceIn(0, 100)
+
+    /** 0 off, 1 left, 2 right */
+    fun oneHanded(prefs: SharedPreferences): Int = prefs.getString(ONE_HANDED, null)?.toIntOrNull() ?: 0
 }

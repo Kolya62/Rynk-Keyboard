@@ -143,4 +143,14 @@ Language models are built from:
 • FrequencyWords (OpenSubtitles 2018) by Hermit Dave — CC BY-SA 4.0
 
 The model files are distributed under CC BY-SA 4.0.</string>
+    <string name="prefs_layout">Layout</string>
+    <string name="pref_number_row">Number row</string>
+    <string name="pref_number_row_desc">Digits above the letters</string>
+    <string name="pref_one_handed">One-handed mode</string>
+    <string name="one_handed_off">Off</string>
+    <string name="one_handed_left">Left hand</string>
+    <string name="one_handed_right">Right hand</string>
+    <string name="pref_voice_key">Voice input button</string>
+    <string name="pref_voice_key_desc">Microphone in the toolbar opens the system voice input</string>
+    <string name="voice_unavailable">No voice input is enabled on this device</string>
 </resources>
