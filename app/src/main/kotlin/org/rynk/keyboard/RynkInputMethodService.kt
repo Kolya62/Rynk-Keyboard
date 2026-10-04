@@ -614,11 +614,21 @@ class RynkInputMethodService : InputMethodService() {
                 val prev = it.previous()
                 if (prev != android.icu.text.BreakIterator.DONE) {
                     val codeUnitsToDelete = last - prev
-                    ic.deleteSurroundingText(codeUnitsToDelete, 0)
+                    val res = ic.deleteSurroundingText(codeUnitsToDelete, 0)
+                    if (!res) {
+                        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                    }
                     return
                 }
             }
         }
-        ic.deleteSurroundingText(before, after)
+        val res = ic.deleteSurroundingText(before, after)
+        if (!res && before > 0) {
+            for (k in 0 until before) {
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+            }
+        }
     }
 }

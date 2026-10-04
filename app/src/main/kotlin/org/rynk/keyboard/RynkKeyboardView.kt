@@ -202,8 +202,13 @@ class RynkKeyboardView @JvmOverloads constructor(
                     if (distSq > 500f && !ptr.isLongPressTriggered) {
                         ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
                     }
-                    if (px < ptr.startX - 25f) {
-                        ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
+                    if (ptr.isBackspace) {
+                        val stillOnBs = NativeBridge.nativeIsBackspaceAt(px, py)
+                        val d = resources.displayMetrics.density
+                        val movedFar = (px < ptr.startX - 80f * d) || (Math.abs(py - ptr.startY) > 40f * d)
+                        if (!stillOnBs && movedFar) {
+                            ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
+                        }
                     }
                 }
 
@@ -315,6 +320,8 @@ class RynkKeyboardView @JvmOverloads constructor(
             if (wasRepeating) {
                 // Suppress extra release delete after repeating
                 NativeBridge.nativeOnTouchEvent(3 /* Cancel */, pointerId, x, y, timeMs)
+                checkModeChange()
+                onEventsReadyListener?.invoke()
                 invalidate()
                 return true
             }

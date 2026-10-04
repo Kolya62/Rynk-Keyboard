@@ -594,8 +594,8 @@ mod tests {
         let (bx, by) = bksp_key.center();
         engine.on_touch(keyboard::touch::TouchAction::Down, 2, bx, by, 200);
         let _ = engine.state.drain_events();
-        // Swipe left by 45px
-        engine.on_touch(keyboard::touch::TouchAction::Move, 2, bx - 45.0, by, 230);
+        // Swipe left by 80px
+        engine.on_touch(keyboard::touch::TouchAction::Move, 2, bx - 80.0, by, 230);
         let bksp_events = engine.state.drain_events();
         let has_delete_word = bksp_events
             .iter()
@@ -603,6 +603,60 @@ mod tests {
         assert!(
             has_delete_word,
             "Backspace swipe left must emit DeleteWord event!"
+        );
+        let is_pressed_after_swipe = engine
+            .keys
+            .iter()
+            .find(|k| k.id == bksp_key.id)
+            .unwrap()
+            .is_pressed;
+        assert!(
+            !is_pressed_after_swipe,
+            "Backspace key must be unpressed after swipe!"
+        );
+        // Release must keep key unpressed
+        engine.on_touch(keyboard::touch::TouchAction::Up, 2, bx - 80.0, by, 250);
+        let is_pressed_after_up = engine
+            .keys
+            .iter()
+            .find(|k| k.id == bksp_key.id)
+            .unwrap()
+            .is_pressed;
+        assert!(
+            !is_pressed_after_up,
+            "Backspace key must be unpressed after Up!"
+        );
+
+        // 6. Backspace hold does not trigger accidental swipe and unpresses cleanly
+        engine.on_touch(keyboard::touch::TouchAction::Down, 3, bx, by, 1000);
+        assert!(
+            engine
+                .keys
+                .iter()
+                .find(|k| k.id == bksp_key.id)
+                .unwrap()
+                .is_pressed,
+            "Backspace pressed on Down"
+        );
+        // Small move at t=1400 (>320ms hold) must NOT trigger DeleteWord
+        engine.on_touch(keyboard::touch::TouchAction::Move, 3, bx - 10.0, by, 1400);
+        let hold_events = engine.state.drain_events();
+        assert!(
+            !hold_events
+                .iter()
+                .any(|e| matches!(e, KeyboardOutputEvent::DeleteWord)),
+            "Holding backspace with small jitter must NOT trigger DeleteWord"
+        );
+        // Lifting finger cancels or ups
+        engine.on_touch(keyboard::touch::TouchAction::Cancel, 3, bx - 10.0, by, 1500);
+        assert!(
+            !engine
+                .keys
+                .iter()
+                .find(|k| k.id == bksp_key.id)
+                .unwrap()
+                .is_pressed,
+            "Backspace key must NOT stay pressed after release/cancel!"
         );
     }
 

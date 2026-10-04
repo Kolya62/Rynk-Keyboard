@@ -51,7 +51,7 @@ impl TouchTracker {
             pointers: Vec::with_capacity(4),
             long_press_threshold_ms: 350,
             space_drag_threshold_px: (12.0 * d).clamp(12.0, 25.0),
-            backspace_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
+            backspace_swipe_threshold_px: (24.0 * d).clamp(24.0, 70.0),
             space_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
             long_press_slop_sq: (18.0 * d).clamp(18.0, 36.0).powi(2),
             density: d,
@@ -62,7 +62,7 @@ impl TouchTracker {
         let d = density.max(0.5);
         self.density = d;
         self.space_drag_threshold_px = (12.0 * d).clamp(12.0, 25.0);
-        self.backspace_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
+        self.backspace_swipe_threshold_px = (24.0 * d).clamp(24.0, 70.0);
         self.space_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
         self.long_press_slop_sq = (18.0 * d).clamp(18.0, 36.0).powi(2);
     }
@@ -172,10 +172,11 @@ impl TouchTracker {
                         }
                     }
 
-                    // Backspace swipe left to delete word
+                    // Backspace swipe left to delete word (only for quick swipe gesture, not during long hold)
                     if pointer.is_backspace_drag && !pointer.has_swiped_backspace {
+                        let elapsed = time_ms.saturating_sub(pointer.start_time_ms);
                         let dx = x - pointer.start_x;
-                        if dx <= -self.backspace_swipe_threshold_px {
+                        if elapsed < 320 && dx <= -self.backspace_swipe_threshold_px {
                             pointer.has_swiped_backspace = true;
                             return TouchResult::DeleteWordSwipe;
                         }
@@ -240,12 +241,10 @@ impl TouchTracker {
                     // Normal tap release
                     if let Some(key_id) = p.active_key_id {
                         if let Some(key) = keys.iter().find(|k| k.id == key_id) {
-                            if key.contains(p.current_x, p.current_y) || !p.is_long_pressed {
-                                return TouchResult::KeyRelease {
-                                    key_id: key.id,
-                                    action: key.action,
-                                };
-                            }
+                            return TouchResult::KeyRelease {
+                                key_id: key.id,
+                                action: key.action,
+                            };
                         }
                     }
                 }

@@ -265,6 +265,10 @@ impl KeyboardEngine {
             }
 
             TouchResult::DeleteWordSwipe => {
+                self.active_popup_key_id = None;
+                for key in self.keys.iter_mut() {
+                    key.is_pressed = false;
+                }
                 let count = if !self.state.composing_text.is_empty() {
                     let len = self.state.composing_text.chars().count() as u32;
                     self.state.composing_text.clear();
@@ -301,6 +305,23 @@ impl KeyboardEngine {
             }
 
             TouchResult::None => {}
+        }
+
+        if action == TouchAction::Up || action == TouchAction::Cancel {
+            // Guarantee no key remains stuck pressed when fingers lift
+            for key in self.keys.iter_mut() {
+                let is_still_held = self
+                    .touch_tracker
+                    .pointers
+                    .iter()
+                    .any(|p| p.active_key_id == Some(key.id));
+                if !is_still_held {
+                    key.is_pressed = false;
+                }
+            }
+            if self.touch_tracker.pointers.is_empty() {
+                self.active_popup_key_id = None;
+            }
         }
     }
 
