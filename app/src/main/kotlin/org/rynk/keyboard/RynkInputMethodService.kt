@@ -24,6 +24,9 @@ class RynkInputMethodService : InputMethodService() {
     companion object {
         /** Enough for the word being typed and two previous words */
         private const val EDITOR_CONTEXT_CHARS = 256
+        /** Words a backspace drag can reach */
+        private const val WORD_SELECT_CONTEXT_CHARS = 1000
+        private const val EDITOR_SYNC_DELAY_MS = 80L
     }
 
     private lateinit var hapticManager: HapticManager
@@ -34,6 +37,14 @@ class RynkInputMethodService : InputMethodService() {
     private var consumedClipboardText: String? = null
     private var currentEnterAction: Int = 0
     private var currentInputType: Int = 0
+    /** Last known selection from onUpdateSelection */
+    private var selectionStart = -1
+    private var selectionEnd = -1
+    /** Backspace drag: cursor position when the selection started and the text before it */
+    private var wordSelectAnchor = -1
+    private var wordSelectText: CharSequence = ""
+    private val syncHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val delayedSync = Runnable { syncEditorContext() }
 
     override fun onCreate() {
         super.onCreate()
@@ -366,6 +377,8 @@ class RynkInputMethodService : InputMethodService() {
         candidatesEnd: Int
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        selectionStart = newSelStart
+        selectionEnd = newSelEnd
         if (isDispatchingEvents) return
         if (keyboardView?.hasActivePointers() == true) return
         if (oldSelStart == newSelStart && oldSelEnd == newSelEnd) return
@@ -514,7 +527,26 @@ class RynkInputMethodService : InputMethodService() {
                         val delta = buffer.int
                         if (delta != 0) {
                             moveCursor(delta)
+                            scheduleEditorSync()
                         }
+                    }
+                    NativeBridge.EVENT_SELECT_WORDS_BACK -> selectWordsBack(buffer.int)
+                    NativeBridge.EVENT_DELETE_SELECTION -> {
+                        ic?.commitText("", 1)
+                        wordSelectAnchor = -1
+                        scheduleEditorSync()
+                    }
+                    NativeBridge.EVENT_KEY_WITH_META -> {
+                        val code = buffer.int
+                        val meta = buffer.int
+                        val now = android.os.SystemClock.uptimeMillis()
+                        ic?.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, meta))
+                        ic?.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, meta))
+                        scheduleEditorSync()
+                    }
+                    NativeBridge.EVENT_EDITOR_COMMAND -> {
+                        runEditorCommand(buffer.int)
+                        scheduleEditorSync()
                     }
                     NativeBridge.EVENT_DELETE_WORD -> {
                         deletePreviousWord()
@@ -560,6 +592,47 @@ class RynkInputMethodService : InputMethodService() {
         } finally {
             ic?.endBatchEdit()
             isDispatchingEvents = false
+        }
+    }
+
+    /** Re-reads the editor after cursor moves and edits, once they have been applied. */
+    private fun scheduleEditorSync() {
+        syncHandler.removeCallbacks(delayedSync)
+        syncHandler.postDelayed(delayedSync, EDITOR_SYNC_DELAY_MS)
+    }
+
+    /** Backspace drag: select the last [words] words before where the drag started (0: none). */
+    private fun selectWordsBack(words: Int) {
+        val ic = currentInputConnection ?: return
+        if (words <= 0) {
+            if (wordSelectAnchor >= 0) ic.setSelection(wordSelectAnchor, wordSelectAnchor)
+            wordSelectAnchor = -1
+            return
+        }
+        if (wordSelectAnchor < 0) {
+            if (selectionEnd < 0) return
+            wordSelectAnchor = selectionEnd
+            wordSelectText = ic.getTextBeforeCursor(WORD_SELECT_CONTEXT_CHARS, 0) ?: ""
+        }
+        val length = EditorSync.wordsBackLength(wordSelectText, words)
+        ic.setSelection(wordSelectAnchor - length, wordSelectAnchor)
+    }
+
+    private fun runEditorCommand(command: Int) {
+        val ic = currentInputConnection ?: return
+        when (command) {
+            1 -> ic.performContextMenuAction(android.R.id.selectAll)
+            2 -> ic.performContextMenuAction(android.R.id.copy)
+            3 -> ic.performContextMenuAction(android.R.id.cut)
+            4 -> ic.performContextMenuAction(android.R.id.paste)
+            5, 6 -> {
+                // Ctrl+Z / Ctrl+Shift+Z: understood by most text fields
+                val meta = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON or
+                    (if (command == 6) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0)
+                val now = android.os.SystemClock.uptimeMillis()
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_Z, 0, meta))
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, 0, meta))
+            }
         }
     }
 

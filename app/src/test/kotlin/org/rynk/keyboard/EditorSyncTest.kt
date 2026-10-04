@@ -60,4 +60,13 @@ class EditorSyncTest {
             EditorSync.enterAction(EditorInfo.IME_ACTION_SEND or EditorInfo.IME_FLAG_NO_ENTER_ACTION)
         )
     }
+
+    @Test
+    fun wordsBackCoverTrailingSpacesAndPunctuation() {
+        assertEquals(6, EditorSync.wordsBackLength("say hello ", 1))
+        assertEquals(10, EditorSync.wordsBackLength("say hello ", 2))
+        assertEquals(6, EditorSync.wordsBackLength("Hi, there!", 1))
+        assertEquals(3, EditorSync.wordsBackLength("abc", 5))
+        assertEquals(0, EditorSync.wordsBackLength("", 1))
+    }
 }

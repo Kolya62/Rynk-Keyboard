@@ -864,6 +864,24 @@ pub enum KeyboardOutputEvent {
     VoiceInput,
     /// One-handed mode changed on the keyboard (0 off, 1 left, 2 right), to be persisted
     OneHandedChanged(i32),
+    /// Select this many words before the cursor (0 clears the selection)
+    SelectWordsBack(u32),
+    /// Delete the current selection
+    DeleteSelection,
+    /// Key press with Android meta state (shift-select with arrows)
+    KeyWithMeta { code: i32, meta: i32 },
+    /// Editor command: see `EditCommand`
+    EditorCommand(i32),
+}
+
+/// Codes of `KeyboardOutputEvent::EditorCommand`
+pub mod edit_command {
+    pub const SELECT_ALL: i32 = 1;
+    pub const COPY: i32 = 2;
+    pub const CUT: i32 = 3;
+    pub const PASTE: i32 = 4;
+    pub const UNDO: i32 = 5;
+    pub const REDO: i32 = 6;
 }
 
 impl KeyboardOutputEvent {
@@ -941,6 +959,26 @@ impl KeyboardOutputEvent {
                 buf.push(14); // Type 14: OneHandedChanged
                 buf.extend_from_slice(&4u32.to_le_bytes());
                 buf.extend_from_slice(&mode.to_le_bytes());
+            }
+            KeyboardOutputEvent::SelectWordsBack(words) => {
+                buf.push(15); // Type 15: SelectWordsBack
+                buf.extend_from_slice(&4u32.to_le_bytes());
+                buf.extend_from_slice(&words.to_le_bytes());
+            }
+            KeyboardOutputEvent::DeleteSelection => {
+                buf.push(16); // Type 16: DeleteSelection
+                buf.extend_from_slice(&0u32.to_le_bytes());
+            }
+            KeyboardOutputEvent::KeyWithMeta { code, meta } => {
+                buf.push(17); // Type 17: KeyWithMeta
+                buf.extend_from_slice(&8u32.to_le_bytes());
+                buf.extend_from_slice(&code.to_le_bytes());
+                buf.extend_from_slice(&meta.to_le_bytes());
+            }
+            KeyboardOutputEvent::EditorCommand(cmd) => {
+                buf.push(18); // Type 18: EditorCommand
+                buf.extend_from_slice(&4u32.to_le_bytes());
+                buf.extend_from_slice(&cmd.to_le_bytes());
             }
         }
     }

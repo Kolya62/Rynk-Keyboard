@@ -15,7 +15,29 @@ pub enum KeyAction {
     OneHandedSwitchSide,
     /// One-handed mode: back to full width
     OneHandedOff,
+    /// Text editing panel keys
+    Edit(EditAction),
     None,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditAction {
+    Left,
+    Right,
+    Up,
+    Down,
+    Home,
+    End,
+    /// Toggle: arrows extend the selection
+    SelectMode,
+    SelectAll,
+    Copy,
+    Cut,
+    Paste,
+    Undo,
+    Redo,
+    /// Back to the letters
+    Close,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,6 +46,8 @@ pub enum KeyboardMode {
     Numbers,
     Symbols,
     Emoji,
+    /// Text editing panel: cursor keys, selection, clipboard, undo
+    Edit,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

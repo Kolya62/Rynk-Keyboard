@@ -115,12 +115,59 @@ impl KeyboardEngine {
 
     /// Number row, one-handed mode and the toolbar microphone (settings screen).
     pub fn set_layout_options(&mut self, number_row: bool, one_handed: layout::OneHanded, voice_key: bool) {
-        let options = layout::LayoutOptions { number_row, one_handed };
+        let options = layout::LayoutOptions { number_row, one_handed, ..self.layout_options };
         self.voice_key = voice_key;
         if options != self.layout_options {
             self.layout_options = options;
             self.rebuild_layout();
         }
+    }
+
+    fn execute_edit_action(&mut self, action: key::EditAction) {
+        use key::EditAction as E;
+        use state::edit_command as cmd;
+        // Android KeyEvent codes and META_SHIFT_ON | META_SHIFT_LEFT_ON
+        const DPAD_UP: i32 = 19;
+        const DPAD_DOWN: i32 = 20;
+        const DPAD_LEFT: i32 = 21;
+        const DPAD_RIGHT: i32 = 22;
+        const MOVE_HOME: i32 = 122;
+        const MOVE_END: i32 = 123;
+        const META_SHIFT: i32 = 0x41;
+
+        let meta = if self.layout_options.edit_selecting { META_SHIFT } else { 0 };
+        let key = |code| KeyboardOutputEvent::KeyWithMeta { code, meta };
+        let event = match action {
+            E::Left => Some(key(DPAD_LEFT)),
+            E::Right => Some(key(DPAD_RIGHT)),
+            E::Up => Some(key(DPAD_UP)),
+            E::Down => Some(key(DPAD_DOWN)),
+            E::Home => Some(key(MOVE_HOME)),
+            E::End => Some(key(MOVE_END)),
+            E::SelectAll => Some(KeyboardOutputEvent::EditorCommand(cmd::SELECT_ALL)),
+            E::Copy => Some(KeyboardOutputEvent::EditorCommand(cmd::COPY)),
+            E::Cut => Some(KeyboardOutputEvent::EditorCommand(cmd::CUT)),
+            E::Paste => Some(KeyboardOutputEvent::EditorCommand(cmd::PASTE)),
+            E::Undo => Some(KeyboardOutputEvent::EditorCommand(cmd::UNDO)),
+            E::Redo => Some(KeyboardOutputEvent::EditorCommand(cmd::REDO)),
+            E::SelectMode => {
+                self.layout_options.edit_selecting = !self.layout_options.edit_selecting;
+                self.rebuild_layout();
+                None
+            }
+            E::Close => {
+                self.layout_options.edit_selecting = false;
+                self.set_mode(KeyboardMode::Alphabet);
+                None
+            }
+        };
+        // Whatever the panel did, the engine's idea of the word being typed is stale now
+        self.state.composing_text.clear();
+        self.state.composing_touches.clear();
+        if let Some(e) = event {
+            self.state.push_event(e);
+        }
+        self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
     }
 
     /// Switches one-handed mode from the keyboard itself; the app persists it.
@@ -136,6 +183,7 @@ impl KeyboardEngine {
     /// (0 off, 1 mild, 2 normal, 3 aggressive).
     pub fn apply_settings(&mut self, flags: i32, double_space: i32, autocorrect_level: i32) {
         self.settings = state::EngineSettings::from_flags(flags, double_space);
+        self.touch_tracker.space_swipe_switches_language = self.settings.space_swipe_switches_language;
         self.autocorrect_enabled = autocorrect_level > 0;
         self.autocorrect_strength = crate::prediction::correction::AutocorrectStrength {
             split_words: flags & state::EngineSettings::SPLIT_WORDS != 0,
@@ -419,36 +467,39 @@ impl KeyboardEngine {
                 ));
             }
 
-            TouchResult::DeleteWordSwipe if !self.settings.backspace_swipe_deletes_word => {
-                self.active_popup_key_id = None;
-            }
-
-            TouchResult::DeleteWordSwipe => {
+            TouchResult::CursorModeStarted => {
                 self.active_popup_key_id = None;
                 for key in self.keys.iter_mut() {
                     key.is_pressed = false;
                 }
-                let count = if !self.state.composing_text.is_empty() {
-                    let len = self.state.composing_text.chars().count() as u32;
-                    self.state.composing_text.clear();
-                    len
-                } else {
-                    0
-                };
-                self.state.clear_context(false);
-                self.suggestions_dirty = true;
-                if count > 0 {
-                    self.state
-                        .push_event(KeyboardOutputEvent::DeleteSurroundingText {
-                            before: count,
-                            after: 0,
-                        });
-                } else {
-                    self.state.push_event(KeyboardOutputEvent::DeleteWord);
+                self.state
+                    .push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::LongPress));
+            }
+
+            TouchResult::BackspaceSelect { words } => {
+                for key in self.keys.iter_mut() {
+                    key.is_pressed = false;
                 }
-                self.state.push_event(KeyboardOutputEvent::PerformHaptic(
-                    HapticFeedbackType::KeyHeavyClick,
-                ));
+                if self.settings.backspace_swipe_deletes_word {
+                    self.active_popup_key_id = None;
+                    self.state.push_event(KeyboardOutputEvent::SelectWordsBack(words));
+                    self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+                }
+            }
+
+            TouchResult::BackspaceSelectCommit => {
+                for key in self.keys.iter_mut() {
+                    key.is_pressed = false;
+                }
+                if self.settings.backspace_swipe_deletes_word {
+                    self.state.push_event(KeyboardOutputEvent::DeleteSelection);
+                    self.state.composing_text.clear();
+                    self.state.composing_touches.clear();
+                    self.state.clear_context(false);
+                    self.suggestions_dirty = true;
+                    self.state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyHeavyClick));
+                }
             }
 
             TouchResult::SwitchLanguageSwipe { is_next } => {
@@ -487,13 +538,18 @@ impl KeyboardEngine {
     }
 
     pub fn tick(&mut self, current_time_ms: u64) {
-        if let Some(TouchResult::LongPressTriggered { .. }) = self
-            .touch_tracker
-            .check_long_press(current_time_ms, &self.keys)
-        {
-            self.state.push_event(KeyboardOutputEvent::PerformHaptic(
-                HapticFeedbackType::LongPress,
-            ));
+        match self.touch_tracker.check_long_press(current_time_ms, &self.keys) {
+            Some(TouchResult::LongPressTriggered { .. }) => {
+                self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::LongPress));
+            }
+            Some(TouchResult::CursorModeStarted) => {
+                self.active_popup_key_id = None;
+                for key in self.keys.iter_mut() {
+                    key.is_pressed = false;
+                }
+                self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::LongPress));
+            }
+            _ => {}
         }
     }
 
@@ -931,6 +987,8 @@ impl KeyboardEngine {
                 self.set_one_handed(other);
                 self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
             }
+
+            KeyAction::Edit(edit) => self.execute_edit_action(edit),
 
             KeyAction::OneHandedOff => {
                 self.set_one_handed(layout::OneHanded::Off);

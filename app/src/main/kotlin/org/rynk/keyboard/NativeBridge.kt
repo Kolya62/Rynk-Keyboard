@@ -51,6 +51,10 @@ object NativeBridge {
     const val EVENT_PERFORM_EDITOR_ACTION = 12
     const val EVENT_VOICE_INPUT = 13
     const val EVENT_ONE_HANDED_CHANGED = 14
+    const val EVENT_SELECT_WORDS_BACK = 15
+    const val EVENT_DELETE_SELECTION = 16
+    const val EVENT_KEY_WITH_META = 17
+    const val EVENT_EDITOR_COMMAND = 18
 
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()

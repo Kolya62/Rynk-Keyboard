@@ -228,10 +228,10 @@ class RynkKeyboardView @JvmOverloads constructor(
                         ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
                     }
                     if (ptr.isBackspace) {
-                        val stillOnBs = NativeBridge.nativeIsBackspaceAt(px, py)
                         val d = resources.displayMetrics.density
-                        val movedFar = (px < ptr.startX - 80f * d) || (Math.abs(py - ptr.startY) > 40f * d)
-                        if (!stillOnBs && movedFar) {
+                        // Dragging left selects words (or the finger slid away): stop repeat deletion
+                        val dragging = (px < ptr.startX - 20f * d) || (Math.abs(py - ptr.startY) > 40f * d)
+                        if (dragging) {
                             ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
                         }
                     }

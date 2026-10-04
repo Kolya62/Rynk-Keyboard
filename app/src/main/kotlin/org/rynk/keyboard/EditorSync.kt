@@ -48,4 +48,17 @@ object EditorSync {
             else -> action
         }
     }
+
+    /**
+     * Length (in UTF-16 units) of the last [words] words before the cursor, including the
+     * spaces and punctuation after each word: what a backspace drag selects for deletion.
+     */
+    fun wordsBackLength(textBeforeCursor: CharSequence, words: Int): Int {
+        var i = textBeforeCursor.length
+        repeat(words) {
+            while (i > 0 && !textBeforeCursor[i - 1].isLetterOrDigit()) i--
+            while (i > 0 && textBeforeCursor[i - 1].isLetterOrDigit()) i--
+        }
+        return textBeforeCursor.length - i
+    }
 }

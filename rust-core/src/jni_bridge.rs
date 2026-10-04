@@ -203,6 +203,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetMode(
         1 => KeyboardMode::Numbers,
         2 => KeyboardMode::Symbols,
         3 => KeyboardMode::Emoji,
+        4 => KeyboardMode::Edit,
         _ => KeyboardMode::Alphabet,
     };
 
@@ -431,7 +432,10 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                         core.engine.state.push_event(KeyboardOutputEvent::CommitText(format!("{} ", sc)));
                         haptic(core, HapticFeedbackType::KeyTick);
                     }
-                    Some(ToolbarItem::Clipboard) | Some(ToolbarItem::Edit) | None => {}
+                    Some(ToolbarItem::Edit) => {
+                        core.engine.set_mode(KeyboardMode::Edit);
+                    }
+                    Some(ToolbarItem::Clipboard) | None => {}
                 }
                 return 1;
             }
@@ -848,6 +852,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetMode(
             KeyboardMode::Numbers => 1,
             KeyboardMode::Symbols => 2,
             KeyboardMode::Emoji => 3,
+            KeyboardMode::Edit => 4,
         };
     }
     0

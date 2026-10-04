@@ -26,6 +26,10 @@ pub struct PointerState {
     pub has_swiped_language: bool,
     pub is_backspace_drag: bool,
     pub has_swiped_backspace: bool,
+    /// Space bar held or dragged: horizontal movement moves the text cursor
+    pub cursor_mode: bool,
+    /// Words selected for deletion by dragging left from backspace
+    pub backspace_words: u32,
 }
 
 pub struct TouchTracker {
@@ -36,6 +40,11 @@ pub struct TouchTracker {
     pub space_swipe_threshold_px: f32,
     pub long_press_slop_sq: f32,
     pub density: f32,
+    /// A quick space swipe switches language; when off, swiping moves the cursor
+    pub space_swipe_switches_language: bool,
+    /// Drag distance per cursor step / per selected word
+    pub cursor_step_px: f32,
+    pub word_step_px: f32,
 }
 
 impl Default for TouchTracker {
@@ -55,6 +64,9 @@ impl TouchTracker {
             space_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
             long_press_slop_sq: (18.0 * d).clamp(18.0, 36.0).powi(2),
             density: d,
+            space_swipe_switches_language: true,
+            cursor_step_px: 9.0 * d,
+            word_step_px: 28.0 * d,
         }
     }
 
@@ -65,6 +77,8 @@ impl TouchTracker {
         self.backspace_swipe_threshold_px = (24.0 * d).clamp(24.0, 70.0);
         self.space_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
         self.long_press_slop_sq = (18.0 * d).clamp(18.0, 36.0).powi(2);
+        self.cursor_step_px = 9.0 * d;
+        self.word_step_px = 28.0 * d;
     }
 }
 
@@ -88,7 +102,14 @@ pub enum TouchResult {
     CursorMove {
         delta: i32,
     },
-    DeleteWordSwipe,
+    /// Space bar held long enough: dragging now moves the cursor
+    CursorModeStarted,
+    /// Dragging left from backspace selects this many words before the cursor (0: none)
+    BackspaceSelect {
+        words: u32,
+    },
+    /// Released after selecting words from backspace: delete them
+    BackspaceSelectCommit,
     SwitchLanguageSwipe {
         is_next: bool,
     },
@@ -138,6 +159,8 @@ impl TouchTracker {
                     has_swiped_language: false,
                     is_backspace_drag: is_backspace,
                     has_swiped_backspace: false,
+                    cursor_mode: false,
+                    backspace_words: 0,
                 });
 
                 if let Some(key) = hit_key {
@@ -161,24 +184,43 @@ impl TouchTracker {
                     pointer.current_x = x;
                     pointer.current_y = y;
 
-                    // Spacebar swipe left/right to switch language layout (arrow / cursor does NOT move)
+                    if pointer.is_spacebar_drag && pointer.cursor_mode {
+                        let steps = ((x - pointer.space_last_drag_x) / self.cursor_step_px).trunc() as i32;
+                        if steps != 0 {
+                            pointer.space_last_drag_x += steps as f32 * self.cursor_step_px;
+                            return TouchResult::CursorMove { delta: steps };
+                        }
+                        return TouchResult::None;
+                    }
+
+                    // Space bar: a quick swipe switches language (if enabled), otherwise dragging
+                    // moves the cursor
                     if pointer.is_spacebar_drag && !pointer.has_swiped_language {
                         let total_dx = x - pointer.start_x;
                         if total_dx.abs() >= self.space_swipe_threshold_px {
-                            pointer.has_swiped_language = true;
-                            return TouchResult::SwitchLanguageSwipe {
-                                is_next: total_dx > 0.0,
-                            };
+                            if self.space_swipe_switches_language {
+                                pointer.has_swiped_language = true;
+                                return TouchResult::SwitchLanguageSwipe { is_next: total_dx > 0.0 };
+                            }
+                            pointer.cursor_mode = true;
+                            pointer.has_dragged_cursor = true;
+                            pointer.space_last_drag_x = pointer.start_x;
+                            return TouchResult::CursorModeStarted;
                         }
                     }
 
-                    // Backspace swipe left to delete word (only for quick swipe gesture, not during long hold)
-                    if pointer.is_backspace_drag && !pointer.has_swiped_backspace {
-                        let elapsed = time_ms.saturating_sub(pointer.start_time_ms);
-                        let dx = x - pointer.start_x;
-                        if elapsed < 320 && dx <= -self.backspace_swipe_threshold_px {
+                    // Backspace: dragging left selects whole words, one per step
+                    if pointer.is_backspace_drag {
+                        let dx = pointer.start_x - x;
+                        let words = if dx < self.backspace_swipe_threshold_px {
+                            0
+                        } else {
+                            1 + ((dx - self.backspace_swipe_threshold_px) / self.word_step_px) as u32
+                        };
+                        if words != pointer.backspace_words {
+                            pointer.backspace_words = words;
                             pointer.has_swiped_backspace = true;
-                            return TouchResult::DeleteWordSwipe;
+                            return TouchResult::BackspaceSelect { words };
                         }
                     }
 
@@ -219,9 +261,13 @@ impl TouchTracker {
                         return TouchResult::None;
                     }
 
-                    // Suppress tap release if backspace was swiped to delete word
-                    if p.has_swiped_backspace {
+                    if p.cursor_mode || p.has_dragged_cursor {
                         return TouchResult::None;
+                    }
+
+                    // Backspace drag: delete the selected words, or nothing if dragged back
+                    if p.has_swiped_backspace {
+                        return if p.backspace_words > 0 { TouchResult::BackspaceSelectCommit } else { TouchResult::None };
                     }
 
                     // Alternate character released
@@ -252,14 +298,29 @@ impl TouchTracker {
             }
 
             TouchAction::Cancel => {
+                let had_selection = self.pointers.iter().any(|p| p.id == pointer_id && p.backspace_words > 0);
                 self.pointers.retain(|p| p.id != pointer_id);
-                TouchResult::None
+                if had_selection {
+                    TouchResult::BackspaceSelect { words: 0 }
+                } else {
+                    TouchResult::None
+                }
             }
         }
     }
 
     pub fn check_long_press(&mut self, current_time_ms: u64, keys: &[Key]) -> Option<TouchResult> {
         for pointer in self.pointers.iter_mut() {
+            // Holding the space bar still turns it into a cursor control
+            if pointer.is_spacebar_drag && !pointer.cursor_mode && !pointer.has_swiped_language {
+                let elapsed = current_time_ms.saturating_sub(pointer.start_time_ms);
+                let dist_sq = (pointer.current_x - pointer.start_x).powi(2) + (pointer.current_y - pointer.start_y).powi(2);
+                if elapsed >= self.long_press_threshold_ms && dist_sq < self.long_press_slop_sq {
+                    pointer.cursor_mode = true;
+                    pointer.space_last_drag_x = pointer.current_x;
+                    return Some(TouchResult::CursorModeStarted);
+                }
+            }
             if !pointer.is_long_pressed && !pointer.is_spacebar_drag && !pointer.is_backspace_drag {
                 let elapsed = current_time_ms.saturating_sub(pointer.start_time_ms);
                 if elapsed >= self.long_press_threshold_ms {

@@ -35,7 +35,7 @@ const SHORTCUTS: [&str; 4] = [",", ".", "?", "!"];
 /// Items with their horizontal extent `(item, x, width)`, left to right.
 pub fn layout(total_width: f32, dp: f32, voice: bool) -> Vec<(ToolbarItem, f32, f32)> {
     let icon_w = ICON_W_DP * dp;
-    let left = [ToolbarItem::Settings, ToolbarItem::OneHanded];
+    let left = [ToolbarItem::Settings, ToolbarItem::Edit, ToolbarItem::OneHanded];
     let mut items = Vec::with_capacity(10);
     let mut x = 0.0;
     for item in left {

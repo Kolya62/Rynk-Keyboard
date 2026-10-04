@@ -80,6 +80,8 @@ pub struct LayoutOptions {
     /// A row of digits above the letters
     pub number_row: bool,
     pub one_handed: OneHanded,
+    /// Edit panel: the select key is lit while arrows extend the selection
+    pub edit_selecting: bool,
 }
 
 /// Share of the width the keys keep in one-handed mode
@@ -106,7 +108,11 @@ impl LayoutBuilder {
         metrics: &LayoutMetrics,
         options: &LayoutOptions,
     ) -> Vec<Key> {
-        let mut keys = Self::build_base_layout(mode, language, shift_state, metrics);
+        let mut keys = if mode == KeyboardMode::Edit {
+            Self::build_edit(metrics, options.edit_selecting)
+        } else {
+            Self::build_base_layout(mode, language, shift_state, metrics)
+        };
         if mode == KeyboardMode::Alphabet && options.number_row && !keys.is_empty() {
             Self::add_number_row(&mut keys, metrics);
             Self::expand_invisible_hit_boxes(&mut keys, metrics);
@@ -114,6 +120,39 @@ impl LayoutBuilder {
         if mode != KeyboardMode::Emoji && options.one_handed != OneHanded::Off && !keys.is_empty() {
             Self::make_one_handed(&mut keys, metrics, options.one_handed);
         }
+        keys
+    }
+
+    /// Text editing panel: 4×4 grid of icons (drawn by SvgIcons) plus "ABC" back to letters.
+    pub fn build_edit(m: &LayoutMetrics, selecting: bool) -> Vec<Key> {
+        use super::key::EditAction as E;
+        let rows: [[(E, &str); 4]; 4] = [
+            [(E::SelectAll, "ed_select_all"), (E::Copy, "ed_copy"), (E::Cut, "ed_cut"), (E::Paste, "ed_paste")],
+            [(E::Home, "ed_home"), (E::Up, "ed_up"), (E::End, "ed_end"), (E::Undo, "ed_undo")],
+            [(E::Left, "ed_left"), (E::SelectMode, "ed_select"), (E::Right, "ed_right"), (E::Redo, "ed_redo")],
+            [(E::Close, "ABC"), (E::Down, "ed_down"), (E::Close, ""), (E::Close, "")],
+        ];
+        let row_h = (m.key_area_height - 3.0 * m.key_spacing_v) / 4.0;
+        let key_w = (m.total_width - 2.0 * m.padding_horizontal - 3.0 * m.key_spacing_h) / 4.0;
+        let mut keys = Vec::with_capacity(16);
+        let mut id = 1;
+        for (r, row) in rows.iter().enumerate() {
+            for (c, &(action, label)) in row.iter().enumerate() {
+                let x = m.padding_horizontal + c as f32 * (key_w + m.key_spacing_h);
+                let y = m.key_area_top + r as f32 * (row_h + m.key_spacing_v);
+                // Bottom row: backspace and enter in the last two cells
+                let (action, label, key_type) = match (r, c) {
+                    (3, 2) => (KeyAction::Backspace, "⌫", KeyType::Modifier),
+                    (3, 3) => (KeyAction::Enter, "↵", KeyType::Accent),
+                    (_, _) if action == E::SelectMode && selecting => (KeyAction::Edit(action), label, KeyType::Accent),
+                    (_, _) if action == E::Close => (KeyAction::Edit(action), label, KeyType::Modifier),
+                    _ => (KeyAction::Edit(action), label, KeyType::Normal),
+                };
+                keys.push(Key::new(id, x, y, key_w, row_h, action, label, key_type));
+                id += 1;
+            }
+        }
+        Self::expand_invisible_hit_boxes(&mut keys, m);
         keys
     }
 
@@ -198,6 +237,8 @@ impl LayoutBuilder {
             KeyboardMode::Numbers => Self::build_numbers(metrics),
             KeyboardMode::Symbols => Self::build_symbols(metrics),
             KeyboardMode::Emoji => Vec::new(),
+            // Built by build_layout_with, which knows the selection state
+            KeyboardMode::Edit => Self::build_edit(metrics, false),
         };
 
         Self::expand_invisible_hit_boxes(&mut keys, metrics);

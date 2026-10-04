@@ -595,7 +595,7 @@ mod tests {
             .any(|e| matches!(e, KeyboardOutputEvent::CommitText(_)));
         assert!(!has_space, "Space swipe release must not commit space!");
 
-        // 5. Backspace swipe left emits DeleteWord
+        // 5. Backspace swipe left selects the previous word; release deletes it
         let bksp_key = engine
             .keys
             .iter()
@@ -608,12 +608,9 @@ mod tests {
         // Swipe left by 80px
         engine.on_touch(keyboard::touch::TouchAction::Move, 2, bx - 80.0, by, 230);
         let bksp_events = engine.state.drain_events();
-        let has_delete_word = bksp_events
-            .iter()
-            .any(|e| matches!(e, KeyboardOutputEvent::DeleteWord));
         assert!(
-            has_delete_word,
-            "Backspace swipe left must emit DeleteWord event!"
+            bksp_events.contains(&KeyboardOutputEvent::SelectWordsBack(1)),
+            "Backspace swipe left must select the previous word!"
         );
         let is_pressed_after_swipe = engine
             .keys
@@ -627,6 +624,7 @@ mod tests {
         );
         // Release must keep key unpressed
         engine.on_touch(keyboard::touch::TouchAction::Up, 2, bx - 80.0, by, 250);
+        assert!(engine.state.drain_events().contains(&KeyboardOutputEvent::DeleteSelection));
         let is_pressed_after_up = engine
             .keys
             .iter()
@@ -795,7 +793,7 @@ mod tests {
     #[test]
     fn test_morphology_prefixes_and_suffixes() {
         use crate::prediction::morphology::Morphology;
-        use crate::prediction::autocorrect::Autocorrect;
+
 
         // 1. Prefix tests
         assert!(Morphology::analyze_prefix_match("зделал", "сделал").is_some());
@@ -1368,7 +1366,7 @@ mod tests {
             Language::Russian,
             ShiftState::Off,
             &metrics,
-            &LayoutOptions { number_row: true, one_handed: OneHanded::Off },
+            &LayoutOptions { number_row: true, ..Default::default() },
         );
         assert_eq!(with_row.len(), base.len() + 10);
         let one = with_row.iter().find(|k| k.action == KeyAction::Character('1')).unwrap();
@@ -1386,7 +1384,7 @@ mod tests {
             Language::Russian,
             ShiftState::Off,
             &metrics,
-            &LayoutOptions { number_row: false, one_handed: OneHanded::Right },
+            &LayoutOptions { one_handed: OneHanded::Right, ..Default::default() },
         );
         let letters: Vec<_> = right.iter().filter(|k| matches!(k.action, KeyAction::Character(_))).collect();
         assert!(letters.iter().all(|k| k.x >= 1080.0 * 0.18 - 1.0), "letters hug the right side");
@@ -1398,5 +1396,67 @@ mod tests {
         engine.execute_key_action(KeyAction::OneHandedSwitchSide);
         assert_eq!(engine.layout_options.one_handed, OneHanded::Right);
         assert!(engine.state.drain_events().contains(&keyboard::state::KeyboardOutputEvent::OneHandedChanged(2)));
+    }
+
+    #[test]
+    fn test_cursor_and_backspace_gestures() {
+        use keyboard::state::KeyboardOutputEvent as Ev;
+        use keyboard::touch::TouchAction;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        let center = |e: &KeyboardEngine, a: KeyAction| e.keys.iter().find(|k| k.action == a).unwrap().center();
+
+        // Hold space, then drag right: cursor moves, no space typed
+        let (sx, sy) = center(&engine, KeyAction::Space);
+        engine.on_touch(TouchAction::Down, 0, sx, sy, 1000);
+        engine.tick(1400);
+        engine.on_touch(TouchAction::Move, 0, sx + 60.0, sy, 1450);
+        engine.on_touch(TouchAction::Up, 0, sx + 60.0, sy, 1500);
+        let events = engine.state.drain_events();
+        let moved: i32 = events.iter().filter_map(|e| match e { Ev::MoveCursor(d) => Some(*d), _ => None }).sum();
+        assert!(moved > 0, "cursor moved right: {events:?}");
+        assert!(!events.iter().any(|e| matches!(e, Ev::CommitText(_))), "no space typed");
+
+        // Drag left from backspace over two word steps, release: words selected then deleted
+        let (bx, by) = center(&engine, KeyAction::Backspace);
+        let d = 2.75;
+        engine.on_touch(TouchAction::Down, 1, bx, by, 3000);
+        engine.on_touch(TouchAction::Move, 1, bx - 30.0 * d, by, 3050);
+        engine.on_touch(TouchAction::Move, 1, bx - 60.0 * d, by, 3100);
+        engine.on_touch(TouchAction::Up, 1, bx - 60.0 * d, by, 3150);
+        let events = engine.state.drain_events();
+        assert!(events.contains(&Ev::SelectWordsBack(1)));
+        assert!(events.contains(&Ev::SelectWordsBack(2)));
+        assert!(events.contains(&Ev::DeleteSelection));
+
+        // Dragging back to the key cancels
+        engine.on_touch(TouchAction::Down, 1, bx, by, 5000);
+        engine.on_touch(TouchAction::Move, 1, bx - 30.0 * d, by, 5050);
+        engine.on_touch(TouchAction::Move, 1, bx, by, 5100);
+        engine.on_touch(TouchAction::Up, 1, bx, by, 5150);
+        let events = engine.state.drain_events();
+        assert!(events.contains(&Ev::SelectWordsBack(0)));
+        assert!(!events.contains(&Ev::DeleteSelection));
+    }
+
+    #[test]
+    fn test_edit_panel() {
+        use keyboard::key::EditAction;
+        use keyboard::state::KeyboardOutputEvent as Ev;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_mode(KeyboardMode::Edit);
+        assert_eq!(engine.keys.len(), 16);
+        let _ = engine.state.drain_events();
+
+        engine.execute_key_action(KeyAction::Edit(EditAction::Left));
+        assert!(engine.state.drain_events().contains(&Ev::KeyWithMeta { code: 21, meta: 0 }));
+        engine.execute_key_action(KeyAction::Edit(EditAction::SelectMode));
+        engine.execute_key_action(KeyAction::Edit(EditAction::Right));
+        assert!(engine.state.drain_events().contains(&Ev::KeyWithMeta { code: 22, meta: 0x41 }));
+        engine.execute_key_action(KeyAction::Edit(EditAction::Copy));
+        assert!(engine.state.drain_events().contains(&Ev::EditorCommand(keyboard::state::edit_command::COPY)));
+
+        engine.execute_key_action(KeyAction::Edit(EditAction::Close));
+        assert_eq!(engine.state.mode, KeyboardMode::Alphabet);
+        assert!(!engine.layout_options.edit_selecting);
     }
 }
