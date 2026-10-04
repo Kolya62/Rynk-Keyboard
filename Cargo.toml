@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "rust-core",
+    "tools/dictgen",
 ]
 resolver = "2"
 

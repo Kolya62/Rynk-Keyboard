@@ -1,0 +1,428 @@
+{
+ "af": {
+  "tier": "B",
+  "leipzig": "afr_news_2017_300K",
+  "subtitles": "af"
+ },
+ "am": {
+  "tier": "B",
+  "leipzig": "amh_wikipedia_2021_30K",
+  "subtitles": null
+ },
+ "ar": {
+  "tier": "B",
+  "leipzig": "ara_news_2022_300K",
+  "subtitles": "ar"
+ },
+ "az": {
+  "tier": "B",
+  "leipzig": "aze_wikipedia_2021_300K",
+  "subtitles": null
+ },
+ "be": {
+  "tier": "B",
+  "leipzig": "bel_news_2011_300K",
+  "subtitles": null
+ },
+ "bg": {
+  "tier": "B",
+  "leipzig": "bul_news_2022_300K",
+  "subtitles": "bg"
+ },
+ "bn": {
+  "tier": "B",
+  "leipzig": "ben_news_2020_300K",
+  "subtitles": "bn"
+ },
+ "bs": {
+  "tier": "B",
+  "leipzig": "bos_news_2020_300K",
+  "subtitles": "bs"
+ },
+ "ca": {
+  "tier": "B",
+  "leipzig": "cat_news_2022_300K",
+  "subtitles": "ca"
+ },
+ "cs": {
+  "tier": "B",
+  "leipzig": "ces_news_2023_300K",
+  "subtitles": "cs"
+ },
+ "cy": {
+  "tier": "B",
+  "leipzig": "cym_wikipedia_2021_100K",
+  "subtitles": null
+ },
+ "da": {
+  "tier": "B",
+  "leipzig": "dan_news_2022_300K",
+  "subtitles": "da"
+ },
+ "de": {
+  "tier": "A",
+  "leipzig": "deu_news_2023_300K",
+  "subtitles": "de"
+ },
+ "el": {
+  "tier": "B",
+  "leipzig": "ell_news_2023_300K",
+  "subtitles": "el"
+ },
+ "en": {
+  "tier": "A",
+  "leipzig": "eng_news_2023_300K",
+  "subtitles": "en"
+ },
+ "eo": {
+  "tier": "B",
+  "leipzig": "epo_wikipedia_2021_300K",
+  "subtitles": "eo"
+ },
+ "es": {
+  "tier": "A",
+  "leipzig": "spa_news_2023_300K",
+  "subtitles": "es"
+ },
+ "et": {
+  "tier": "B",
+  "leipzig": "est_news_2022_300K",
+  "subtitles": "et"
+ },
+ "eu": {
+  "tier": "B",
+  "leipzig": "eus_wikipedia_2021_300K",
+  "subtitles": "eu"
+ },
+ "fa": {
+  "tier": "B",
+  "leipzig": "pes_wikipedia_2021_300K",
+  "subtitles": "fa"
+ },
+ "fi": {
+  "tier": "B",
+  "leipzig": "fin_news_2022_300K",
+  "subtitles": "fi"
+ },
+ "fr": {
+  "tier": "A",
+  "leipzig": "fra_news_2023_300K",
+  "subtitles": "fr"
+ },
+ "ga": {
+  "tier": "B",
+  "leipzig": "gle_newscrawl_2014_300K",
+  "subtitles": null
+ },
+ "gl": {
+  "tier": "B",
+  "leipzig": "glg_wikipedia_2021_300K",
+  "subtitles": "gl"
+ },
+ "gu": {
+  "tier": "B",
+  "leipzig": "guj_newscrawl_2016_300K",
+  "subtitles": null
+ },
+ "ha": {
+  "tier": "B",
+  "leipzig": "hau_wikipedia_2021_30K",
+  "subtitles": null
+ },
+ "he": {
+  "tier": "B",
+  "leipzig": "heb_news_2020_300K",
+  "subtitles": "he"
+ },
+ "hi": {
+  "tier": "B",
+  "leipzig": "hin_news_2022_300K",
+  "subtitles": "hi"
+ },
+ "hr": {
+  "tier": "B",
+  "leipzig": "hrv_news_2020_300K",
+  "subtitles": "hr"
+ },
+ "hu": {
+  "tier": "B",
+  "leipzig": "hun_news_2023_300K",
+  "subtitles": "hu"
+ },
+ "hy": {
+  "tier": "B",
+  "leipzig": "hye_wikipedia_2021_300K",
+  "subtitles": "hy"
+ },
+ "id": {
+  "tier": "B",
+  "leipzig": "ind_news_2023_300K",
+  "subtitles": "id"
+ },
+ "ig": {
+  "tier": "B",
+  "leipzig": "ibo_wikipedia_2021_10K",
+  "subtitles": null
+ },
+ "is": {
+  "tier": "B",
+  "leipzig": "isl_newscrawl_2019_300K",
+  "subtitles": "is"
+ },
+ "it": {
+  "tier": "A",
+  "leipzig": "ita_news_2023_300K",
+  "subtitles": "it"
+ },
+ "ja": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "ka": {
+  "tier": "B",
+  "leipzig": "kat_wikipedia_2021_300K",
+  "subtitles": "ka"
+ },
+ "kk": {
+  "tier": "B",
+  "leipzig": "kaz_wikipedia_2021_300K",
+  "subtitles": "kk"
+ },
+ "km": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "kn": {
+  "tier": "B",
+  "leipzig": "kan_wikipedia_2021_300K",
+  "subtitles": null
+ },
+ "ko": {
+  "tier": "B",
+  "leipzig": "kor_news_2022_300K",
+  "subtitles": "ko"
+ },
+ "ku": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null,
+  "note": "Layout is Latin Kurmanji; Leipzig only has Sorani (Arabic script)"
+ },
+ "ky": {
+  "tier": "B",
+  "leipzig": "kir_wikipedia_2021_300K",
+  "subtitles": null
+ },
+ "la": {
+  "tier": "B",
+  "leipzig": "lat_wikipedia_2021_100K",
+  "subtitles": null
+ },
+ "lt": {
+  "tier": "B",
+  "leipzig": "lit_news_2020_300K",
+  "subtitles": "lt"
+ },
+ "lv": {
+  "tier": "B",
+  "leipzig": "lvs_wikipedia_2021_300K",
+  "subtitles": "lv"
+ },
+ "mk": {
+  "tier": "B",
+  "leipzig": "mkd_wikipedia_2021_300K",
+  "subtitles": "mk"
+ },
+ "ml": {
+  "tier": "B",
+  "leipzig": "mal_wikipedia_2021_300K",
+  "subtitles": "ml"
+ },
+ "mn": {
+  "tier": "B",
+  "leipzig": "mon_news_2020_100K",
+  "subtitles": null
+ },
+ "mr": {
+  "tier": "B",
+  "leipzig": "mar_news_2020_300K",
+  "subtitles": null
+ },
+ "ms": {
+  "tier": "B",
+  "leipzig": "msa_wikipedia_2021_300K",
+  "subtitles": "ms"
+ },
+ "mt": {
+  "tier": "B",
+  "leipzig": "mlt_web_2012_300K",
+  "subtitles": null
+ },
+ "my": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "ne": {
+  "tier": "B",
+  "leipzig": "nep_news_2020_300K",
+  "subtitles": null
+ },
+ "nl": {
+  "tier": "B",
+  "leipzig": "nld_news_2023_300K",
+  "subtitles": "nl"
+ },
+ "no": {
+  "tier": "B",
+  "leipzig": "nob_news_2013_300K",
+  "subtitles": "no"
+ },
+ "pa": {
+  "tier": "B",
+  "leipzig": "pan_wikipedia_2021_300K",
+  "subtitles": null
+ },
+ "pl": {
+  "tier": "A",
+  "leipzig": "pol_news_2023_300K",
+  "subtitles": "pl"
+ },
+ "pt": {
+  "tier": "A",
+  "leipzig": "por_news_2023_300K",
+  "subtitles": "pt"
+ },
+ "ro": {
+  "tier": "B",
+  "leipzig": "ron_news_2022_300K",
+  "subtitles": "ro"
+ },
+ "ru": {
+  "tier": "A",
+  "leipzig": "rus_news_2023_300K",
+  "subtitles": "ru"
+ },
+ "si": {
+  "tier": "B",
+  "leipzig": "sin_wikipedia_2021_100K",
+  "subtitles": "si"
+ },
+ "sk": {
+  "tier": "B",
+  "leipzig": "slk_wikipedia_2021_300K",
+  "subtitles": "sk"
+ },
+ "sl": {
+  "tier": "B",
+  "leipzig": "slv_news_2020_300K",
+  "subtitles": "sl"
+ },
+ "so": {
+  "tier": "B",
+  "leipzig": "som_newscrawl_2011_100K",
+  "subtitles": null
+ },
+ "sq": {
+  "tier": "B",
+  "leipzig": "sqi_news_2020_300K",
+  "subtitles": "sq"
+ },
+ "sr": {
+  "tier": "B",
+  "leipzig": "srp_wikipedia_2021_300K",
+  "subtitles": "sr"
+ },
+ "sv": {
+  "tier": "B",
+  "leipzig": "swe_news_2023_300K",
+  "subtitles": "sv"
+ },
+ "sw": {
+  "tier": "B",
+  "leipzig": "swa_wikipedia_2021_100K",
+  "subtitles": null
+ },
+ "ta": {
+  "tier": "B",
+  "leipzig": "tam_wikipedia_2021_300K",
+  "subtitles": "ta"
+ },
+ "te": {
+  "tier": "B",
+  "leipzig": "tel_wikipedia_2021_300K",
+  "subtitles": "te"
+ },
+ "tg": {
+  "tier": "B",
+  "leipzig": "tgk_wikipedia_2021_100K",
+  "subtitles": null
+ },
+ "th": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "tk": {
+  "tier": "B",
+  "leipzig": "tuk_wikipedia_2021_30K",
+  "subtitles": null
+ },
+ "tl": {
+  "tier": "B",
+  "leipzig": "tgl_wikipedia_2021_100K",
+  "subtitles": "tl"
+ },
+ "tr": {
+  "tier": "A",
+  "leipzig": "tur_news_2023_300K",
+  "subtitles": "tr"
+ },
+ "uk": {
+  "tier": "A",
+  "leipzig": "ukr_news_2023_300K",
+  "subtitles": "uk"
+ },
+ "ur": {
+  "tier": "B",
+  "leipzig": "urd_wikipedia_2021_300K",
+  "subtitles": "ur"
+ },
+ "uz": {
+  "tier": "B",
+  "leipzig": "uzb_wikipedia_2021_100K",
+  "subtitles": null
+ },
+ "vi": {
+  "tier": "B",
+  "leipzig": "vie_news_2022_300K",
+  "subtitles": "vi"
+ },
+ "yo": {
+  "tier": "B",
+  "leipzig": "yor_wikipedia_2021_10K",
+  "subtitles": null
+ },
+ "yue": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "zh-hans": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "zh-hant": {
+  "tier": "C",
+  "leipzig": null,
+  "subtitles": null
+ },
+ "zu": {
+  "tier": "B",
+  "leipzig": "zul_web_2013_100K",
+  "subtitles": null
+ }
+}

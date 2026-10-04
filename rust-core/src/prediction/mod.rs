@@ -1,9 +1,11 @@
 pub mod autocorrect;
 pub mod cjk;
 pub mod dictionary;
+pub mod lexicon;
+pub mod lm_data;
+pub mod model_source;
 pub mod morphology;
 pub mod suggestions;
-pub mod trie;
 pub mod typos;
 
 use dictionary::Dictionary;

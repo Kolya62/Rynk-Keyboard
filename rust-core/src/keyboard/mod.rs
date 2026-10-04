@@ -614,11 +614,10 @@ impl KeyboardEngine {
                     self.state.rejected_autocorrect_word = None;
 
                     // Check dictionaries + user dictionary + whether autocorrect was rejected:
+                    let dictionary = &self.prediction.dictionary;
                     let is_valid_word = is_rejected
-                        || self
-                            .prediction
-                            .dictionary
-                            .contains_word_for_lang(&clean, self.state.language);
+                        || (dictionary.contains_word_for_lang(&clean, self.state.language)
+                            && dictionary.dominant_alternative(&clean, self.state.language).is_none());
 
                     let mut word_to_commit = self.state.composing_text.clone();
                     let mut did_autocorrect = false;

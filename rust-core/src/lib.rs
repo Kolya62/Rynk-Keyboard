@@ -1166,4 +1166,50 @@ mod tests {
         let events = engine.state.drain_events();
         assert!(events.contains(&KeyboardOutputEvent::CommitText("\n".to_string())));
     }
+
+    #[test]
+    fn test_context_predictions_come_from_model_bigrams() {
+        use prediction::lm_data::{ctx_id, quantize, LanguageModelData, NgramTable, WordEntry};
+        let words = ["как", "дела", "ты", "Москва"]
+            .iter()
+            .map(|w| WordEntry { word: w.to_string(), count: 100, freq: 1000 })
+            .collect();
+        let bigrams = NgramTable::from_triples(vec![
+            (ctx_id(0) as u64, 2, quantize(0.2)),
+            (ctx_id(0) as u64, 1, quantize(0.5)),
+            (ctx_id(1) as u64, 3, quantize(0.1)),
+        ]);
+        let mut dict = prediction::dictionary::Dictionary::new();
+        dict.install_model(
+            Language::Ukrainian,
+            LanguageModelData { words, bigrams, trigrams: NgramTable::default() },
+        );
+
+        let preds = dict.get_context_predictions("Как", Language::Ukrainian);
+        assert_eq!(&preds[..2], &["дела".to_string(), "ты".to_string()], "best first, case-insensitive key");
+        // Canonical spelling of the continuation is preserved
+        assert_eq!(dict.get_context_predictions("дела", Language::Ukrainian)[0], "Москва");
+        assert!(dict.contains_word_for_lang("москва", Language::Ukrainian));
+    }
+
+    #[test]
+    fn test_rare_words_with_frequent_twins_are_correctable() {
+        use prediction::lm_data::{LanguageModelData, WordEntry};
+        let words = [("спасибо", 1700), ("спасиб", 50), ("сабо", 40)]
+            .iter()
+            .map(|&(w, f)| WordEntry { word: w.to_string(), count: 1, freq: f })
+            .collect();
+        let mut dict = prediction::dictionary::Dictionary::new();
+        dict.install_model(Language::Ukrainian, LanguageModelData { words, ..Default::default() });
+
+        assert_eq!(
+            dict.dominant_alternative("спасиб", Language::Ukrainian).map(|a| a.0),
+            Some("спасибо".to_string())
+        );
+        assert_eq!(dict.dominant_alternative("сабо", Language::Ukrainian), None, "no frequent twin");
+        assert_eq!(dict.dominant_alternative("спасибо", Language::Ukrainian), None, "frequent word");
+
+        dict.add_user_word("спасиб", false);
+        assert_eq!(dict.dominant_alternative("спасиб", Language::Ukrainian), None, "user words are kept");
+    }
 }

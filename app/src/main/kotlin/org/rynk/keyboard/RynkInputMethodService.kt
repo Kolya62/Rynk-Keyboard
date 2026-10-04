@@ -32,6 +32,9 @@ class RynkInputMethodService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         hapticManager = HapticManager(this)
+        if (NativeBridge.isLibraryLoaded()) {
+            NativeBridge.nativeSetAssetManager(applicationContext.assets)
+        }
 
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {

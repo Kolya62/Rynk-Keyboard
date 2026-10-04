@@ -1009,3 +1009,15 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetComposingSta
         Err(_) => std::ptr::null_mut(),
     }
 }
+
+/// Must be called before `nativeInit`: language models are loaded lazily from APK assets.
+#[no_mangle]
+#[allow(unused_mut, unused_variables)]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetAssetManager(
+    mut env: JNIEnv,
+    _class: JClass,
+    assets: jni::objects::JObject,
+) {
+    #[cfg(target_os = "android")]
+    crate::prediction::model_source::set_asset_manager(&mut env, &assets);
+}

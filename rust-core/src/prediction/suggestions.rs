@@ -77,7 +77,7 @@ impl SuggestionEngine {
             .unwrap_or_default();
 
         let mut target_lang = lang;
-        let trie = dict.get_trie(target_lang);
+        let trie = dict.get_lexicon(target_lang);
         let mut completions = trie.find_completions(&clean, 16);
         completions.retain(|(w, _)| !dict.removed_words.contains(w));
 
@@ -101,7 +101,7 @@ impl SuggestionEngine {
 
             if let Some(alt) = alt_lang {
                 if alt != target_lang {
-                    let alt_trie = dict.get_trie(alt);
+                    let alt_trie = dict.get_lexicon(alt);
                     let mut alt_completions = alt_trie.find_completions(&clean, 16);
                     alt_completions.retain(|(w, _)| !dict.removed_words.contains(w));
                     if !dict.profanity_enabled {
@@ -129,6 +129,11 @@ impl SuggestionEngine {
                 }
                 let w_norm: String = w_lower.chars().map(Autocorrect::strip_diacritics).collect();
                 w_norm == clean_norm
+            })
+            // A rare exact match with a far more frequent near-twin is ranked like a typo
+            .filter(|&p| {
+                completions[p].0.to_lowercase() != clean
+                    || dict.dominant_alternative(&clean, target_lang).is_none()
             })
         {
             let exact = completions.remove(pos);
@@ -177,7 +182,7 @@ impl SuggestionEngine {
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };
-            let mut ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(&comp_lower)) {
+            let mut ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == comp_lower) {
                 2.5
             } else {
                 0.0
@@ -200,7 +205,7 @@ impl SuggestionEngine {
             }
             let score = Autocorrect::score_candidate(&clean, w, freq);
             if score > 1.5 {
-                let mut ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(w)) {
+                let mut ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == w.to_lowercase()) {
                     2.5
                 } else {
                     0.0
@@ -222,7 +227,13 @@ impl SuggestionEngine {
 
         if !scored.is_empty() {
             let best_fix = &scored[0].0;
-            let second_fix = scored.get(1).map(|s| s.0.as_str()).unwrap_or("");
+            // The literal input already occupies the left slot
+            let second_fix = scored
+                .iter()
+                .skip(1)
+                .map(|s| s.0.as_str())
+                .find(|w| w.to_lowercase() != clean)
+                .unwrap_or("");
 
             vec![
                 input.to_string(),                 // Left: literal input

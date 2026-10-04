@@ -28,3 +28,6 @@ captures/
 output.json
 .externalNativeBuild/
 .cxx/
+
+# Downloaded corpora for tools/dictgen
+tools/dictgen/.cache/

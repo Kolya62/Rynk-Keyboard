@@ -85,6 +85,8 @@ object NativeBridge {
     external fun nativeLoadAdaptiveData(data: ByteArray)
 
     external fun nativeSetEnterAction(action: Int)
+    /** Language models (assets/lm/<code>.rlm) are read through this; call before nativeInit. */
+    external fun nativeSetAssetManager(assets: android.content.res.AssetManager)
     /** Returns "composing\tlastCommittedWord" */
     external fun nativeGetComposingState(): String?
 }
