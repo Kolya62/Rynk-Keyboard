@@ -68,7 +68,7 @@ impl KeyboardRenderer {
 
         // 3. Render all keys
         for key in &engine.keys {
-            self.render_key(canvas, key, density, &engine.state);
+            self.render_key(canvas, key, density, &engine.state, engine.enter_action);
         }
 
         // 4. Tap Ripples and interactive animations
@@ -277,6 +277,7 @@ impl KeyboardRenderer {
         key: &Key,
         density: f32,
         state: &crate::keyboard::state::KeyboardState,
+        enter_action: i32,
     ) {
         let dp = density.max(1.0);
         let radius = 7.0 * dp;
@@ -350,9 +351,19 @@ impl KeyboardRenderer {
                     | KeyAction::SwitchLanguage
                     | KeyAction::SwitchEmoji
             );
+            // Enter shows the editor action icon (names resolved by SvgIcons on the Kotlin side)
+            let text = match (&key.action, enter_action) {
+                (KeyAction::Enter, 2) => "enter_go".to_string(),
+                (KeyAction::Enter, 3) => "enter_search".to_string(),
+                (KeyAction::Enter, 4) => "enter_send".to_string(),
+                (KeyAction::Enter, 5) => "enter_next".to_string(),
+                (KeyAction::Enter, 6) => "enter_done".to_string(),
+                (KeyAction::Enter, 7) => "enter_previous".to_string(),
+                _ => key.label.clone(),
+            };
             // Draw main label (rendered via hardware-accelerated SVG vectors or system typography)
             self.text_labels.push(TextLabel {
-                text: key.label.clone(),
+                text,
                 cx: key.center().0,
                 cy: key.center().1,
                 font_size,

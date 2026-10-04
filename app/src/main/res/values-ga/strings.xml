@@ -7,7 +7,7 @@
     <string name="onboarding_title">Rynk Keyboard</string>
     <string name="onboarding_subtitle">Méarchlár den chéad ghlúin eile faoi thiomáint inneall Rust fíorthapa</string>
     <string name="step1_title">1. Cumasaigh Rynk Keyboard</string>
-    <string name="step1_desc">Cumasaigh an méarchlár i socruithe an chórais. Ritheann gach ríomh, foclóir agus léiriú 100% go háitiúil ar do ghléas.</string>
+    <string name="step1_desc" formatted="false">Cumasaigh an méarchlár i socruithe an chórais. Ritheann gach ríomh, foclóir agus léiriú 100% go háitiúil ar do ghléas.</string>
     <string name="step1_btn">Cumasaigh i socruithe</string>
     <string name="step1_done">Méarchlár cumasaithe</string>
     <string name="step2_title">2. Roghnaigh modh ionchuir</string>

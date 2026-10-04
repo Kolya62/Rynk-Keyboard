@@ -7,7 +7,7 @@
     <string name="onboarding_title">Rynk Keyboard</string>
     <string name="onboarding_subtitle">Allon madannai na zamani mai saurin gaske ta hanyar injin Rust</string>
     <string name="step1_title">1. Kunna Rynk Keyboard</string>
-    <string name="step1_desc">Kunna allon madannai a saitunan na\'ura. Duk lissafi, ƙamus da nunawa suna aiki 100% a cikin na\'urarka ba tare da intanet ba.</string>
+    <string name="step1_desc" formatted="false">Kunna allon madannai a saitunan na\'ura. Duk lissafi, ƙamus da nunawa suna aiki 100% a cikin na\'urarka ba tare da intanet ba.</string>
     <string name="step1_btn">Kunna a saituna</string>
     <string name="step1_done">An kunna allon madannai</string>
     <string name="step2_title">2. Zaɓi hanyar shigarwa</string>

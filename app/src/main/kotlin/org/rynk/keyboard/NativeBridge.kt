@@ -19,6 +19,9 @@ object NativeBridge {
 
     fun isLibraryLoaded(): Boolean = isLoaded
 
+    /** The native core lives as long as the IME service, not as long as a keyboard view. */
+    var isCoreInitialized = false
+
     // InputFieldMode constants
     const val INPUT_MODE_NORMAL = 0
     const val INPUT_MODE_PASSWORD = 1
@@ -45,6 +48,7 @@ object NativeBridge {
     const val EVENT_HIDE_KEYBOARD = 9
     const val EVENT_CLEAR_CLIPBOARD = 10
     const val EVENT_CLIPBOARD_PASTED = 11
+    const val EVENT_PERFORM_EDITOR_ACTION = 12
 
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()
@@ -57,7 +61,6 @@ object NativeBridge {
     external fun nativeSetMode(modeId: Int)
     external fun nativeOnTouchEvent(action: Int, pointerId: Int, x: Float, y: Float, timeMs: Long): Boolean
     external fun nativeRender(bitmap: Bitmap, timeMs: Long): Boolean
-    external fun nativePollEvents(): String
     external fun nativePollEventsBinary(): ByteArray?
     external fun nativeGetTextLabels(): String
     external fun nativeReset()
@@ -80,5 +83,9 @@ object NativeBridge {
     external fun nativeClearAdaptiveData()
     external fun nativeSaveAdaptiveData(): ByteArray?
     external fun nativeLoadAdaptiveData(data: ByteArray)
+
+    external fun nativeSetEnterAction(action: Int)
+    /** Returns "composing\tlastCommittedWord" */
+    external fun nativeGetComposingState(): String?
 }
 

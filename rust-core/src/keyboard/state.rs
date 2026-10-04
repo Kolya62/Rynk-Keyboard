@@ -824,6 +824,16 @@ impl InputFieldMode {
             && *self != InputFieldMode::Phone
     }
 
+    /// Auto-spacing after punctuation and sentence auto-capitalization only make sense
+    /// in prose fields; in emails, URLs, passwords and numbers they corrupt the input.
+    #[inline]
+    pub fn allows_smart_punctuation(&self) -> bool {
+        matches!(
+            self,
+            InputFieldMode::Normal | InputFieldMode::Multiline | InputFieldMode::Sensitive
+        )
+    }
+
     #[inline]
     pub fn allows_learning(&self) -> bool {
         !self.is_sensitive()
@@ -848,6 +858,8 @@ pub enum KeyboardOutputEvent {
     HideKeyboard,
     ClearClipboard,
     ClipboardPasted(String),
+    /// Android `EditorInfo.IME_ACTION_*` code (Search, Send, Go, Next, Done, Previous)
+    PerformEditorAction(i32),
 }
 
 impl KeyboardOutputEvent {
@@ -911,6 +923,11 @@ impl KeyboardOutputEvent {
                 let bytes = text.as_bytes();
                 buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
                 buf.extend_from_slice(bytes);
+            }
+            KeyboardOutputEvent::PerformEditorAction(action) => {
+                buf.push(12); // Type 12: PerformEditorAction
+                buf.extend_from_slice(&4u32.to_le_bytes());
+                buf.extend_from_slice(&action.to_le_bytes());
             }
         }
     }

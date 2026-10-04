@@ -27,6 +27,7 @@ class RynkInputMethodService : InputMethodService() {
     private var isDispatchingEvents = false
     private var currentInputFieldMode: Int = NativeBridge.INPUT_MODE_NORMAL
     private var consumedClipboardText: String? = null
+    private var currentEnterAction: Int = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -38,15 +39,31 @@ class RynkInputMethodService : InputMethodService() {
             updateClipboardChip()
         }
         clipboard?.addPrimaryClipChangedListener(clipboardListener)
-
-        loadAdaptiveDictionary()
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         saveAdaptiveDictionary()
+        if (NativeBridge.isCoreInitialized) {
+            NativeBridge.nativeDestroy()
+            NativeBridge.isCoreInitialized = false
+        }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener?.let { clipboard?.removePrimaryClipChangedListener(it) }
+        super.onDestroy()
+    }
+
+    /**
+     * Called by the keyboard view right after the native core is created. Everything pushed
+     * into the core before this point was dropped, so state is (re)applied here.
+     */
+    fun onCoreCreated() {
+        UserDictionaryManager(this).syncToNative()
+        loadAdaptiveDictionary()
+        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        applyLanguageAndProfanitySettings(prefs)
+        NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
+        NativeBridge.nativeSetEnterAction(currentEnterAction)
+        updateClipboardChip()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -252,8 +269,10 @@ class RynkInputMethodService : InputMethodService() {
         keyboardView?.resetState()
 
         currentInputFieldMode = determineInputFieldMode(info)
+        currentEnterAction = EditorSync.enterAction(info?.imeOptions ?: 0)
         if (NativeBridge.isLibraryLoaded()) {
             NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
+            NativeBridge.nativeSetEnterAction(currentEnterAction)
         }
 
         updateClipboardChip()
@@ -306,15 +325,22 @@ class RynkInputMethodService : InputMethodService() {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         if (isDispatchingEvents) return
         if (keyboardView?.hasActivePointers() == true) return
-        if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) {
-            val delta = Math.abs(newSelStart - oldSelStart)
-            if (delta > 1) {
-                val ic = currentInputConnection
-                val textBefore = ic?.getTextBeforeCursor(30, 0)?.toString() ?: ""
-                if (textBefore.isEmpty() || textBefore.last().isWhitespace() || !textBefore.last().isLetterOrDigit()) {
-                    keyboardView?.resetComposingState()
-                }
-            }
+        if (oldSelStart == newSelStart && oldSelEnd == newSelEnd) return
+        if (!NativeBridge.isCoreInitialized) return
+
+        if (newSelStart != newSelEnd) {
+            // A selection replaces text on the next keystroke: the composing word is meaningless
+            keyboardView?.resetComposingState()
+            return
+        }
+        val state = NativeBridge.nativeGetComposingState() ?: return
+        val composing = state.substringBefore('\t')
+        val lastWord = state.substringAfter('\t', "")
+        val ic = currentInputConnection ?: return
+        val window = (maxOf(composing.length, lastWord.length) + 2).coerceAtMost(64)
+        val textBefore = ic.getTextBeforeCursor(window, 0) ?: return
+        if (!EditorSync.isEngineInSync(textBefore, composing, lastWord)) {
+            keyboardView?.resetComposingState()
         }
     }
 
@@ -403,11 +429,8 @@ class RynkInputMethodService : InputMethodService() {
     private fun pollAndDispatchOutputEvents() {
         if (!NativeBridge.isLibraryLoaded()) return
 
-        val binaryBytes = NativeBridge.nativePollEventsBinary()
-        if (binaryBytes == null || binaryBytes.size < 4) {
-            pollAndDispatchOutputEventsText()
-            return
-        }
+        val binaryBytes = NativeBridge.nativePollEventsBinary() ?: return
+        if (binaryBytes.size < 4) return
 
         val buffer = java.nio.ByteBuffer.wrap(binaryBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
         val eventCount = buffer.int
@@ -477,87 +500,12 @@ class RynkInputMethodService : InputMethodService() {
                         NativeBridge.nativeSetClipboardText(null)
                         keyboardView?.invalidate()
                     }
+                    NativeBridge.EVENT_PERFORM_EDITOR_ACTION -> {
+                        val action = buffer.int
+                        ic?.performEditorAction(action)
+                    }
                     else -> {
                         buffer.position(buffer.position() + len)
-                    }
-                }
-            }
-        } finally {
-            ic?.endBatchEdit()
-            isDispatchingEvents = false
-        }
-    }
-
-    private fun pollAndDispatchOutputEventsText() {
-        val eventsString = NativeBridge.nativePollEvents()
-        if (eventsString.isEmpty()) return
-
-        val ic = currentInputConnection
-        isDispatchingEvents = true
-        ic?.beginBatchEdit()
-        try {
-            val lines = eventsString.split("\n")
-            for (rawLine in lines) {
-                val line = rawLine.removeSuffix("\r")
-                if (line.isEmpty()) continue
-
-                val firstTab = line.indexOf('\t')
-                if (firstTab == -1) {
-                    when (line.trim()) {
-                        "SETTINGS" -> {
-                            val intent = Intent(this, SettingsActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            startActivity(intent)
-                        }
-                        "SWITCH_IME" -> {
-                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                            imm?.showInputMethodPicker()
-                        }
-                        "HIDE" -> {
-                            requestHideSelf(0)
-                        }
-                        "DELETE_WORD" -> {
-                            deletePreviousWord()
-                        }
-                        "CLEAR_CLIPBOARD" -> {
-                            clearSystemClipboard()
-                        }
-                    }
-                    continue
-                }
-
-                val command = line.substring(0, firstTab)
-                val payload = line.substring(firstTab + 1)
-                when (command) {
-                    "COMMIT" -> {
-                        ic?.commitText(payload, 1)
-                    }
-                    "CLIPBOARD_PASTED" -> {
-                        consumedClipboardText = payload
-                        NativeBridge.nativeSetClipboardText(null)
-                        keyboardView?.invalidate()
-                    }
-                    "DELETE" -> {
-                        val parts = payload.split("\t")
-                        val before = parts.getOrNull(0)?.toIntOrNull() ?: 1
-                        val after = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                        deleteSurroundingGraphemes(before, after)
-                    }
-                    "KEY" -> {
-                        val keyCode = payload.toIntOrNull() ?: KeyEvent.KEYCODE_ENTER
-                        ic?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                        ic?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
-                    }
-                    "HAPTIC" -> {
-                        val hapticCode = payload.toIntOrNull() ?: 1
-                        hapticManager.performHaptic(hapticCode)
-                    }
-                    "CURSOR" -> {
-                        val delta = payload.toIntOrNull() ?: 0
-                        if (delta != 0) {
-                            moveCursor(delta)
-                        }
                     }
                 }
             }

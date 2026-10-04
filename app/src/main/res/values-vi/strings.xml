@@ -7,7 +7,7 @@
     <string name="onboarding_title">Rynk Keyboard</string>
     <string name="onboarding_subtitle">Bàn phím thế hệ mới với động cơ Rust siêu tốc</string>
     <string name="step1_title">1. Bật Rynk Keyboard</string>
-    <string name="step1_desc">Kích hoạt bàn phím trong cài đặt hệ thống. Mọi xử lý, từ điển và hiển thị chạy 100% cục bộ trên thiết bị của bạn.</string>
+    <string name="step1_desc" formatted="false">Kích hoạt bàn phím trong cài đặt hệ thống. Mọi xử lý, từ điển và hiển thị chạy 100% cục bộ trên thiết bị của bạn.</string>
     <string name="step1_btn">Bật trong cài đặt</string>
     <string name="step1_done">Đã bật bàn phím</string>
     <string name="step2_title">2. Chọn phương thức nhập</string>

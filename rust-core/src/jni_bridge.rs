@@ -555,70 +555,6 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRender(
 }
 
 #[no_mangle]
-#[allow(unused_mut)]
-pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativePollEvents(
-    mut env: JNIEnv,
-    _class: JClass,
-) -> jstring {
-    let mut guard = CORE_INSTANCE.lock().unwrap();
-    if let Some(core) = guard.as_mut() {
-        let events = core.engine.state.drain_events();
-        if events.is_empty() {
-            return env.new_string("").unwrap().into_raw();
-        }
-
-        let mut output = String::with_capacity(128);
-        for event in events {
-            match event {
-                KeyboardOutputEvent::CommitText(text) => {
-                    output.push_str(&format!("COMMIT\t{}\n", text));
-                }
-                KeyboardOutputEvent::DeleteSurroundingText { before, after } => {
-                    output.push_str(&format!("DELETE\t{}\t{}\n", before, after));
-                }
-                KeyboardOutputEvent::SendKeyEvent(code) => {
-                    output.push_str(&format!("KEY\t{}\n", code));
-                }
-                KeyboardOutputEvent::PerformHaptic(haptic) => {
-                    let h_code = match haptic {
-                        HapticFeedbackType::KeyTick => 0,
-                        HapticFeedbackType::KeyClick => 1,
-                        HapticFeedbackType::KeyHeavyClick => 2,
-                        HapticFeedbackType::LongPress => 3,
-                    };
-                    output.push_str(&format!("HAPTIC\t{}\n", h_code));
-                }
-                KeyboardOutputEvent::MoveCursor(delta) => {
-                    output.push_str(&format!("CURSOR\t{}\n", delta));
-                }
-                KeyboardOutputEvent::DeleteWord => {
-                    output.push_str("DELETE_WORD\n");
-                }
-                KeyboardOutputEvent::OpenSettings => {
-                    output.push_str("SETTINGS\n");
-                }
-                KeyboardOutputEvent::SwitchInputMethod => {
-                    output.push_str("SWITCH_IME\n");
-                }
-                KeyboardOutputEvent::HideKeyboard => {
-                    output.push_str("HIDE\n");
-                }
-                KeyboardOutputEvent::ClearClipboard => {
-                    output.push_str("CLEAR_CLIPBOARD\n");
-                }
-                KeyboardOutputEvent::ClipboardPasted(text) => {
-                    output.push_str(&format!("CLIPBOARD_PASTED\t{}\n", text));
-                }
-            }
-        }
-
-        let jstr = env.new_string(output).unwrap();
-        return jstr.into_raw();
-    }
-    env.new_string("").unwrap().into_raw()
-}
-
-#[no_mangle]
 pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeReset(
     _env: JNIEnv,
     _class: JClass,
@@ -646,7 +582,8 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetTextLabels(
         }
         let mut out = String::with_capacity(labels.len() * 40);
         for label in labels {
-            let escaped_text = label.text.replace('\t', " ");
+            // Tab and newline are the field/record separators of this format
+            let escaped_text = label.text.replace(['\t', '\n', '\r'], " ");
             out.push_str(&format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                 escaped_text,
@@ -1035,5 +972,40 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeLoadAdaptiveDat
             .dictionary
             .adaptive_dict
             .deserialize_binary(&byte_vec);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEnterAction(
+    _env: JNIEnv,
+    _class: JClass,
+    action: jint,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.enter_action = action;
+    }
+}
+
+/// Returns "composing\tlast_committed_word" so the IME service can check whether the
+/// engine's view of the text still matches the editor after a selection change.
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeGetComposingState(
+    env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let guard = CORE_INSTANCE.lock().unwrap();
+    let out = guard
+        .as_ref()
+        .map(|core| {
+            format!(
+                "{}\t{}",
+                core.engine.state.composing_text, core.engine.state.last_committed_word
+            )
+        })
+        .unwrap_or_default();
+    match env.new_string(out) {
+        Ok(s) => s.into_raw(),
+        Err(_) => std::ptr::null_mut(),
     }
 }

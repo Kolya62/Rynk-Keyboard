@@ -39,7 +39,8 @@ impl SuggestionEngine {
         }
 
         // 2. Check emoji shortcut
-        if let Some(emoji) = Self::check_emoji_shortcut(&clean) {
+        // Case-sensitive on purpose: ":D" and ":d" are different shortcuts
+        if let Some(emoji) = Self::check_emoji_shortcut(input.trim()) {
             return vec![input.to_string(), input.to_string(), emoji.to_string()];
         }
 

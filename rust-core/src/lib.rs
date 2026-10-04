@@ -76,6 +76,9 @@ mod tests {
         let sugg_heart = service.get_suggestions("<3", None, false);
         assert!(sugg_heart.iter().any(|s| s == "❤️"));
 
+        let sugg_grin = service.get_suggestions(":D", None, false);
+        assert!(sugg_grin.iter().any(|s| s == "😃"));
+
         // Regular word "огонь" must NOT be converted to emoji
         let sugg_fire = service.get_suggestions("огонь", None, true);
         assert!(!sugg_fire.iter().any(|s| s == "🔥"));
@@ -1103,5 +1106,64 @@ mod tests {
             assert!(pred_p99 < 1000, "Release prediction p99 latency must be < 1000µs, got {}µs", pred_p99);
         }
     }
-}
 
+    fn typed_text(engine: &mut KeyboardEngine, text: &str) -> String {
+        for c in text.chars() {
+            engine.execute_key_action(KeyAction::Character(c));
+        }
+        let mut out = String::new();
+        for ev in engine.state.drain_events() {
+            match ev {
+                keyboard::state::KeyboardOutputEvent::CommitText(t) => out.push_str(&t),
+                keyboard::state::KeyboardOutputEvent::DeleteSurroundingText { before, .. } => {
+                    for _ in 0..before {
+                        out.pop();
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn test_no_smart_punctuation_in_technical_fields() {
+        use keyboard::state::InputFieldMode;
+        for mode in [
+            InputFieldMode::Email,
+            InputFieldMode::Uri,
+            InputFieldMode::Password,
+            InputFieldMode::VisiblePassword,
+        ] {
+            let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+            engine.set_language(Language::English);
+            engine.set_input_field_mode(mode);
+            assert_eq!(typed_text(&mut engine, "mail.ru"), "mail.ru", "field mode {:?}", mode);
+            assert_ne!(engine.state.shift_state, ShiftState::Shifted, "no auto-cap in {:?}", mode);
+        }
+
+        // Prose fields keep smart punctuation and auto-capitalization
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_language(Language::English);
+        assert_eq!(typed_text(&mut engine, "ok."), "ok. ");
+        assert_eq!(engine.state.shift_state, ShiftState::Shifted);
+    }
+
+    #[test]
+    fn test_enter_performs_editor_action() {
+        use keyboard::state::{InputFieldMode, KeyboardOutputEvent};
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        engine.enter_action = 3; // IME_ACTION_SEARCH
+        engine.execute_key_action(KeyAction::Enter);
+        let events = engine.state.drain_events();
+        assert!(events.contains(&KeyboardOutputEvent::PerformEditorAction(3)));
+        assert!(!events.iter().any(|e| matches!(e, KeyboardOutputEvent::SendKeyEvent(_))));
+
+        engine.enter_action = 0;
+        engine.set_input_field_mode(InputFieldMode::Multiline);
+        engine.execute_key_action(KeyAction::Enter);
+        let events = engine.state.drain_events();
+        assert!(events.contains(&KeyboardOutputEvent::CommitText("\n".to_string())));
+    }
+}

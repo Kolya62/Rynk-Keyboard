@@ -25,7 +25,6 @@ class RynkKeyboardView @JvmOverloads constructor(
     private var frontBitmap: Bitmap? = null
     private var backBitmap: Bitmap? = null
     private var onEventsReadyListener: (() -> Unit)? = null
-    private var isInitialized = false
     private var bottomInset: Int = 0
 
     private val gestureHandler = Handler(Looper.getMainLooper())
@@ -126,12 +125,7 @@ class RynkKeyboardView @JvmOverloads constructor(
 
         val contentH = (h - bottomInset).coerceAtLeast(1)
 
-        if (frontBitmap == null || frontBitmap?.width != w || frontBitmap?.height != contentH) {
-            frontBitmap?.recycle()
-            backBitmap?.recycle()
-            frontBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
-            backBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
-        }
+        ensureBitmaps(w, contentH)
 
         val density = resources.displayMetrics.density
         val prefs = context.getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
@@ -139,12 +133,22 @@ class RynkKeyboardView @JvmOverloads constructor(
         currentThemeId = themeId
         setBackgroundColor(getThemeBgColor(themeId))
 
-        if (!isInitialized) {
+        if (!NativeBridge.isCoreInitialized) {
             NativeBridge.nativeInit(w.toFloat(), contentH.toFloat(), density, themeId)
-            UserDictionaryManager(context).syncToNative()
-            isInitialized = true
+            NativeBridge.isCoreInitialized = true
+            (context as? RynkInputMethodService)?.onCoreCreated()
         } else {
             NativeBridge.nativeResize(w.toFloat(), contentH.toFloat(), density)
+            NativeBridge.nativeSetTheme(themeId)
+        }
+    }
+
+    private fun ensureBitmaps(w: Int, contentH: Int) {
+        if (frontBitmap == null || backBitmap == null || frontBitmap?.width != w || frontBitmap?.height != contentH) {
+            frontBitmap?.recycle()
+            backBitmap?.recycle()
+            frontBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
+            backBitmap = Bitmap.createBitmap(w, contentH, Bitmap.Config.ARGB_8888)
         }
     }
 
@@ -351,8 +355,10 @@ class RynkKeyboardView @JvmOverloads constructor(
         val bgColor = getThemeBgColor(currentThemeId)
         canvas.drawColor(bgColor)
 
+        if (!NativeBridge.isCoreInitialized) return
+        // Bitmaps are released on detach; a re-attached view of the same size gets no onSizeChanged
+        if (width > 0 && height - bottomInset > 0) ensureBitmaps(width, height - bottomInset)
         val targetBmp = backBitmap ?: return
-        if (!NativeBridge.isLibraryLoaded()) return
 
         // 2. Double-buffered Rust rendering: render into backBitmap then swap
         val nowMs = SystemClock.uptimeMillis()
@@ -517,9 +523,6 @@ class RynkKeyboardView @JvmOverloads constructor(
         frontBitmap = null
         backBitmap?.recycle()
         backBitmap = null
-        if (isInitialized && NativeBridge.isLibraryLoaded()) {
-            NativeBridge.nativeDestroy()
-            isInitialized = false
-        }
+        // The native core is owned by RynkInputMethodService and outlives this view
     }
 }

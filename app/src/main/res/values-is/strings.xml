@@ -7,7 +7,7 @@
     <string name="onboarding_title">Rynk Keyboard</string>
     <string name="onboarding_subtitle">Næstu kynslóðar lyklaborð knúið af leifturhraðri Rust-vél</string>
     <string name="step1_title">1. Virkja Rynk Keyboard</string>
-    <string name="step1_desc">Virkjaðu lyklaborðið í kerfisstillingum. Allir útreikningar, orðabækur og myndgerð keyra 100% staðbundið á tækinu þínu.</string>
+    <string name="step1_desc" formatted="false">Virkjaðu lyklaborðið í kerfisstillingum. Allir útreikningar, orðabækur og myndgerð keyra 100% staðbundið á tækinu þínu.</string>
     <string name="step1_btn">Virkja í stillingum</string>
     <string name="step1_done">Lyklaborð virkjað</string>
     <string name="step2_title">2. Veldu innsláttaraðferð</string>

@@ -29,6 +29,8 @@ pub struct KeyboardEngine {
     pub cached_suggestions_version: u64,
     pub enabled_languages: Vec<Language>,
     pub hangul_composer: HangulComposer,
+    /// Editor action performed by the Enter key (`EditorInfo.IME_ACTION_*`), 0 = plain Enter / newline
+    pub enter_action: i32,
 }
 
 impl KeyboardEngine {
@@ -57,6 +59,7 @@ impl KeyboardEngine {
             cached_suggestions_version: 0,
             enabled_languages: vec![Language::Russian, Language::English],
             hangul_composer: HangulComposer::new(),
+            enter_action: 0,
         }
     }
 
@@ -393,7 +396,10 @@ impl KeyboardEngine {
 
                 let is_punctuation =
                     ch == '.' || ch == ',' || ch == '!' || ch == '?' || ch == ';' || ch == ':';
-                if is_punctuation && self.state.mode == KeyboardMode::Alphabet {
+                if is_punctuation
+                    && self.state.mode == KeyboardMode::Alphabet
+                    && self.state.field_mode.allows_smart_punctuation()
+                {
                     // Smart Punctuation:
                     // If preceding character was a space, swallow it before punctuation
                     if self.state.last_char_was_space {
@@ -560,7 +566,10 @@ impl KeyboardEngine {
                     self.state.last_committed_word = self.state.composing_text.clone();
                     self.state.composing_text.clear();
                 }
-                if self.state.field_mode == state::InputFieldMode::Multiline {
+                if self.enter_action != 0 {
+                    self.state
+                        .push_event(KeyboardOutputEvent::PerformEditorAction(self.enter_action));
+                } else if self.state.field_mode == state::InputFieldMode::Multiline {
                     self.state
                         .push_event(KeyboardOutputEvent::CommitText("\n".to_string()));
                 } else {
