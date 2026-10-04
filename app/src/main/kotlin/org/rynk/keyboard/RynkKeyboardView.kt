@@ -511,6 +511,13 @@ class RynkKeyboardView @JvmOverloads constructor(
         }
     }
 
+    /** Redraws after the engine state changed outside a touch (editor context, cursor move). */
+    fun onEngineStateChanged() {
+        cachedLabelsVersion = -1L
+        checkModeChange()
+        invalidate()
+    }
+
     fun resetState() {
         cancelAllActivePointers()
         resetComposingState()

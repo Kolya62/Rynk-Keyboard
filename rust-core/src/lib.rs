@@ -62,7 +62,7 @@ mod tests {
         assert!(!context_suggs.is_empty());
         assert!(context_suggs.iter().any(|s| s == "дела"));
 
-        service.learn_word("кастомноеслово", true);
+        service.learn_word("кастомноеслово", Language::Russian);
         let custom_sugg = service.get_suggestions("кастом", None, true);
         assert!(custom_sugg.iter().any(|s| s == "кастомноеслово"));
     }
@@ -750,10 +750,7 @@ mod tests {
         adaptive.learn_bigram("привет", "мир");
 
         assert!(adaptive.learned_words.contains_key("секретноеслово"));
-        assert_eq!(
-            adaptive.learned_bigrams.get("привет"),
-            Some(&vec!["мир".to_string()])
-        );
+        assert_eq!(adaptive.bigram_count("привет", "мир"), Some(1));
 
         // Serialize and Deserialize binary roundtrip
         let bytes = adaptive.serialize_binary();
@@ -763,10 +760,7 @@ mod tests {
         restored.deserialize_binary(&bytes);
 
         assert!(restored.learned_words.contains_key("секретноеслово"));
-        assert_eq!(
-            restored.learned_bigrams.get("привет"),
-            Some(&vec!["мир".to_string()])
-        );
+        assert_eq!(restored.bigram_count("привет", "мир"), Some(1));
 
         // Test clear
         restored.clear();
@@ -1211,5 +1205,62 @@ mod tests {
 
         dict.add_user_word("спасиб", false);
         assert_eq!(dict.dominant_alternative("спасиб", Language::Ukrainian), None, "user words are kept");
+    }
+
+    #[test]
+    fn test_editor_context_drives_predictions_and_caps() {
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_language(Language::English);
+
+        // Cursor right after a partial word: it becomes the word being typed
+        engine.set_editor_context("I am going to the sto", false);
+        assert_eq!(engine.state.composing_text, "sto");
+        assert_eq!(engine.state.last_committed_word, "the");
+        assert_eq!(engine.state.previous_word, "to");
+
+        // Empty field asking for sentence caps: shift on, sentence-start context
+        engine.set_editor_context("", true);
+        assert_eq!(engine.state.shift_state, ShiftState::Shifted);
+        engine.update_suggestions();
+        assert!(
+            engine.cached_suggestions.iter().all(|w| w.chars().next().is_some_and(char::is_uppercase)),
+            "sentence-start predictions are capitalized: {:?}",
+            engine.cached_suggestions
+        );
+        assert!(engine.state.composing_text.is_empty());
+        assert!(engine.state.context_at_sentence_start);
+
+        // After "thank " the model predicts "you"
+        engine.set_editor_context("thank ", false);
+        assert_eq!(engine.state.shift_state, ShiftState::Off);
+        engine.update_suggestions();
+        assert_eq!(engine.cached_suggestions.first().map(String::as_str), Some("you"));
+
+        // Password fields never keep editor text
+        engine.set_input_field_mode(keyboard::state::InputFieldMode::Password);
+        engine.set_editor_context("secret wor", false);
+        assert!(engine.state.composing_text.is_empty());
+        assert!(engine.state.last_committed_word.is_empty());
+    }
+
+    #[test]
+    fn test_trigram_context_after_typing() {
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_language(Language::English);
+        for c in "going ".chars() {
+            let action = if c == ' ' { KeyAction::Space } else { KeyAction::Character(c) };
+            engine.execute_key_action(action);
+        }
+        engine.update_suggestions();
+        assert_eq!(engine.cached_suggestions.first().map(String::as_str), Some("to"));
+        assert_eq!(engine.state.last_committed_word, "going");
+        assert!(engine.state.context_at_sentence_start, "'going' started the text");
+
+        // A sentence end clears the context
+        for c in "to.".chars() {
+            engine.execute_key_action(KeyAction::Character(c));
+        }
+        assert!(engine.state.last_committed_word.is_empty());
+        assert!(engine.state.context_at_sentence_start);
     }
 }

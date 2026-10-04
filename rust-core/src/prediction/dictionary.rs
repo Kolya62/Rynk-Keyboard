@@ -1,239 +1,12 @@
 use super::lexicon::{Lexicon, LexiconBase};
-use super::lm_data::{adler32, ctx_id, LanguageModelData, NgramTable};
+use super::lm_data::{LanguageModelData, NgramTable};
 use crate::keyboard::state::Language;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub static PROFANITY_RAW: &str = include_str!("data/profanity.txt");
 
-const MAX_LEARNED_WORDS: usize = 2000;
-const MAX_LEARNED_BIGRAMS: usize = 600;
-
-#[derive(Clone, Debug)]
-pub struct AdaptiveDictionary {
-    pub learned_words: HashMap<String, u32>,
-    pub learned_bigrams: HashMap<String, Vec<String>>,
-    pub enabled: bool,
-    pub is_dirty: bool,
-}
-
-impl Default for AdaptiveDictionary {
-    fn default() -> Self {
-        Self {
-            learned_words: HashMap::new(),
-            learned_bigrams: HashMap::new(),
-            enabled: true,
-            is_dirty: false,
-        }
-    }
-}
-
-impl AdaptiveDictionary {
-    pub fn learn_word(&mut self, word: &str) {
-        if !self.enabled {
-            return;
-        }
-        let trimmed = word.trim().to_lowercase();
-        if trimmed.chars().count() < 2 {
-            return;
-        }
-        if self.learned_words.len() >= MAX_LEARNED_WORDS
-            && !self.learned_words.contains_key(&trimmed)
-        {
-            self.decay_and_prune();
-        }
-        let entry = self.learned_words.entry(trimmed).or_insert(100);
-        *entry = (*entry + 25).min(2500);
-        self.is_dirty = true;
-    }
-
-    pub fn learn_bigram(&mut self, w1: &str, w2: &str) {
-        if !self.enabled {
-            return;
-        }
-        let k = w1.trim().to_lowercase();
-        let v = w2.trim().to_lowercase();
-        if k.is_empty() || v.is_empty() {
-            return;
-        }
-        if self.learned_bigrams.len() >= MAX_LEARNED_BIGRAMS
-            && !self.learned_bigrams.contains_key(&k)
-        {
-            if let Some(first_key) = self.learned_bigrams.keys().next().cloned() {
-                self.learned_bigrams.remove(&first_key);
-            }
-        }
-        let list = self.learned_bigrams.entry(k).or_default();
-        if let Some(pos) = list.iter().position(|x| x == &v) {
-            list.remove(pos);
-        }
-        list.insert(0, v);
-        if list.len() > 6 {
-            list.pop();
-        }
-        self.is_dirty = true;
-    }
-
-    pub fn clear(&mut self) {
-        self.learned_words.clear();
-        self.learned_bigrams.clear();
-        self.is_dirty = true;
-    }
-
-    fn decay_and_prune(&mut self) {
-        let mut sorted: Vec<(String, u32)> = self.learned_words.drain().collect();
-        sorted.sort_by_key(|a| std::cmp::Reverse(a.1));
-        let keep_count = (MAX_LEARNED_WORDS * 9) / 10;
-        for (w, mut freq) in sorted.into_iter().take(keep_count) {
-            freq = (freq * 9) / 10;
-            self.learned_words.insert(w, freq.max(50));
-        }
-    }
-
-    pub fn serialize_binary(&self) -> Vec<u8> {
-        let mut payload = Vec::with_capacity(1024);
-        payload.extend_from_slice(&(self.learned_words.len() as u32).to_le_bytes());
-        for (w, freq) in &self.learned_words {
-            let bytes = w.as_bytes();
-            payload.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
-            payload.extend_from_slice(bytes);
-            payload.extend_from_slice(&freq.to_le_bytes());
-        }
-        payload.extend_from_slice(&(self.learned_bigrams.len() as u32).to_le_bytes());
-        for (k, list) in &self.learned_bigrams {
-            let k_bytes = k.as_bytes();
-            payload.extend_from_slice(&(k_bytes.len() as u16).to_le_bytes());
-            payload.extend_from_slice(k_bytes);
-            payload.extend_from_slice(&(list.len() as u16).to_le_bytes());
-            for v in list {
-                let v_bytes = v.as_bytes();
-                payload.extend_from_slice(&(v_bytes.len() as u16).to_le_bytes());
-                payload.extend_from_slice(v_bytes);
-            }
-        }
-
-        let checksum = adler32(&payload);
-
-        let mut buf = Vec::with_capacity(payload.len() + 10);
-        buf.extend_from_slice(b"RYNK");
-        buf.extend_from_slice(&1u16.to_le_bytes());
-        buf.extend_from_slice(&checksum.to_le_bytes());
-        buf.extend_from_slice(&payload);
-        buf
-    }
-
-    pub fn deserialize_binary(&mut self, data: &[u8]) -> bool {
-        if data.len() < 10 || &data[0..4] != b"RYNK" {
-            return false;
-        }
-        let mut offset = 4;
-        let _version = u16::from_le_bytes([data[offset], data[offset + 1]]);
-        offset += 2;
-
-        let expected_checksum = u32::from_le_bytes([
-            data[offset],
-            data[offset + 1],
-            data[offset + 2],
-            data[offset + 3],
-        ]);
-        offset += 4;
-
-        let payload = &data[offset..];
-        if adler32(payload) != expected_checksum {
-            return false;
-        }
-
-        let mut p_offset = 0;
-        if p_offset + 4 > payload.len() {
-            return false;
-        }
-        let word_count = u32::from_le_bytes([
-            payload[p_offset],
-            payload[p_offset + 1],
-            payload[p_offset + 2],
-            payload[p_offset + 3],
-        ]) as usize;
-        p_offset += 4;
-
-        let mut new_words = HashMap::with_capacity(word_count.min(MAX_LEARNED_WORDS));
-        for _ in 0..word_count.min(MAX_LEARNED_WORDS) {
-            if p_offset + 2 > payload.len() {
-                return false;
-            }
-            let w_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
-            p_offset += 2;
-            if p_offset + w_len + 4 > payload.len() {
-                return false;
-            }
-            if let Ok(w) = std::str::from_utf8(&payload[p_offset..p_offset + w_len]) {
-                p_offset += w_len;
-                let freq = u32::from_le_bytes([
-                    payload[p_offset],
-                    payload[p_offset + 1],
-                    payload[p_offset + 2],
-                    payload[p_offset + 3],
-                ]);
-                p_offset += 4;
-                new_words.insert(w.to_string(), freq);
-            } else {
-                return false;
-            }
-        }
-
-        let mut new_bigrams = HashMap::new();
-        if p_offset + 4 <= payload.len() {
-            let bigram_count = u32::from_le_bytes([
-                payload[p_offset],
-                payload[p_offset + 1],
-                payload[p_offset + 2],
-                payload[p_offset + 3],
-            ]) as usize;
-            p_offset += 4;
-            for _ in 0..bigram_count.min(MAX_LEARNED_BIGRAMS) {
-                if p_offset + 2 > payload.len() {
-                    break;
-                }
-                let k_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
-                p_offset += 2;
-                if p_offset + k_len + 2 > payload.len() {
-                    break;
-                }
-                let k_opt = std::str::from_utf8(&payload[p_offset..p_offset + k_len])
-                    .ok()
-                    .map(|s| s.to_string());
-                p_offset += k_len;
-                let next_count = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
-                p_offset += 2;
-                let mut list = Vec::with_capacity(next_count.min(6));
-                for _ in 0..next_count {
-                    if p_offset + 2 > payload.len() {
-                        break;
-                    }
-                    let v_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
-                    p_offset += 2;
-                    if p_offset + v_len > payload.len() {
-                        break;
-                    }
-                    if let Ok(v) = std::str::from_utf8(&payload[p_offset..p_offset + v_len]) {
-                        if list.len() < 6 {
-                            list.push(v.to_string());
-                        }
-                    }
-                    p_offset += v_len;
-                }
-                if let Some(k) = k_opt {
-                    new_bigrams.insert(k, list);
-                }
-            }
-        }
-
-        self.learned_words = new_words;
-        self.learned_bigrams = new_bigrams;
-        self.is_dirty = false;
-        true
-    }
-}
-
+pub use super::adaptive::AdaptiveDictionary;
 
 pub type CandidateBucketMap = HashMap<(char, usize), Vec<(&'static str, u32)>>;
 
@@ -242,9 +15,11 @@ const BUCKET_CAP: usize = 50;
 /// Next-word predictions returned per context
 const CONTEXT_PREDICTIONS: usize = 6;
 /// Dictionary words below this frequency may still be autocorrected (see `dominant_alternative`)
-const RARE_WORD_FREQ: u32 = 150;
+const RARE_WORD_FREQ: u32 = 400;
 const MIN_DOMINANT_FREQ: u32 = 1000;
-const DOMINANCE_RATIO: u32 = 8;
+/// Frequency gap meaning "about 100× more common": the 0..=2500 scale spans ~5.7 decades of
+/// probability, so 2 decades ≈ 880 points
+const DOMINANCE_FREQ_GAP: u32 = 880;
 
 /// N-gram tables of one language model
 #[derive(Default)]
@@ -570,14 +345,19 @@ impl Dictionary {
             .unwrap_or(0)
     }
 
+    /// Adds a user word from the settings screen, where only Russian/other is known.
     pub fn add_user_word(&mut self, word: &str, is_ru: bool) {
+        let lang = if is_ru { Language::Russian } else { Language::English };
+        self.add_user_word_in(word, lang);
+    }
+
+    pub fn add_user_word_in(&mut self, word: &str, lang: Language) {
         let clean = word.trim().to_lowercase();
         if clean.is_empty() {
             return;
         }
         self.removed_words.remove(&clean);
         self.user_dict.insert(clean.clone(), 2500);
-        let lang = if is_ru { Language::Russian } else { Language::English };
         self.ensure_language_loaded(lang);
         if let Some(lex) = self.lexicons.get_mut(&lang) {
             lex.insert(&clean, 2500);
@@ -587,8 +367,7 @@ impl Dictionary {
     pub fn remove_user_word(&mut self, word: &str) {
         let clean = word.trim().to_lowercase();
         self.user_dict.remove(&clean);
-        self.adaptive_dict.learned_words.remove(&clean);
-        self.adaptive_dict.is_dirty = true;
+        self.adaptive_dict.remove_word(&clean);
         if self.removed_words.len() >= 1000 {
             if let Some(first) = self.removed_words.iter().next().cloned() {
                 self.removed_words.remove(&first);
@@ -603,15 +382,14 @@ impl Dictionary {
         words
     }
 
-    pub fn learn_word(&mut self, word: &str, is_ru: bool) {
+    pub fn learn_word(&mut self, word: &str, lang: Language) {
         let trimmed = word.trim().to_lowercase();
         if trimmed.chars().count() < 2 || self.removed_words.contains(&trimmed) {
             return;
         }
 
-        self.adaptive_dict.learn_word(&trimmed);
+        self.adaptive_dict.learn_word_in(&trimmed, Some(lang));
         if let Some(&freq) = self.adaptive_dict.learned_words.get(&trimmed) {
-            let lang = if is_ru { Language::Russian } else { Language::English };
             self.ensure_language_loaded(lang);
             if let Some(lex) = self.lexicons.get_mut(&lang) {
                 lex.insert(&trimmed, freq);
@@ -623,31 +401,36 @@ impl Dictionary {
         self.adaptive_dict.learn_bigram(w1, w2);
     }
 
+    /// Puts restored learned words back into the word lists of the languages they were typed in
+    /// (words from older files without a language go to the given fallback).
+    pub fn apply_learned_words(&mut self, fallback: Language) {
+        let learned: Vec<(String, u32, Language)> = self
+            .adaptive_dict
+            .learned_words
+            .iter()
+            .map(|(w, &f)| (w.clone(), f, *self.adaptive_dict.word_languages.get(w).unwrap_or(&fallback)))
+            .collect();
+        for (w, f, lang) in learned {
+            if self.removed_words.contains(&w) {
+                continue;
+            }
+            self.ensure_language_loaded(lang);
+            if let Some(lex) = self.lexicons.get_mut(&lang) {
+                lex.insert(&w, f);
+            }
+        }
+    }
+
+    /// Next-word predictions after `last_word`: model and learned pairs, then preposition-based
+    /// guesses, then the Russian/English model as a fallback.
     pub fn get_context_predictions(&self, last_word: &str, lang: Language) -> Vec<String> {
         let k = last_word.trim().to_lowercase();
         if k.is_empty() {
             return Vec::new();
         }
+        let ctx = super::lm::WordContext::after(Some(&k));
+        let mut res = self.predict_next_words(lang, &ctx, CONTEXT_PREDICTIONS);
 
-        let mut res = Vec::with_capacity(6);
-
-        // 1. Check user learned bigrams first
-        if let Some(user_nexts) = self.adaptive_dict.learned_bigrams.get(&k) {
-            for w in user_nexts {
-                if !res.contains(w) && !self.removed_words.contains(w) {
-                    res.push(w.clone());
-                }
-            }
-        }
-
-        // 2. Corpus bigrams for this language
-        for w in self.model_next_words(&k, lang) {
-            if !res.iter().any(|r| r == w) && !self.removed_words.contains(&w.to_lowercase()) {
-                res.push(w.to_string());
-            }
-        }
-
-        // 3. Preposition context predictions from Morphology engine
         let prep_preds = crate::prediction::morphology::Morphology::get_preposition_context_predictions(&k, lang);
         for &pw in prep_preds {
             let s = pw.to_string();
@@ -656,32 +439,11 @@ impl Dictionary {
             }
         }
 
-        // 4. Fallback to English/Russian bigrams if not found
         if res.is_empty() {
             let fallback = if lang == Language::Russian { Language::English } else { Language::Russian };
-            for w in self.model_next_words(&k, fallback) {
-                if !self.removed_words.contains(&w.to_lowercase()) {
-                    res.push(w.to_string());
-                }
-            }
+            res = self.predict_next_words(fallback, &ctx, CONTEXT_PREDICTIONS);
         }
-
         res
-    }
-
-    /// Most likely next words after `prev` from the language model, best first.
-    fn model_next_words(&self, prev: &str, lang: Language) -> Vec<&'static str> {
-        let (Some(lex), Some(ngrams)) = (self.lexicons.get(&lang), self.ngrams.get(&lang)) else {
-            return Vec::new();
-        };
-        let Some(id) = lex.model_id(prev) else { return Vec::new() };
-        ngrams
-            .bigrams
-            .get(ctx_id(id) as u64)
-            .iter()
-            .filter_map(|&(next, _)| lex.word_by_model_id(next))
-            .take(CONTEXT_PREDICTIONS)
-            .collect()
     }
 
     /// A rare dictionary word (often a misspelling that slipped into a corpus, e.g. "спасиб")
@@ -697,7 +459,7 @@ impl Dictionary {
         if freq >= RARE_WORD_FREQ {
             return None;
         }
-        let min_freq = MIN_DOMINANT_FREQ.max(freq * DOMINANCE_RATIO);
+        let min_freq = MIN_DOMINANT_FREQ.max(freq + DOMINANCE_FREQ_GAP);
         let mut candidates = lexicon.find_completions(&clean, 8);
         candidates.extend(self.get_fuzzy_candidates(&clean, lang).into_iter().map(|(w, f)| (w.to_string(), f)));
         candidates

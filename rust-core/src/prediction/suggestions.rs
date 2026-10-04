@@ -1,6 +1,12 @@
 use super::autocorrect::Autocorrect;
 use super::dictionary::Dictionary;
+use super::lm::WordContext;
 use crate::keyboard::state::Language;
+
+/// Score points per decade of probability the context adds to a candidate
+const CONTEXT_WEIGHT: f32 = 1.6;
+const MAX_CONTEXT_BONUS: f32 = 4.0;
+const NEXT_WORD_SLOTS: usize = 3;
 
 pub struct SuggestionEngine;
 
@@ -25,17 +31,47 @@ impl SuggestionEngine {
         lang: Language,
         dict: &Dictionary,
     ) -> Vec<String> {
-        let clean = input.trim().to_lowercase();
+        Self::get_suggestions_in_context(input, &WordContext::after(last_word), lang, dict)
+    }
 
-        // 1. If input is empty, return contextual next-word predictions based on last_word
-        if clean.is_empty() {
-            if let Some(lw) = last_word {
-                let context_words = dict.get_context_predictions(lw, lang);
-                if !context_words.is_empty() {
-                    return context_words.into_iter().take(3).collect();
+    /// Next-word predictions for an empty input: model and learned pairs first, then the
+    /// preposition-based guesses and fallbacks of `get_context_predictions`.
+    fn next_word_predictions(ctx: &WordContext, lang: Language, dict: &Dictionary, limit: usize) -> Vec<String> {
+        let mut words = dict.predict_next_words(lang, ctx, limit);
+        if let Some(prev) = ctx.prev_word() {
+            for w in dict.get_context_predictions(prev, lang) {
+                if words.len() >= limit {
+                    break;
+                }
+                if !words.iter().any(|x| x.to_lowercase() == w.to_lowercase()) {
+                    words.push(w);
                 }
             }
-            return Vec::new();
+        }
+        words
+    }
+
+    fn context_bonus(dict: &Dictionary, lang: Language, ctx: &WordContext, word: &str) -> f32 {
+        let mut bonus = (dict.context_gain(lang, ctx, word) * CONTEXT_WEIGHT).min(MAX_CONTEXT_BONUS);
+        if let Some(lw) = ctx.prev_word() {
+            if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, word, lang) {
+                bonus += 3.5;
+            }
+        }
+        bonus
+    }
+
+    pub fn get_suggestions_in_context(
+        input: &str,
+        ctx: &WordContext,
+        lang: Language,
+        dict: &Dictionary,
+    ) -> Vec<String> {
+        let clean = input.trim().to_lowercase();
+
+        // 1. If input is empty, return contextual next-word predictions
+        if clean.is_empty() {
+            return Self::next_word_predictions(ctx, lang, dict, NEXT_WORD_SLOTS);
         }
 
         // 2. Check emoji shortcut
@@ -47,7 +83,11 @@ impl SuggestionEngine {
         // 3. Quick typo / phonetic table lookup (instant O(1) canonical correction)
         if let Some(quick) = crate::prediction::typos::get_quick_correction(&clean) {
             let formatted = Self::match_case(input, quick);
-            return vec![input.to_string(), formatted, format!("{}...", input)];
+            // The table also normalizes casing ("москва" -> "Москва"): nothing to fix if the
+            // input already matches
+            if formatted != input {
+                return vec![input.to_string(), formatted];
+            }
         }
 
         // 3.1 CJK Pinyin / Romaji candidates for Chinese and Japanese
@@ -65,16 +105,11 @@ impl SuggestionEngine {
                 top.push(cjk_cands[0].clone());
                 if cjk_cands.len() > 1 {
                     top.push(cjk_cands[1].clone());
-                } else {
-                    top.push(format!("{}...", input));
                 }
                 return top;
             }
         }
 
-        let context_nexts = last_word
-            .map(|lw| dict.get_context_predictions(lw, lang))
-            .unwrap_or_default();
 
         let mut target_lang = lang;
         let trie = dict.get_lexicon(target_lang);
@@ -137,24 +172,28 @@ impl SuggestionEngine {
             })
         {
             let exact = completions.remove(pos);
-            let mut top_candidates = Vec::with_capacity(3);
+            let center = Self::match_case(input, &exact.0);
 
-            // Slot 0 (Left): Exact literal input typed by user
-            top_candidates.push(input.to_string());
+            // Other completions, most likely in this context first
+            completions.sort_by(|a, b| {
+                let sa = dict.context_log10(target_lang, ctx, &a.0);
+                let sb = dict.context_log10(target_lang, ctx, &b.0);
+                sb.total_cmp(&sa)
+            });
+            let mut alternatives = completions
+                .iter()
+                .map(|(w, _)| Self::match_case(input, w))
+                .filter(|w| w.to_lowercase() != center.to_lowercase());
 
-            // Slot 1 (Center): Exact / Diacritic-corrected word
-            top_candidates.push(Self::match_case(input, &exact.0));
-
-            // Slot 2 (Right): Second best completion or context prediction
-            if !completions.is_empty() {
-                top_candidates.push(Self::match_case(input, &completions[0].0));
-            } else if !context_nexts.is_empty() {
-                top_candidates.push(context_nexts[0].clone());
-            } else {
-                top_candidates.push(format!("{}...", input));
-            }
-
-            return top_candidates;
+            // Slot 1 (Center) is what space commits. When it is exactly the input, showing the
+            // input again on the left wastes a slot: offer another completion instead. Without
+            // alternatives only the real candidates are shown (a single chip is centered).
+            let left = if center == input { alternatives.next() } else { Some(input.to_string()) };
+            return match (left, alternatives.next()) {
+                (Some(left), Some(right)) => vec![left, center, right],
+                (Some(left), None) => vec![left, center],
+                (None, _) => vec![center],
+            };
         }
 
         // 5. Typo, Diacritic, Context, or Prefix matching:
@@ -182,16 +221,7 @@ impl SuggestionEngine {
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };
-            let mut ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == comp_lower) {
-                2.5
-            } else {
-                0.0
-            };
-            if let Some(lw) = last_word {
-                if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, &comp_lower, lang) {
-                    ctx_bonus += 3.5;
-                }
-            }
+            let ctx_bonus = Self::context_bonus(dict, target_lang, ctx, &comp_lower);
             candidates_map.insert(comp.clone(), score + ctx_bonus);
         }
 
@@ -205,16 +235,7 @@ impl SuggestionEngine {
             }
             let score = Autocorrect::score_candidate(&clean, w, freq);
             if score > 1.5 {
-                let mut ctx_bonus = if context_nexts.iter().any(|c| c.to_lowercase() == w.to_lowercase()) {
-                    2.5
-                } else {
-                    0.0
-                };
-                if let Some(lw) = last_word {
-                    if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, w, lang) {
-                        ctx_bonus += 3.5;
-                    }
-                }
+                let ctx_bonus = Self::context_bonus(dict, target_lang, ctx, w);
                 let entry = candidates_map.entry(w.to_string()).or_insert(0.0);
                 if score + ctx_bonus > *entry {
                     *entry = score + ctx_bonus;
@@ -235,15 +256,14 @@ impl SuggestionEngine {
                 .find(|w| w.to_lowercase() != clean)
                 .unwrap_or("");
 
-            vec![
+            let mut chips = vec![
                 input.to_string(),                 // Left: literal input
                 Self::match_case(input, best_fix), // Center: autocorrect / best completion
-                if second_fix.is_empty() {
-                    format!("{}...", input)
-                } else {
-                    Self::match_case(input, second_fix)
-                },
-            ]
+            ];
+            if !second_fix.is_empty() {
+                chips.push(Self::match_case(input, second_fix));
+            }
+            chips
         } else {
             // No correction found, return literal
             vec![input.to_string()]

@@ -9,7 +9,9 @@ fn main() {
         let lang = Language::from_code(&code).expect("language code");
         let mut keys = String::new();
         let mut alts = String::new();
-        for key in LayoutBuilder::build_layout(KeyboardMode::Alphabet, lang, ShiftState::Off, &metrics) {
+        for key in
+            LayoutBuilder::build_layout(KeyboardMode::Alphabet, lang, ShiftState::Off, &metrics)
+        {
             if let KeyAction::Character(c) = key.action {
                 keys.push(c);
             }

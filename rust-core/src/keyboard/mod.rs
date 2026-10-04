@@ -1,3 +1,4 @@
+pub mod context;
 pub mod hangul;
 pub mod key;
 pub mod layout;
@@ -69,6 +70,43 @@ impl KeyboardEngine {
         self.rebuild_layout();
     }
 
+    /// Re-anchors the engine on the editor's text (input start, cursor moved by the user):
+    /// adopts the word directly before the cursor as the word being typed and the preceding
+    /// words as context. `caps` is the editor's cursor caps mode (auto-capitalization request).
+    pub fn set_editor_context(&mut self, text_before_cursor: &str, caps: bool) {
+        self.hangul_composer.reset();
+        self.state.last_autocorrect_original = None;
+        self.state.last_autocorrect_replacement = None;
+        self.state.rejected_autocorrect_word = None;
+        self.last_space_tap_time_ms = 0;
+
+        if self.state.field_mode.allows_suggestions() {
+            let ctx = context::EditorContext::parse(text_before_cursor);
+            self.state.composing_text = ctx.partial_word;
+            self.state.clear_context(ctx.sentence_start);
+            // Oldest first, so the sentence-start marker ages out correctly
+            for w in [ctx.prev2, ctx.prev1].into_iter().flatten() {
+                self.state.commit_context_word(w);
+            }
+            self.state.last_char_was_space = ctx.ends_with_space;
+        } else {
+            // Never keep text from password-like fields
+            self.state.composing_text.clear();
+            self.state.clear_context(false);
+            self.state.last_char_was_space = false;
+        }
+
+        if self.state.shift_state != state::ShiftState::CapsLock && self.state.mode == KeyboardMode::Alphabet {
+            let wanted = if caps { state::ShiftState::Shifted } else { state::ShiftState::Off };
+            if wanted != self.state.shift_state {
+                self.state.shift_state = wanted;
+                self.rebuild_layout();
+            }
+        }
+        self.prediction_version = self.prediction_version.wrapping_add(1);
+        self.suggestions_dirty = true;
+    }
+
     pub fn set_input_field_mode(&mut self, mode: state::InputFieldMode) {
         if self.state.field_mode != mode {
             self.state.field_mode = mode;
@@ -76,7 +114,7 @@ impl KeyboardEngine {
                 self.cached_suggestions.clear();
                 self.suggestions_dirty = false;
                 self.state.composing_text.clear();
-                self.state.last_committed_word.clear();
+                self.state.clear_context(false);
                 self.state.clipboard_preview = None;
                 self.hangul_composer.reset();
             } else {
@@ -114,15 +152,34 @@ impl KeyboardEngine {
         }
 
         if self.suggestions_dirty || self.cached_suggestions_version != self.prediction_version {
-            self.cached_suggestions = self.prediction.get_suggestions_for_lang(
-                &self.state.composing_text,
-                if self.state.last_committed_word.is_empty() {
-                    None
-                } else {
-                    Some(&self.state.last_committed_word)
-                },
-                self.state.language,
-            );
+            // Sentence-start predictions would hide the clipboard chip; the chip wins
+            let idle_with_clipboard = self.state.composing_text.is_empty()
+                && self.state.last_committed_word.is_empty()
+                && self.state.clipboard_preview.is_some();
+            self.cached_suggestions = if idle_with_clipboard {
+                Vec::new()
+            } else {
+                self.prediction.get_suggestions_in_context(
+                    &self.state.composing_text,
+                    &self.state.word_context(),
+                    self.state.language,
+                )
+            };
+            // Next-word predictions follow the shift state (sentence start, manual shift)
+            if self.state.composing_text.is_empty() && self.state.shift_state.is_uppercase() {
+                let all_caps = self.state.shift_state == state::ShiftState::CapsLock;
+                for w in &mut self.cached_suggestions {
+                    *w = if all_caps {
+                        w.to_uppercase()
+                    } else {
+                        let mut chars = w.chars();
+                        chars
+                            .next()
+                            .map(|f| f.to_uppercase().chain(chars).collect())
+                            .unwrap_or_default()
+                    };
+                }
+            }
             self.suggestions_dirty = false;
             self.cached_suggestions_version = self.prediction_version;
         }
@@ -279,7 +336,7 @@ impl KeyboardEngine {
                 } else {
                     0
                 };
-                self.state.last_committed_word.clear();
+                self.state.clear_context(false);
                 self.suggestions_dirty = true;
                 if count > 0 {
                     self.state
@@ -410,7 +467,7 @@ impl KeyboardEngine {
                             });
                     }
                     if !self.state.composing_text.is_empty() {
-                        self.state.last_committed_word = self.state.composing_text.clone();
+                        self.state.commit_context_word(self.state.composing_text.clone());
                         self.state.composing_text.clear();
                     }
                     // Commit punctuation followed by auto-spacing
@@ -420,6 +477,7 @@ impl KeyboardEngine {
 
                     // Auto-capitalize after sentence ending punctuation
                     if ch == '.' || ch == '!' || ch == '?' {
+                        self.state.clear_context(true);
                         self.state.shift_state = state::ShiftState::Shifted;
                         self.rebuild_layout();
                     }
@@ -481,8 +539,7 @@ impl KeyboardEngine {
                     self.state.last_committed_word = orig.clone();
                     self.state.last_char_was_space = true;
                     self.state.rejected_autocorrect_word = Some(orig.to_lowercase());
-                    let is_ru = self.state.language == Language::Russian;
-                    self.prediction.add_user_word(&orig, is_ru);
+                    self.prediction.add_user_word_in(&orig, self.state.language);
                     self.suggestions_dirty = true;
                     self.state.push_event(KeyboardOutputEvent::PerformHaptic(
                         HapticFeedbackType::KeyClick,
@@ -542,7 +599,7 @@ impl KeyboardEngine {
                             after: 0,
                         });
                 } else {
-                    self.state.last_committed_word.clear();
+                    self.state.clear_context(false);
                     self.state
                         .push_event(KeyboardOutputEvent::DeleteSurroundingText {
                             before: 1,
@@ -563,9 +620,10 @@ impl KeyboardEngine {
                 self.state.rejected_autocorrect_word = None;
 
                 if !self.state.composing_text.is_empty() {
-                    self.state.last_committed_word = self.state.composing_text.clone();
+                    self.state.commit_context_word(self.state.composing_text.clone());
                     self.state.composing_text.clear();
                 }
+                self.state.clear_context(true);
                 if self.enter_action != 0 {
                     self.state
                         .push_event(KeyboardOutputEvent::PerformEditorAction(self.enter_action));
@@ -626,13 +684,9 @@ impl KeyboardEngine {
                         && self.autocorrect_enabled
                         && self.state.field_mode.allows_autocorrect()
                     {
-                        let suggestions = self.prediction.get_suggestions_for_lang(
+                        let suggestions = self.prediction.get_suggestions_in_context(
                             &self.state.composing_text,
-                            if self.state.last_committed_word.is_empty() {
-                                None
-                            } else {
-                                Some(&self.state.last_committed_word)
-                            },
+                            &self.state.word_context(),
                             self.state.language,
                         );
 
@@ -686,14 +740,14 @@ impl KeyboardEngine {
                             self.prediction
                                 .learn_bigram(&self.state.last_committed_word, &word_to_commit);
                         }
-                        let is_ru = self.state.language == Language::Russian;
+                        let lang = self.state.language;
                         if is_rejected {
-                            self.prediction.add_user_word(&word_to_commit, is_ru);
+                            self.prediction.add_user_word_in(&word_to_commit, lang);
                         } else if is_valid_word || did_autocorrect {
-                            self.prediction.learn_word(&word_to_commit, is_ru);
+                            self.prediction.learn_word(&word_to_commit, lang);
                         }
                     }
-                    self.state.last_committed_word = word_to_commit;
+                    self.state.commit_context_word(word_to_commit);
                     self.state.composing_text.clear();
                     self.state.last_char_was_space = true;
                 } else {

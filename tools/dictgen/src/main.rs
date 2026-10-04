@@ -1,7 +1,7 @@
 //! Builds a Rynk language model file (`<lang>.rlm`) for one language.
 //!
 //! Inputs (all optional except `--lang` and `--out`):
-//!   --sentences  Leipzig Corpora `*-sentences.txt` (`id<TAB>sentence` per line)
+//!   --sentences  Leipzig Corpora `*-sentences.txt` (`id<TAB>sentence` per line), repeatable
 //!   --subtitles  OpenSubtitles frequency list (`word count` per line, FrequencyWords)
 //!   --curated    hand-curated `word:freq` list (slang, abbreviations, canonical casing)
 //!   --bigrams    curated `word:next1,next2` list; `--multi-bigrams` takes `code:word:nexts`
@@ -15,10 +15,10 @@ use rynk_core::keyboard::key::{KeyAction, KeyboardMode};
 use rynk_core::keyboard::layout::{LayoutBuilder, LayoutMetrics};
 use rynk_core::keyboard::state::{Language, ShiftState};
 use rynk_core::prediction::autocorrect::Autocorrect;
-use rynk_core::prediction::typos::get_quick_correction;
 use rynk_core::prediction::lm_data::{
     ctx_id, quantize, trigram_key, LanguageModelData, NgramTable, WordEntry, SENTENCE_START,
 };
+use rynk_core::prediction::typos::get_quick_correction;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use unicode_normalization::UnicodeNormalization;
@@ -26,6 +26,12 @@ use unicode_segmentation::UnicodeSegmentation;
 
 const MAX_FREQ: f64 = 2500.0;
 const MAX_WORD_CHARS: usize = 32;
+/// Everyday dialog sentences are what people type; they count double against news and web text
+const DIALOG_WEIGHT: u32 = 2;
+/// Mid-sentence occurrences needed before a non-lowercase spelling becomes canonical
+const MIN_CASE_VOTES: u32 = 3;
+/// Trigrams must raise the probability over the bigram by this factor to be kept
+const INFORMATIVE_TRIGRAM_RATIO: f64 = 1.5;
 /// Frequency cap for curated words missing from the corpus
 const CURATED_ONLY_MAX_FREQ: u32 = 1500;
 
@@ -47,8 +53,8 @@ const TIER_A: Tier = Tier {
     bigrams_per_ctx: 24,
     max_bigrams: 250_000,
     trigram_min_count: 3,
-    trigrams_per_ctx: 12,
-    max_trigrams: 120_000,
+    trigrams_per_ctx: 10,
+    max_trigrams: 200_000,
 };
 
 const TIER_B: Tier = Tier {
@@ -78,7 +84,10 @@ struct Args {
     lang: String,
     tier: String,
     out: String,
-    sentences: Option<String>,
+    /// Repeatable: news/wiki corpus plus web corpus
+    sentences: Vec<String>,
+    /// Repeatable: conversational sentences (Tatoeba), counted with `DIALOG_WEIGHT`
+    dialog: Vec<String>,
     subtitles: Option<String>,
     curated: Option<String>,
     bigrams: Option<String>,
@@ -86,15 +95,22 @@ struct Args {
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { tier: "B".into(), ..Default::default() };
+    let mut a = Args {
+        tier: "B".into(),
+        ..Default::default()
+    };
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
-        let mut val = || it.next().unwrap_or_else(|| die(&format!("missing value for {flag}")));
+        let mut val = || {
+            it.next()
+                .unwrap_or_else(|| die(&format!("missing value for {flag}")))
+        };
         match flag.as_str() {
             "--lang" => a.lang = val(),
             "--tier" => a.tier = val(),
             "--out" => a.out = val(),
-            "--sentences" => a.sentences = Some(val()),
+            "--sentences" => a.sentences.push(val()),
+            "--dialog" => a.dialog.push(val()),
             "--subtitles" => a.subtitles = Some(val()),
             "--curated" => a.curated = Some(val()),
             "--bigrams" => a.bigrams = Some(val()),
@@ -190,9 +206,8 @@ impl Script {
 fn native_script(lang: Language) -> Option<Script> {
     use Language::*;
     Some(match lang {
-        Russian | Ukrainian | Belarusian | Kazakh | Bulgarian | Macedonian | Kyrgyz | Tajik | Mongolian => {
-            Script::Cyrillic
-        }
+        Russian | Ukrainian | Belarusian | Kazakh | Bulgarian | Macedonian | Kyrgyz | Tajik
+        | Mongolian => Script::Cyrillic,
         Greek => Script::Greek,
         Armenian => Script::Armenian,
         Georgian => Script::Georgian,
@@ -244,22 +259,42 @@ impl WordFilter {
         let script = native_script(lang).filter(|s| {
             let lacks_script = !typeable.iter().any(|&c| s.contains(c));
             let coverage = letter_counts.map(|counts| {
-                let total: u64 = counts.iter().filter(|(c, _)| s.contains(**c)).map(|(_, n)| n).sum();
+                let total: u64 = counts
+                    .iter()
+                    .filter(|(c, _)| s.contains(**c))
+                    .map(|(_, n)| n)
+                    .sum();
                 let typed: u64 = counts
                     .iter()
                     .filter(|(c, _)| s.contains(**c) && typeable.contains(c))
                     .map(|(_, n)| n)
                     .sum();
-                if total == 0 { 1.0 } else { typed as f64 / total as f64 }
+                if total == 0 {
+                    1.0
+                } else {
+                    typed as f64 / total as f64
+                }
             });
             if lacks_script {
-                eprintln!("{}: layout lacks {:?} letters, filtering by script", lang.code(), s);
+                eprintln!(
+                    "{}: layout lacks {:?} letters, filtering by script",
+                    lang.code(),
+                    s
+                );
             } else if let Some(c) = coverage.filter(|&c| c < MIN_LAYOUT_COVERAGE) {
-                eprintln!("{}: layout covers {:.1}% of letters, filtering by script", lang.code(), c * 100.0);
+                eprintln!(
+                    "{}: layout covers {:.1}% of letters, filtering by script",
+                    lang.code(),
+                    c * 100.0
+                );
             }
             lacks_script || coverage.is_some_and(|c| c < MIN_LAYOUT_COVERAGE)
         });
-        Self { typeable, korean: lang == Language::Korean, script }
+        Self {
+            typeable,
+            korean: lang == Language::Korean,
+            script,
+        }
     }
 }
 
@@ -267,8 +302,12 @@ impl WordFilter {
 fn sample_letters(path: &str, lines_to_read: usize) -> HashMap<char, u64> {
     let mut counts = HashMap::new();
     for line in lines(path).take(lines_to_read) {
-        let text = line.split_once('\t').map(|(_, t)| t).unwrap_or(&line);
-        for c in text.chars().flat_map(char::to_lowercase).filter(|c| c.is_alphabetic()) {
+        let text = line.rsplit_once('\t').map(|(_, t)| t).unwrap_or(&line);
+        for c in text
+            .chars()
+            .flat_map(char::to_lowercase)
+            .filter(|c| c.is_alphabetic())
+        {
             *counts.entry(c).or_insert(0) += 1;
         }
     }
@@ -281,11 +320,36 @@ fn serbian_to_latin(text: &str) -> String {
     for c in text.chars() {
         let lower = c.to_lowercase().next().unwrap_or(c);
         let lat = match lower {
-            'а' => "a", 'б' => "b", 'в' => "v", 'г' => "g", 'д' => "d", 'ђ' => "đ", 'е' => "e",
-            'ж' => "ž", 'з' => "z", 'и' => "i", 'ј' => "j", 'к' => "k", 'л' => "l", 'љ' => "lj",
-            'м' => "m", 'н' => "n", 'њ' => "nj", 'о' => "o", 'п' => "p", 'р' => "r", 'с' => "s",
-            'т' => "t", 'ћ' => "ć", 'у' => "u", 'ф' => "f", 'х' => "h", 'ц' => "c", 'ч' => "č",
-            'џ' => "dž", 'ш' => "š",
+            'а' => "a",
+            'б' => "b",
+            'в' => "v",
+            'г' => "g",
+            'д' => "d",
+            'ђ' => "đ",
+            'е' => "e",
+            'ж' => "ž",
+            'з' => "z",
+            'и' => "i",
+            'ј' => "j",
+            'к' => "k",
+            'л' => "l",
+            'љ' => "lj",
+            'м' => "m",
+            'н' => "n",
+            'њ' => "nj",
+            'о' => "o",
+            'п' => "p",
+            'р' => "r",
+            'с' => "s",
+            'т' => "t",
+            'ћ' => "ć",
+            'у' => "u",
+            'ф' => "f",
+            'х' => "h",
+            'ц' => "c",
+            'ч' => "č",
+            'џ' => "dž",
+            'ш' => "š",
             _ => {
                 out.push(c);
                 continue;
@@ -305,6 +369,11 @@ fn serbian_to_latin(text: &str) -> String {
 impl WordFilter {
     /// Lowercased form if the token is a word the keyboard can produce, else None.
     fn accept(&self, token: &str) -> Option<String> {
+        // Words glued together in the source ("МоскваБольше") are not words; genuine mixed-case
+        // spellings (iPhone, macOS) come from the curated lists
+        if token.chars().zip(token.chars().skip(1)).any(|(a, b)| a.is_lowercase() && b.is_uppercase()) {
+            return None;
+        }
         // The keyboard types ASCII apostrophes: "don’t" and "don't" are the same word
         let lower = token.to_lowercase().replace(['’', 'ʼ'], "'");
         let n = lower.chars().count();
@@ -358,49 +427,82 @@ struct CorpusStats {
     unigrams: HashMap<String, u32>,
     /// Spelling votes from non-sentence-initial positions
     spellings: HashMap<String, HashMap<String, u32>>,
-    sentences: Vec<Vec<String>>,
 }
 
-fn read_corpus(path: &str, filter: &WordFilter, lang: Language) -> CorpusStats {
-    let mut stats = CorpusStats::default();
+/// Streams a corpus sentence by sentence as `(accepted lowercase word, original token)` pairs;
+/// rejected tokens (numbers, foreign words) are `None` and break n-gram chains. Corpora are
+/// read twice (vocabulary, then n-grams) instead of being held in memory.
+/// Tatoeba writes most examples about the same placeholder people; as data they would make
+/// "Tom" the most likely first word of a sentence in every language
+fn is_tatoeba_placeholder(token: &str) -> bool {
+    const NAMES: &[&str] = &[
+        "tom", "toms", "toma", "tomu", "tomem", "tomowi", "tomovi", "tomas", "том", "тома", "тому",
+        "томом", "томе", "mary", "marie", "maria", "mari", "мэри", "мері", "john", "джон", "jim",
+    ];
+    token.chars().next().is_some_and(char::is_uppercase) && NAMES.contains(&token.to_lowercase().as_str())
+}
+
+fn for_each_sentence(
+    path: &str,
+    dialog: bool,
+    filter: &WordFilter,
+    lang: Language,
+    mut f: impl FnMut(&[(Option<String>, &str)]),
+) {
     for line in lines(path) {
-        let text = line.split_once('\t').map(|(_, t)| t).unwrap_or(&line);
+        // Leipzig: "id<TAB>text", Tatoeba: "id<TAB>lang<TAB>text"
+        let text = line.rsplit_once('\t').map(|(_, t)| t).unwrap_or(&line);
         let mut text: String = text.nfc().collect();
         if lang == Language::Serbian {
             text = serbian_to_latin(&text);
         }
-        let mut sentence = Vec::new();
-        for (pos, token) in text.unicode_words().enumerate() {
-            match filter.accept(token) {
-                Some(lower) => {
-                    *stats.unigrams.entry(lower.clone()).or_insert(0) += 1;
-                    if pos > 0 {
-                        *stats
-                            .spellings
-                            .entry(lower.clone())
-                            .or_default()
-                            .entry(token.replace(['’', 'ʼ'], "'"))
-                            .or_insert(0) += 1;
-                    }
-                    sentence.push(lower);
+        let tokens: Vec<(Option<String>, &str)> = text
+            .unicode_words()
+            .map(|t| {
+                let accepted = if dialog && is_tatoeba_placeholder(t) { None } else { filter.accept(t) };
+                (accepted, t)
+            })
+            .collect();
+        f(&tokens);
+    }
+}
+
+/// `corpora`: (path, count weight)
+fn read_corpus(corpora: &[(String, u32)], filter: &WordFilter, lang: Language) -> CorpusStats {
+    let mut stats = CorpusStats::default();
+    for (path, weight) in corpora {
+        for_each_sentence(path, *weight == DIALOG_WEIGHT, filter, lang, |tokens| {
+            for (pos, (accepted, token)) in tokens.iter().enumerate() {
+                let Some(lower) = accepted else { continue };
+                *stats.unigrams.entry(lower.clone()).or_insert(0) += weight;
+                if pos > 0 {
+                    *stats
+                        .spellings
+                        .entry(lower.clone())
+                        .or_default()
+                        .entry(token.replace(['’', 'ʼ'], "'"))
+                        .or_insert(0) += 1;
                 }
-                // Numbers, foreign words etc. break n-gram chains
-                None => sentence.push(String::new()),
             }
-        }
-        stats.sentences.push(sentence);
+        });
     }
     stats
 }
 
 /// Most common spelling seen mid-sentence; lowercase unless capitalization clearly dominates.
-fn canonical_spelling(lower: &str, votes: Option<&HashMap<String, u32>>) -> String {
-    let Some(votes) = votes else { return lower.to_string() };
-    let lower_votes = votes.get(lower).copied().unwrap_or(0);
-    let Some((best, &best_votes)) = votes.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0))) else {
+/// `plurality`: take the most common spelling outright (German, where every noun is
+/// capitalized and lowercase variants are informal misspellings).
+fn canonical_spelling(lower: &str, votes: Option<&HashMap<String, u32>>, plurality: bool) -> String {
+    let Some(votes) = votes else {
         return lower.to_string();
     };
-    if best == lower || lower_votes * 10 >= best_votes * 3 {
+    let lower_votes = votes.get(lower).copied().unwrap_or(0);
+    let Some((best, &best_votes)) = votes.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0)))
+    else {
+        return lower.to_string();
+    };
+    // A capitalized spelling needs real evidence: one "Уе)) Спасиб" must not capitalize a word
+    if best == lower || best_votes < MIN_CASE_VOTES || (!plurality && lower_votes * 10 >= best_votes * 3) {
         lower.to_string()
     } else {
         best.clone()
@@ -409,25 +511,35 @@ fn canonical_spelling(lower: &str, votes: Option<&HashMap<String, u32>>) -> Stri
 
 fn main() {
     let args = parse_args();
-    let lang = Language::from_code(&args.lang).unwrap_or_else(|| die(&format!("unknown language {}", args.lang)));
+    let lang = Language::from_code(&args.lang)
+        .unwrap_or_else(|| die(&format!("unknown language {}", args.lang)));
     let tier = match args.tier.as_str() {
         "A" => &TIER_A,
         "B" => &TIER_B,
         "C" => &TIER_C,
         t => die(&format!("unknown tier {t}")),
     };
-    let sample = args.sentences.as_deref().map(|p| sample_letters(p, 20_000));
+    let sample = args.sentences.first().or(args.dialog.first()).map(|p| sample_letters(p, 20_000));
     let filter = WordFilter::with_coverage(lang, sample.as_ref());
 
-    // 1. Corpus statistics
-    let corpus = args.sentences.as_deref().map(|p| read_corpus(p, &filter, lang)).unwrap_or_default();
+    // 1. Corpus statistics (all corpora pooled)
+    let corpora: Vec<(String, u32)> = args
+        .sentences
+        .iter()
+        .map(|p| (p.clone(), 1))
+        .chain(args.dialog.iter().map(|p| (p.clone(), DIALOG_WEIGHT)))
+        .collect();
+    let corpus = read_corpus(&corpora, &filter, lang);
     let corpus_total: u64 = corpus.unigrams.values().map(|&c| c as u64).sum();
 
     let mut subtitles: HashMap<String, u32> = HashMap::new();
     if let Some(p) = &args.subtitles {
         for line in lines(p) {
             let mut parts = line.split_whitespace();
-            if let (Some(w), Some(c)) = (parts.next(), parts.next().and_then(|c| c.parse::<u32>().ok())) {
+            if let (Some(w), Some(c)) = (
+                parts.next(),
+                parts.next().and_then(|c| c.parse::<u32>().ok()),
+            ) {
                 let w: String = w.nfc().collect();
                 if let Some(lower) = filter.accept(&w) {
                     *subtitles.entry(lower).or_insert(0) += c;
@@ -477,7 +589,8 @@ fn main() {
     // Known misspellings ("пожалуста", "вобще") occur in subtitles and news too; keeping them
     // would make the keyboard treat them as valid words and never correct them
     scores.retain(|w, _| get_quick_correction(w).is_none_or(|fix| fix.to_lowercase() == *w));
-    let mut vocab: Vec<(String, f64, u32)> = scores.into_iter().map(|(w, (s, c))| (w, s, c)).collect();
+    let mut vocab: Vec<(String, f64, u32)> =
+        scores.into_iter().map(|(w, (s, c))| (w, s, c)).collect();
     vocab.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     vocab.truncate(tier.max_words);
 
@@ -490,15 +603,21 @@ fn main() {
         if max_score <= min_score {
             return 1000;
         }
-        (MAX_FREQ * (s / min_score).ln() / span).round().clamp(1.0, MAX_FREQ) as u16
+        (MAX_FREQ * (s / min_score).ln() / span)
+            .round()
+            .clamp(1.0, MAX_FREQ) as u16
     };
 
     let mut words: Vec<WordEntry> = Vec::with_capacity(vocab.len() + curated.len());
     let mut index: HashMap<String, usize> = HashMap::with_capacity(vocab.len() + curated.len());
     for (lower, score, count) in vocab {
-        let spelling = canonical_spelling(&lower, corpus.spellings.get(&lower));
+        let spelling = canonical_spelling(&lower, corpus.spellings.get(&lower), lang == Language::German);
         index.insert(lower, words.len());
-        words.push(WordEntry { word: spelling, count, freq: scale(score) });
+        words.push(WordEntry {
+            word: spelling,
+            count,
+            freq: scale(score),
+        });
     }
     // Curated lists only have coarse frequency buckets: corpus statistics win for words the
     // corpus knows; curated-only words (slang, new terms) are capped below the core vocabulary
@@ -513,16 +632,29 @@ fn main() {
                 }
             }
             None => {
-                let freq = if has_corpus { f.min(CURATED_ONLY_MAX_FREQ) } else { f };
+                let freq = if has_corpus {
+                    f.min(CURATED_ONLY_MAX_FREQ)
+                } else {
+                    f
+                };
                 index.insert(lower, words.len());
-                words.push(WordEntry { word: w, count: 0, freq: freq as u16 });
+                words.push(WordEntry {
+                    word: w,
+                    count: 0,
+                    freq: freq as u16,
+                });
             }
         }
     }
 
     // Ids ordered by descending frequency keep varints short for common words
     let mut order: Vec<usize> = (0..words.len()).collect();
-    order.sort_by(|&a, &b| words[b].freq.cmp(&words[a].freq).then(words[b].count.cmp(&words[a].count)));
+    order.sort_by(|&a, &b| {
+        words[b]
+            .freq
+            .cmp(&words[a].freq)
+            .then(words[b].count.cmp(&words[a].count))
+    });
     let mut remap = vec![0u32; words.len()];
     for (new_id, &old) in order.iter().enumerate() {
         remap[old] = new_id as u32;
@@ -535,41 +667,61 @@ fn main() {
     let mut tri: HashMap<(u32, u32, u32), u32> = HashMap::new();
     let want_tri = tier.trigrams_per_ctx > 0;
     if tier.bigrams_per_ctx > 0 {
-        for sentence in &corpus.sentences {
-            let (mut c1, mut c2): (Option<u32>, Option<u32>) = (None, Some(SENTENCE_START));
-            for tok in sentence {
-                let id = if tok.is_empty() { None } else { id_of(tok) };
-                match id {
-                    Some(w) => {
-                        if let Some(p) = c2 {
-                            *bi.entry((p, w)).or_insert(0) += 1;
-                            if let (true, Some(pp)) = (want_tri, c1) {
-                                *tri.entry((pp, p, w)).or_insert(0) += 1;
+        for (path, weight) in &corpora {
+            let weight = *weight;
+            for_each_sentence(path, weight == DIALOG_WEIGHT, &filter, lang, |tokens| {
+                let (mut c1, mut c2): (Option<u32>, Option<u32>) = (None, Some(SENTENCE_START));
+                for (accepted, _) in tokens {
+                    let id = accepted.as_deref().and_then(id_of);
+                    match id {
+                        Some(w) => {
+                            if let Some(p) = c2 {
+                                *bi.entry((p, w)).or_insert(0) += weight;
+                                if let (true, Some(pp)) = (want_tri, c1) {
+                                    *tri.entry((pp, p, w)).or_insert(0) += weight;
+                                }
                             }
+                            c1 = c2;
+                            c2 = Some(ctx_id(w));
                         }
-                        c1 = c2;
-                        c2 = Some(ctx_id(w));
-                    }
-                    None => {
-                        c1 = None;
-                        c2 = None;
+                        None => {
+                            c1 = None;
+                            c2 = None;
+                        }
                     }
                 }
-            }
+            });
         }
     }
 
+    // A trigram is worth its space only if the second context word changes the prediction;
+    // most do not ("... в итоге" follows "в" whatever came before)
+    let mut bi_totals: HashMap<u32, u64> = HashMap::new();
+    for (&(ctx, _), &n) in &bi {
+        *bi_totals.entry(ctx).or_insert(0) += n as u64;
+    }
+    let mut tri_totals: HashMap<(u32, u32), u64> = HashMap::new();
+    for (&(a, b, _), &n) in &tri {
+        *tri_totals.entry((a, b)).or_insert(0) += n as u64;
+    }
+    tri.retain(|&(a, b, w), &mut n| {
+        let p3 = n as f64 / tri_totals[&(a, b)] as f64;
+        let p2 = bi.get(&(b, w)).map(|&m| m as f64 / bi_totals[&b] as f64).unwrap_or(0.0);
+        p3 >= INFORMATIVE_TRIGRAM_RATIO * p2
+    });
+    let trigrams = prune(
+        tri.into_iter()
+            .map(|((a, b, w), n)| (trigram_key(a, b), w, n))
+            .collect(),
+        tier.trigram_min_count,
+        tier.trigrams_per_ctx,
+        tier.max_trigrams,
+    );
     let mut bigrams = prune(
         bi.into_iter().map(|((c, w), n)| (c as u64, w, n)).collect(),
         tier.bigram_min_count,
         tier.bigrams_per_ctx,
         tier.max_bigrams,
-    );
-    let trigrams = prune(
-        tri.into_iter().map(|((a, b, w), n)| (trigram_key(a, b), w, n)).collect(),
-        tier.trigram_min_count,
-        tier.trigrams_per_ctx,
-        tier.max_trigrams,
     );
 
     // 4. Curated bigrams are hand-picked, so they get a solid probability if missing
@@ -624,7 +776,12 @@ fn main() {
 
 /// Keeps n-grams with `count >= min_count`, the `per_ctx` most likely per context and at most
 /// `max_total` overall (by count), and converts counts to quantized conditional probabilities.
-fn prune(counts: Vec<(u64, u32, u32)>, min_count: u32, per_ctx: usize, max_total: usize) -> Vec<(u64, u32, u8)> {
+fn prune(
+    counts: Vec<(u64, u32, u32)>,
+    min_count: u32,
+    per_ctx: usize,
+    max_total: usize,
+) -> Vec<(u64, u32, u8)> {
     if per_ctx == 0 || max_total == 0 {
         return Vec::new();
     }
@@ -661,10 +818,18 @@ mod tests {
 
     #[test]
     fn spelling_keeps_proper_nouns_and_lowercases_common_words() {
-        assert_eq!(canonical_spelling("москва", Some(&votes(&[("Москва", 90), ("москва", 2)]))), "Москва");
+        assert_eq!(
+            canonical_spelling("москва", Some(&votes(&[("Москва", 90), ("москва", 2)])), false),
+            "Москва"
+        );
         // Lowercase is common enough mid-sentence: not a proper noun
-        assert_eq!(canonical_spelling("дом", Some(&votes(&[("Дом", 10), ("дом", 5)]))), "дом");
-        assert_eq!(canonical_spelling("дом", None), "дом");
+        assert_eq!(
+            canonical_spelling("дом", Some(&votes(&[("Дом", 10), ("дом", 5)])), false),
+            "дом"
+        );
+        assert_eq!(canonical_spelling("дом", None, false), "дом");
+        assert_eq!(canonical_spelling("dank", Some(&votes(&[("Dank", 10), ("dank", 5)])), true), "Dank");
+        assert_eq!(canonical_spelling("спасиб", Some(&votes(&[("Спасиб", 1)])), false), "спасиб");
     }
 
     #[test]
@@ -672,7 +837,11 @@ mod tests {
         let ru = WordFilter::for_language(Language::Russian);
         assert_eq!(ru.accept("Привет").as_deref(), Some("привет"));
         assert_eq!(ru.accept("по-моему").as_deref(), Some("по-моему"));
-        assert_eq!(ru.accept("hello"), None, "Latin is not on the Russian layout");
+        assert_eq!(
+            ru.accept("hello"),
+            None,
+            "Latin is not on the Russian layout"
+        );
         assert_eq!(ru.accept("2024"), None);
         assert_eq!(ru.accept("-нибудь"), None, "leading hyphen");
         let en = WordFilter::for_language(Language::English);
@@ -681,12 +850,27 @@ mod tests {
         // No native Greek layout yet: Greek words are still collected by script
         let el = WordFilter::for_language(Language::Greek);
         assert_eq!(el.accept("Καλημέρα").as_deref(), Some("καλημέρα"));
-        assert_eq!(el.accept("hello"), None, "Latin words do not pollute a Greek model");
+        assert_eq!(
+            el.accept("hello"),
+            None,
+            "Latin words do not pollute a Greek model"
+        );
+    }
+
+    #[test]
+    fn tatoeba_placeholder_names_are_skipped() {
+        assert!(is_tatoeba_placeholder("Tom"));
+        assert!(is_tatoeba_placeholder("Тому"));
+        assert!(!is_tatoeba_placeholder("том"), "the pronoun stays");
+        assert!(!is_tatoeba_placeholder("Tomorrow"));
     }
 
     #[test]
     fn serbian_cyrillic_is_transliterated() {
-        assert_eq!(serbian_to_latin("Љубав и Џон, ћерка"), "Ljubav i Džon, ćerka");
+        assert_eq!(
+            serbian_to_latin("Љубав и Џон, ћерка"),
+            "Ljubav i Džon, ćerka"
+        );
     }
 
     #[test]
@@ -705,9 +889,17 @@ mod tests {
 
     #[test]
     fn prune_converts_counts_to_conditional_probabilities() {
-        let kept = prune(vec![(1, 10, 6), (1, 11, 3), (1, 12, 1), (2, 10, 5)], 2, 1, 10);
+        let kept = prune(
+            vec![(1, 10, 6), (1, 11, 3), (1, 12, 1), (2, 10, 5)],
+            2,
+            1,
+            10,
+        );
         assert!(kept.contains(&(1, 10, quantize(0.6))));
-        assert!(!kept.iter().any(|&(k, w, _)| k == 1 && w == 11), "per-context cap");
+        assert!(
+            !kept.iter().any(|&(k, w, _)| k == 1 && w == 11),
+            "per-context cap"
+        );
         assert!(!kept.iter().any(|&(_, w, _)| w == 12), "min count");
         assert!(kept.contains(&(2, 10, quantize(1.0))));
     }

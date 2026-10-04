@@ -22,8 +22,11 @@ CURATED_NAMES = {"zh-hans": "zh_cn", "zh-hant": "zh_tw", "yue": "zh_hk"}
 
 def build(code: str, src: dict) -> str:
     cmd = [str(BIN), "--lang", code, "--tier", src["tier"], "--out", str(OUT / f"{code}.rlm")]
-    if src.get("leipzig"):
-        cmd += ["--sentences", str(CACHE / "leipzig" / f"{src['leipzig']}-sentences.txt")]
+    for key in ("leipzig", "web"):
+        if src.get(key):
+            cmd += ["--sentences", str(CACHE / "leipzig" / f"{src[key]}-sentences.txt")]
+    if src.get("tatoeba"):
+        cmd += ["--dialog", str(CACHE / "tatoeba" / f"{src['tatoeba']}-sentences.txt")]
     if src.get("subtitles"):
         cmd += ["--subtitles", str(CACHE / "subtitles" / f"{src['subtitles']}.txt")]
     curated = CURATED / f"{CURATED_NAMES.get(code, code)}_words.txt"
@@ -46,14 +49,18 @@ def main() -> int:
     only = set(sys.argv[1:])
     todo = {c: s for c, s in sources.items() if not only or c in only}
     failed = 0
-    with cf.ThreadPoolExecutor(max(1, (os.cpu_count() or 2) // 2)) as ex:
-        futures = {ex.submit(build, c, s): c for c, s in todo.items()}
-        for f in cf.as_completed(futures):
-            try:
-                print(f.result(), flush=True)
-            except Exception as e:  # noqa: BLE001 - keep building other languages
-                failed += 1
-                print(f"FAILED {e}", flush=True)
+    # Tier A counts trigrams over millions of sentences and needs a few GB of RAM each
+    heavy = {c: s for c, s in todo.items() if s["tier"] == "A"}
+    light = {c: s for c, s in todo.items() if s["tier"] != "A"}
+    for group, workers in ((heavy, 2), (light, max(1, (os.cpu_count() or 2) // 2))):
+        with cf.ThreadPoolExecutor(workers) as ex:
+            futures = {ex.submit(build, c, s): c for c, s in group.items()}
+            for f in cf.as_completed(futures):
+                try:
+                    print(f.result(), flush=True)
+                except Exception as e:  # noqa: BLE001 - keep building other languages
+                    failed += 1
+                    print(f"FAILED {e}", flush=True)
     total = sum(p.stat().st_size for p in OUT.glob("*.rlm"))
     print(f"total: {total / 1e6:.1f} MB in {OUT}")
     return 1 if failed else 0

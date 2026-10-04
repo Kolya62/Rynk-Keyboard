@@ -335,17 +335,15 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                     }
                     core.engine.state.rejected_autocorrect_word = None;
 
+                    let lang = core.engine.state.language;
                     if core.engine.state.field_mode.allows_learning() {
-                        if idx == 0 {
-                            // User explicitly tapped literal typed word (prioritize/learn user word)
-                            core.engine.prediction.add_user_word(
-                                word,
-                                core.engine.state.language == Language::Russian,
-                            );
+                        let tapped_literal = idx == 0
+                            && word.to_lowercase() == core.engine.state.composing_text.to_lowercase();
+                        if tapped_literal {
+                            // User explicitly kept the raw typed word: remember it as theirs
+                            core.engine.prediction.add_user_word_in(word, lang);
                         } else {
-                            core.engine
-                                .prediction
-                                .learn_word(word, core.engine.state.language == Language::Russian);
+                            core.engine.prediction.learn_word(word, lang);
                         }
 
                         if !core.engine.state.last_committed_word.is_empty() {
@@ -354,7 +352,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                                 .learn_bigram(&core.engine.state.last_committed_word, word);
                         }
                     }
-                    core.engine.state.last_committed_word = word.clone();
+                    core.engine.state.commit_context_word(word.clone());
                     core.engine.state.composing_text.clear();
                     core.engine.state.last_char_was_space = true;
                     core.engine.suggestions_dirty = true;
@@ -562,7 +560,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeReset(
     let mut guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_mut() {
         core.engine.state.composing_text.clear();
-        core.engine.state.last_committed_word.clear();
+        core.engine.state.clear_context(false);
         core.engine.suggestions_dirty = true;
         core.engine.active_popup_key_id = None;
     }
@@ -704,7 +702,7 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRepeatBackspace
             if let Some(utf16_units) = core.engine.state.pop_last_grapheme() {
                 total_deleted_utf16 += utf16_units;
             } else {
-                core.engine.state.last_committed_word.clear();
+                core.engine.state.clear_context(false);
                 total_deleted_utf16 += 1;
             }
         }
@@ -967,11 +965,13 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeLoadAdaptiveDat
     };
     let mut guard = CORE_INSTANCE.lock().unwrap();
     if let Some(core) = guard.as_mut() {
-        core.engine
-            .prediction
-            .dictionary
-            .adaptive_dict
-            .deserialize_binary(&byte_vec);
+        let dictionary = &mut core.engine.prediction.dictionary;
+        if dictionary.adaptive_dict.deserialize_binary(&byte_vec) {
+            // Learned words must be completable again, in the language they were typed in
+            let fallback = core.engine.state.language;
+            dictionary.apply_learned_words(fallback);
+            core.engine.suggestions_dirty = true;
+        }
     }
 }
 
@@ -1020,4 +1020,23 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetAssetManager
 ) {
     #[cfg(target_os = "android")]
     crate::prediction::model_source::set_asset_manager(&mut env, &assets);
+}
+
+/// Re-anchors the engine on the editor text before the cursor (input start, user-moved cursor).
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEditorContext(
+    mut env: JNIEnv,
+    _class: JClass,
+    text_before_cursor: JString,
+    caps: jboolean,
+) {
+    let text: String = if text_before_cursor.is_null() {
+        String::new()
+    } else {
+        env.get_string(&text_before_cursor).map(|s| s.into()).unwrap_or_default()
+    };
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.set_editor_context(&text, caps != 0);
+    }
 }

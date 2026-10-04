@@ -958,6 +958,11 @@ pub struct KeyboardState {
     pub field_mode: InputFieldMode,
     pub composing_text: String,
     pub last_committed_word: String,
+    /// Word before `last_committed_word` (trigram context)
+    pub previous_word: String,
+    /// The token before the oldest context word is a sentence start (or, with no context
+    /// words, the next word starts a sentence)
+    pub context_at_sentence_start: bool,
     pub last_autocorrect_original: Option<String>,
     pub last_autocorrect_replacement: Option<String>,
     pub rejected_autocorrect_word: Option<String>,
@@ -976,6 +981,8 @@ impl Default for KeyboardState {
             field_mode: InputFieldMode::Normal,
             composing_text: String::with_capacity(64),
             last_committed_word: String::with_capacity(32),
+            previous_word: String::with_capacity(32),
+            context_at_sentence_start: true,
             last_autocorrect_original: None,
             last_autocorrect_replacement: None,
             rejected_autocorrect_word: None,
@@ -990,6 +997,38 @@ impl Default for KeyboardState {
 impl KeyboardState {
     pub fn push_event(&mut self, event: KeyboardOutputEvent) {
         self.output_events.push(event);
+    }
+
+    /// Records a finished word as the newest context word.
+    pub fn commit_context_word(&mut self, word: String) {
+        // The start marker survives only while the window still reaches back to it
+        self.context_at_sentence_start = self.context_at_sentence_start && self.previous_word.is_empty();
+        self.previous_word = std::mem::replace(&mut self.last_committed_word, word);
+    }
+
+    /// Forgets the context words; `sentence_start` tells whether the next word starts a sentence.
+    pub fn clear_context(&mut self, sentence_start: bool) {
+        self.last_committed_word.clear();
+        self.previous_word.clear();
+        self.context_at_sentence_start = sentence_start;
+    }
+
+    /// Context for predicting the word being typed.
+    pub fn word_context(&self) -> crate::prediction::lm::WordContext<'_> {
+        use crate::prediction::lm::{ContextToken, WordContext};
+        let start = self.context_at_sentence_start.then_some(ContextToken::SentenceStart);
+        if self.last_committed_word.is_empty() {
+            return WordContext { prev1: start, prev2: None };
+        }
+        let prev2 = if self.previous_word.is_empty() {
+            start
+        } else {
+            Some(ContextToken::Word(self.previous_word.as_str()))
+        };
+        WordContext {
+            prev1: Some(ContextToken::Word(self.last_committed_word.as_str())),
+            prev2,
+        }
     }
 
     pub fn drain_events(&mut self) -> Vec<KeyboardOutputEvent> {

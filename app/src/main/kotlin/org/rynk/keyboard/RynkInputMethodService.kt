@@ -21,6 +21,11 @@ import android.widget.Toast
 
 class RynkInputMethodService : InputMethodService() {
 
+    companion object {
+        /** Enough for the word being typed and two previous words */
+        private const val EDITOR_CONTEXT_CHARS = 256
+    }
+
     private lateinit var hapticManager: HapticManager
     private var keyboardView: RynkKeyboardView? = null
     private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
@@ -28,6 +33,7 @@ class RynkInputMethodService : InputMethodService() {
     private var currentInputFieldMode: Int = NativeBridge.INPUT_MODE_NORMAL
     private var consumedClipboardText: String? = null
     private var currentEnterAction: Int = 0
+    private var currentInputType: Int = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -67,6 +73,26 @@ class RynkInputMethodService : InputMethodService() {
         NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
         NativeBridge.nativeSetEnterAction(currentEnterAction)
         updateClipboardChip()
+        syncEditorContext()
+    }
+
+    private fun isSensitiveField(): Boolean =
+        currentInputFieldMode == NativeBridge.INPUT_MODE_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_VISIBLE_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_NUMBER_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_SENSITIVE
+
+    /**
+     * Gives the engine the text before the cursor (word being typed, previous words) and the
+     * editor's auto-capitalization request. Text is never read from password or incognito fields.
+     */
+    private fun syncEditorContext() {
+        if (!NativeBridge.isCoreInitialized) return
+        val ic = currentInputConnection ?: return
+        val caps = ic.getCursorCapsMode(currentInputType) != 0
+        val text = if (isSensitiveField()) "" else ic.getTextBeforeCursor(EDITOR_CONTEXT_CHARS, 0)?.toString() ?: ""
+        NativeBridge.nativeSetEditorContext(text, caps)
+        keyboardView?.onEngineStateChanged()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -273,10 +299,12 @@ class RynkInputMethodService : InputMethodService() {
 
         currentInputFieldMode = determineInputFieldMode(info)
         currentEnterAction = EditorSync.enterAction(info?.imeOptions ?: 0)
+        currentInputType = info?.inputType ?: 0
         if (NativeBridge.isLibraryLoaded()) {
             NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
             NativeBridge.nativeSetEnterAction(currentEnterAction)
         }
+        syncEditorContext()
 
         updateClipboardChip()
 
@@ -332,8 +360,8 @@ class RynkInputMethodService : InputMethodService() {
         if (!NativeBridge.isCoreInitialized) return
 
         if (newSelStart != newSelEnd) {
-            // A selection replaces text on the next keystroke: the composing word is meaningless
-            keyboardView?.resetComposingState()
+            // Typing replaces the selection: continue from the text before it
+            syncEditorContext()
             return
         }
         val state = NativeBridge.nativeGetComposingState() ?: return
@@ -343,7 +371,7 @@ class RynkInputMethodService : InputMethodService() {
         val window = (maxOf(composing.length, lastWord.length) + 2).coerceAtMost(64)
         val textBefore = ic.getTextBeforeCursor(window, 0) ?: return
         if (!EditorSync.isEngineInSync(textBefore, composing, lastWord)) {
-            keyboardView?.resetComposingState()
+            syncEditorContext()
         }
     }
 
