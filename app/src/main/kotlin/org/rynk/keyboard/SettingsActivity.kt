@@ -1,117 +1,26 @@
 package org.rynk.keyboard
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import android.view.View
-import android.widget.ScrollView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.switchmaterial.SwitchMaterial
 
-class SettingsActivity : AppCompatActivity() {
-
-    private lateinit var dictManager: UserDictionaryManager
-    private lateinit var btnViewUserWords: MaterialButton
-
-    private val allLanguages = listOf(
-        "ru" to "Русский (Russian)",
-        "en" to "English",
-        "de" to "Deutsch (German)",
-        "fr" to "Français (French)",
-        "es" to "Español (Spanish)",
-        "pt" to "Português (Portuguese)",
-        "it" to "Italiano (Italian)",
-        "tr" to "Türkçe (Turkish)",
-        "uk" to "Українська (Ukrainian)",
-        "be" to "Беларуская (Belarusian)",
-        "kk" to "Қазақша (Kazakh)",
-        "ar" to "العربية (Arabic)",
-        "pl" to "Polski (Polish)",
-        "cs" to "Čeština (Czech)",
-        "ro" to "Română (Romanian)",
-        "nl" to "Nederlands (Dutch)",
-        "sv" to "Svenska (Swedish)",
-        "no" to "Norsk (Norwegian)",
-        "da" to "Dansk (Danish)",
-        "fi" to "Suomi (Finnish)",
-        "el" to "Ελληνικά (Greek)",
-        "he" to "עברית (Hebrew)",
-        "fa" to "فارسی (Persian)",
-        "ur" to "اردو (Urdu)",
-        "hi" to "हिन्दी (Hindi)",
-        "bn" to "বাংলা (Bengali)",
-        "id" to "Bahasa Indonesia (Indonesian)",
-        "ms" to "Bahasa Melayu (Malay)",
-        "vi" to "Tiếng Việt (Vietnamese)",
-        "th" to "ไทย (Thai)",
-        "hu" to "Magyar (Hungarian)",
-        "bg" to "Български (Bulgarian)",
-        "sr" to "Српски (Serbian)",
-        "hr" to "Hrvatski (Croatian)",
-        "sk" to "Slovenčina (Slovak)",
-        "sl" to "Slovenščina (Slovenian)",
-        "lt" to "Lietuvių (Lithuanian)",
-        "lv" to "Latviešu (Latvian)",
-        "et" to "Eesti (Estonian)",
-        "ka" to "ქართული (Georgian)",
-        "hy" to "Հայերեն (Armenian)",
-        "az" to "Azərbaycan (Azerbaijani)",
-        "uz" to "Oʻzbekcha (Uzbek)",
-        "tg" to "Тоҷикӣ (Tajik)",
-        "ky" to "Кыргызча (Kyrgyz)",
-        "tk" to "Türkmençe (Turkmen)",
-        "mn" to "Монгол (Mongolian)",
-        "tl" to "Tagalog (Filipino)",
-        "sq" to "Shqip (Albanian)",
-        "bs" to "Bosanski (Bosnian)",
-        "mk" to "Македонски (Macedonian)",
-        "is" to "Íslenska (Icelandic)",
-        "ga" to "Gaeilge (Irish)",
-        "cy" to "Cymraeg (Welsh)",
-        "eu" to "Euskara (Basque)",
-        "ca" to "Català (Catalan)",
-        "gl" to "Galego (Galician)",
-        "af" to "Afrikaans",
-        "sw" to "Kiswahili (Swahili)",
-        "ha" to "Hausa",
-        "yo" to "Yorùbá (Yoruba)",
-        "ig" to "Igbo",
-        "zu" to "isiZulu (Zulu)",
-        "eo" to "Esperanto",
-        "la" to "Latina (Latin)",
-        "ta" to "தமிழ் (Tamil)",
-        "te" to "తెలుగు (Telugu)",
-        "mr" to "मराठी (Marathi)",
-        "gu" to "ગુજરાતી (Gujarati)",
-        "kn" to "ಕನ್ನಡ (Kannada)",
-        "ml" to "മലയാളം (Malayalam)",
-        "pa" to "ਪੰਜਾਬੀ (Punjabi)",
-        "ne" to "नेपाली (Nepali)",
-        "si" to "සිංහල (Sinhala)",
-        "my" to "မြန်မာ (Burmese)",
-        "km" to "ភាសាខ្មែរ (Khmer)",
-        "am" to "አማርኛ (Amharic)",
-        "so" to "Soomaali (Somali)",
-        "ku" to "Kurdî (Kurdish)",
-        "mt" to "Malti (Maltese)",
-        "ko" to "한국어 (Korean)",
-        "ja" to "日本語 (Japanese)",
-        "zh_cn" to "中文 简体 (Chinese Simplified)",
-        "zh_tw" to "中文 繁體 (Chinese Traditional)",
-        "zh_hk" to "粵語 香港 (Cantonese)"
-    )
+/**
+ * Settings: a root list of sections, each a preference screen. Values are stored in
+ * [Prefs.FILE]; the running keyboard picks changes up through its preference listener.
+ */
+class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,298 +29,153 @@ class SettingsActivity : AppCompatActivity() {
 
         val root = findViewById<View>(R.id.settingsRoot)
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        val scrollView = findViewById<ScrollView>(R.id.settingsScrollView)
+        val container = findViewById<View>(R.id.settingsContainer)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.settings_title)
-        toolbar.setNavigationOnClickListener { finish() }
+        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, windowInsets ->
             val insets = windowInsets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
-            // Lower top part taking into account status bar and camera cutout
-            toolbar.updatePadding(
-                top = insets.top,
-                left = insets.left,
-                right = insets.right
-            )
-            scrollView.updatePadding(
-                left = insets.left,
-                right = insets.right,
-                bottom = insets.bottom + (16 * resources.displayMetrics.density).toInt()
-            )
+            toolbar.updatePadding(top = insets.top, left = insets.left, right = insets.right)
+            container.updatePadding(left = insets.left, right = insets.right, bottom = insets.bottom)
             windowInsets
         }
 
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        dictManager = UserDictionaryManager(this)
-
-        val rgThemes = findViewById<RadioGroup>(R.id.rgThemes)
-        val rbDark = findViewById<RadioButton>(R.id.rbDark)
-        val rbLight = findViewById<RadioButton>(R.id.rbLight)
-        val rbAmoled = findViewById<RadioButton>(R.id.rbAmoled)
-        val rbSunset = findViewById<RadioButton>(R.id.rbSunset)
-
-        val switchAutocorrect = findViewById<SwitchMaterial>(R.id.switchAutocorrect)
-        val switchPopup = findViewById<SwitchMaterial>(R.id.switchPopup)
-        val switchProfanity = findViewById<SwitchMaterial>(R.id.switchProfanity)
-        val btnKeyboardLanguages = findViewById<MaterialButton>(R.id.btnKeyboardLanguages)
-        val switchHaptics = findViewById<SwitchMaterial>(R.id.switchHaptics)
-        val switchAdaptiveLearning = findViewById<SwitchMaterial>(R.id.switchAdaptiveLearning)
-        val btnClearAdaptiveData = findViewById<MaterialButton>(R.id.btnClearAdaptiveData)
-
-        val btnAddUserWord = findViewById<MaterialButton>(R.id.btnAddUserWord)
-        btnViewUserWords = findViewById(R.id.btnViewUserWords)
-
-        // Default to Light theme (1)
-        val currentThemeId = prefs.getInt("theme_id", 1)
-        when (currentThemeId) {
-            0 -> rbDark.isChecked = true
-            1 -> rbLight.isChecked = true
-            2 -> rbAmoled.isChecked = true
-            3 -> rbSunset.isChecked = true
-            else -> rbLight.isChecked = true
+        if (savedInstanceState == null) {
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.settingsContainer, RootSettingsFragment())
+                .commit()
         }
-
-        switchAutocorrect.isChecked = prefs.getBoolean("pref_autocorrect", true)
-        switchPopup.isChecked = prefs.getBoolean("pref_popup", true)
-        switchProfanity.isChecked = prefs.getBoolean("pref_profanity", true)
-        switchHaptics.isChecked = prefs.getBoolean("pref_haptics", true)
-        switchAdaptiveLearning.isChecked = prefs.getBoolean("pref_adaptive_learning", true)
-
-        rgThemes.setOnCheckedChangeListener { _, checkedId ->
-            val themeId = when (checkedId) {
-                R.id.rbDark -> 0
-                R.id.rbAmoled -> 2
-                R.id.rbSunset -> 3
-                else -> 1 // Default to Light
-            }
-            prefs.edit().putInt("theme_id", themeId).apply()
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeSetTheme(themeId)
-            }
-        }
-
-        switchAutocorrect.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("pref_autocorrect", isChecked).apply()
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeSetAutocorrectEnabled(isChecked)
-            }
-        }
-
-        switchPopup.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("pref_popup", isChecked).apply()
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeSetPopupEnabled(isChecked)
-            }
-        }
-
-        switchProfanity.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("pref_profanity", isChecked).apply()
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeSetProfanityEnabled(isChecked)
-            }
-        }
-
-        btnKeyboardLanguages.setOnClickListener {
-            showLanguagesDialog()
-        }
-
-        switchHaptics.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("pref_haptics", isChecked).apply()
-        }
-
-        switchAdaptiveLearning.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("pref_adaptive_learning", isChecked).apply()
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeSetAdaptiveLearningEnabled(isChecked)
-            }
-        }
-
-        btnClearAdaptiveData.setOnClickListener {
-            if (NativeBridge.isLibraryLoaded()) {
-                NativeBridge.nativeClearAdaptiveData()
-            }
-            try {
-                val file = java.io.File(filesDir, "adaptive_dict.bin")
-                if (file.exists()) {
-                    file.delete()
-                }
-            } catch (ignored: Exception) {}
-            Toast.makeText(this, getString(R.string.adaptive_data_cleared), Toast.LENGTH_SHORT).show()
-        }
-
-        updateUserWordCount()
-
-        btnAddUserWord.setOnClickListener {
-            showAddWordDialog()
-        }
-
-        btnViewUserWords.setOnClickListener {
-            showViewWordsDialog()
-        }
-
-        val btnCopyCardNumber = findViewById<MaterialButton>(R.id.btnCopyCardNumber)
-        btnCopyCardNumber.setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("Rynk Card Number", "4466 1481 2794 9960")
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, getString(R.string.card_copied), Toast.LENGTH_SHORT).show()
-        }
+        supportFragmentManager.addOnBackStackChangedListener { updateTitle() }
+        updateTitle()
 
         checkAndShowSupportDialog()
     }
 
+    private fun updateTitle() {
+        val entry = supportFragmentManager.backStackEntryCount
+        supportActionBar?.title = if (entry == 0) {
+            getString(R.string.settings_title)
+        } else {
+            supportFragmentManager.getBackStackEntryAt(entry - 1).name
+        }
+    }
+
+    override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {
+        val fragment = supportFragmentManager.fragmentFactory
+            .instantiate(classLoader, pref.fragment ?: return false)
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.settingsContainer, fragment)
+            .addToBackStack(pref.title?.toString())
+            .commit()
+        return true
+    }
+
     private fun checkAndShowSupportDialog() {
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        val prefs = Prefs.get(this)
         if (!prefs.getBoolean("has_shown_support_dialog", false)) {
             prefs.edit().putBoolean("has_shown_support_dialog", true).apply()
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.support_dialog_title))
                 .setMessage(getString(R.string.support_dialog_message))
-                .setPositiveButton(getString(R.string.btn_copy_card)) { _, _ ->
-                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("Rynk Card Number", "4466 1481 2794 9960")
-                    clipboard.setPrimaryClip(clip)
-                    Toast.makeText(this, getString(R.string.card_copied), Toast.LENGTH_SHORT).show()
-                }
+                .setPositiveButton(getString(R.string.btn_copy_card)) { _, _ -> copyCardNumber(this) }
                 .setNegativeButton(getString(R.string.btn_close), null)
                 .show()
         }
     }
 
-    private fun getDefaultEnabledLanguages(): String {
-        val sysLang = java.util.Locale.getDefault().language.lowercase()
-        return when (sysLang) {
-            "ru" -> "ru,en"
-            "uk" -> "uk,en"
-            "be" -> "be,ru,en"
-            "kk" -> "kk,ru,en"
-            "en" -> "en"
-            else -> if (sysLang.length == 2) "$sysLang,en" else "en"
-        }
-    }
-
-    private fun showLanguagesDialog() {
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val currentStr = prefs.getString("enabled_languages", null) ?: getDefaultEnabledLanguages()
-        val currentSet = currentStr.split(",").map { it.trim().lowercase() }.toMutableSet()
-
-        val names = allLanguages.map { it.second }.toTypedArray()
-        val checkedItems = BooleanArray(allLanguages.size) { i ->
-            currentSet.contains(allLanguages[i].first)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_languages_title))
-            .setMultiChoiceItems(names, checkedItems) { _, which, isChecked ->
-                val code = allLanguages[which].first
-                if (isChecked) {
-                    currentSet.add(code)
-                } else {
-                    currentSet.remove(code)
-                }
-            }
-            .setPositiveButton("OK") { _, _ ->
-                if (currentSet.isEmpty()) {
-                    currentSet.add("en")
-                }
-                val result = allLanguages.map { it.first }.filter { currentSet.contains(it) }.joinToString(",")
-                prefs.edit().putString("enabled_languages", result).apply()
-                if (NativeBridge.isLibraryLoaded()) {
-                    NativeBridge.nativeSetEnabledLanguages(result)
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
-    }
-
-    private fun updateUserWordCount() {
-        val count = dictManager.getAllWords().size
-        btnViewUserWords.text = getString(R.string.btn_view_words, count)
-    }
-
-    private fun showAddWordDialog() {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val pad = (18 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-
-        val input = EditText(this).apply {
-            hint = getString(R.string.dialog_word_hint)
-            setSingleLine(true)
-        }
-        container.addView(input)
-
-        val rgLang = RadioGroup(this).apply {
-            orientation = RadioGroup.HORIZONTAL
-            val padTop = (12 * resources.displayMetrics.density).toInt()
-            setPadding(0, padTop, 0, 0)
-        }
-        val rbRu = RadioButton(this).apply {
-            id = View.generateViewId()
-            text = getString(R.string.lang_russian)
-            isChecked = true
-        }
-        val rbEn = RadioButton(this).apply {
-            id = View.generateViewId()
-            text = getString(R.string.lang_english)
-        }
-        rgLang.addView(rbRu)
-        rgLang.addView(rbEn)
-        container.addView(rgLang)
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_add_word_title))
-            .setView(container)
-            .setPositiveButton(getString(R.string.btn_add)) { _, _ ->
-                val word = input.text.toString().trim()
-                if (word.isNotEmpty()) {
-                    val isRu = rbRu.isChecked
-                    dictManager.addWord(word, isRu)
-                    updateUserWordCount()
-                    Toast.makeText(this, "«$word» добавлено в словарь", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
-    }
-
-    private fun showViewWordsDialog() {
-        val words = dictManager.getAllWords()
-        if (words.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle(getString(R.string.pref_user_dict_title))
-                .setMessage(getString(R.string.no_user_words))
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-
-        val displayItems = words.map { "${it.word}  (${if (it.isRussian) "RU" else "EN"})" }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.pref_user_dict_title))
-            .setItems(displayItems) { _, which ->
-                val targetWord = words[which].word
-                AlertDialog.Builder(this)
-                    .setTitle("${getString(R.string.btn_delete)} «$targetWord»?")
-                    .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
-                        dictManager.removeWord(targetWord)
-                        updateUserWordCount()
-                    }
-                    .setNegativeButton(getString(R.string.btn_cancel), null)
-                    .show()
-            }
-            .setPositiveButton("OK", null)
-            .show()
-    }
-
     override fun onSupportNavigateUp(): Boolean {
-        finish()
+        onBackPressedDispatcher.onBackPressed()
         return true
+    }
+
+    companion object {
+        fun copyCardNumber(context: Context) {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Rynk Card Number", context.getString(R.string.support_card_number)))
+            Toast.makeText(context, context.getString(R.string.card_copied), Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+/** Base for the settings sections: all of them read and write the keyboard's preference file. */
+abstract class RynkPreferenceFragment(private val xml: Int) : PreferenceFragmentCompat() {
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        preferenceManager.sharedPreferencesName = Prefs.FILE
+        Prefs.get(requireContext())
+        setPreferencesFromResource(xml, rootKey)
+        onPreferencesCreated()
+    }
+
+    open fun onPreferencesCreated() {}
+
+    protected fun onClick(key: String, action: () -> Unit) {
+        findPreference<Preference>(key)?.setOnPreferenceClickListener { action(); true }
+    }
+}
+
+class RootSettingsFragment : RynkPreferenceFragment(R.xml.prefs_root)
+
+class TypingSettingsFragment : RynkPreferenceFragment(R.xml.prefs_typing)
+
+class AppearanceSettingsFragment : RynkPreferenceFragment(R.xml.prefs_appearance) {
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        // Carry the theme chosen with the old settings screen over to the list preference
+        val prefs = Prefs.get(requireContext())
+        if (!prefs.contains(Prefs.THEME_LIST)) {
+            prefs.edit().putString(Prefs.THEME_LIST, prefs.getInt(Prefs.THEME, 1).toString()).apply()
+        }
+        super.onCreatePreferences(savedInstanceState, rootKey)
+    }
+}
+
+class LanguagesSettingsFragment : RynkPreferenceFragment(R.xml.prefs_languages) {
+    override fun onPreferencesCreated() {
+        updateSummary()
+        onClick("action_languages") {
+            LanguagePickerDialog.show(requireContext()) { updateSummary() }
+        }
+    }
+
+    private fun updateSummary() {
+        val codes = Prefs.enabledLanguages(Prefs.get(requireContext())).split(",").filter { it.isNotBlank() }
+        findPreference<Preference>("action_languages")?.summary =
+            codes.joinToString(", ") { KeyboardLanguages.name(it.trim()).substringBefore(" (") }
+    }
+}
+
+class PrivacySettingsFragment : RynkPreferenceFragment(R.xml.prefs_privacy) {
+    override fun onPreferencesCreated() {
+        onClick("action_clear_learned") {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.btn_clear_adaptive_data)
+                .setPositiveButton(R.string.btn_delete) { _, _ ->
+                    if (NativeBridge.isCoreInitialized) NativeBridge.nativeClearAdaptiveData()
+                    runCatching { java.io.File(requireContext().filesDir, "adaptive_dict.bin").delete() }
+                    Toast.makeText(requireContext(), R.string.adaptive_data_cleared, Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(R.string.btn_cancel, null)
+                .show()
+        }
+    }
+}
+
+class AboutSettingsFragment : RynkPreferenceFragment(R.xml.prefs_about) {
+    override fun onPreferencesCreated() {
+        val context = requireContext()
+        findPreference<Preference>("about_version")?.summary = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull()
+        onClick("action_licenses") {
+            AlertDialog.Builder(context)
+                .setTitle(R.string.pref_licenses)
+                .setMessage(R.string.licenses_text)
+                .setPositiveButton(R.string.btn_close, null)
+                .show()
+        }
+        onClick("action_support") { SettingsActivity.copyCardNumber(context) }
     }
 }

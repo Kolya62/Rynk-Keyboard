@@ -48,6 +48,7 @@ class RynkInputMethodService : InputMethodService() {
             updateClipboardChip()
         }
         clipboard?.addPrimaryClipChangedListener(clipboardListener)
+        Prefs.get(this).registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
     override fun onDestroy() {
@@ -58,6 +59,7 @@ class RynkInputMethodService : InputMethodService() {
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener?.let { clipboard?.removePrimaryClipChangedListener(it) }
+        Prefs.get(this).unregisterOnSharedPreferenceChangeListener(prefsListener)
         super.onDestroy()
     }
 
@@ -68,8 +70,8 @@ class RynkInputMethodService : InputMethodService() {
     fun onCoreCreated() {
         UserDictionaryManager(this).syncToNative()
         loadAdaptiveDictionary()
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        applyLanguageAndProfanitySettings(prefs)
+        val prefs = Prefs.get(this)
+        applySettings(prefs)
         NativeBridge.nativeSetInputFieldMode(currentInputFieldMode)
         NativeBridge.nativeSetEnterAction(currentEnterAction)
         updateClipboardChip()
@@ -137,6 +139,12 @@ class RynkInputMethodService : InputMethodService() {
     private fun updateClipboardChip() {
         if (!NativeBridge.isLibraryLoaded()) return
 
+        if (!Prefs.get(this).getBoolean(Prefs.CLIPBOARD_CHIP, true)) {
+            NativeBridge.nativeSetClipboardText(null)
+            keyboardView?.invalidate()
+            return
+        }
+
         // Privacy: Never read or display clipboard content when editing password or sensitive fields
         if (currentInputFieldMode == NativeBridge.INPUT_MODE_PASSWORD ||
             currentInputFieldMode == NativeBridge.INPUT_MODE_VISIBLE_PASSWORD ||
@@ -186,8 +194,8 @@ class RynkInputMethodService : InputMethodService() {
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
         super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val themeId = prefs.getInt("theme_id", 1)
+        val prefs = Prefs.get(this)
+        val themeId = Prefs.theme(prefs)
         applyWindowTheming(win, themeId)
     }
 
@@ -217,10 +225,10 @@ class RynkInputMethodService : InputMethodService() {
             insets
         }
 
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val themeId = prefs.getInt("theme_id", 1)
+        val prefs = Prefs.get(this)
+        val themeId = Prefs.theme(prefs)
         updateThemeAndWindowColors(themeId)
-        applyLanguageAndProfanitySettings(prefs)
+        applySettings(prefs)
 
         view.setOnEventsReadyListener {
             pollAndDispatchOutputEvents()
@@ -233,8 +241,8 @@ class RynkInputMethodService : InputMethodService() {
         super.onConfigurationChanged(newConfig)
         keyboardView?.requestLayout()
         inputContainerView?.requestLayout()
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val themeId = prefs.getInt("theme_id", 1)
+        val prefs = Prefs.get(this)
+        val themeId = Prefs.theme(prefs)
         updateThemeAndWindowColors(themeId)
     }
 
@@ -308,41 +316,38 @@ class RynkInputMethodService : InputMethodService() {
 
         updateClipboardChip()
 
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val themeId = prefs.getInt("theme_id", 1)
-        hapticManager.isEnabled = prefs.getBoolean("pref_haptics", true)
-        updateThemeAndWindowColors(themeId)
-        applyLanguageAndProfanitySettings(prefs)
+        val prefs = Prefs.get(this)
+        updateThemeAndWindowColors(Prefs.theme(prefs))
+        applySettings(prefs)
     }
 
-    private fun getDefaultEnabledLanguages(): String {
-        val sysLang = java.util.Locale.getDefault().language.lowercase()
-        return when (sysLang) {
-            "ru" -> "ru,en"
-            "uk" -> "uk,en"
-            "be" -> "be,ru,en"
-            "kk" -> "kk,ru,en"
-            "en" -> "en"
-            else -> if (sysLang.length == 2) "$sysLang,en" else "en"
-        }
-    }
-
-    private fun applyLanguageAndProfanitySettings(prefs: android.content.SharedPreferences) {
+    /** Pushes every setting into the engine, the view and the feedback manager. */
+    private fun applySettings(prefs: android.content.SharedPreferences) {
+        hapticManager.isEnabled = prefs.getBoolean(Prefs.HAPTICS, true)
+        hapticManager.strength = Prefs.hapticStrength(prefs)
+        hapticManager.soundEnabled = prefs.getBoolean(Prefs.SOUND, false)
+        hapticManager.soundVolume = Prefs.soundVolume(prefs) / 100f
+        keyboardView?.setHeightPercent(Prefs.heightPercent(prefs))
         if (!NativeBridge.isLibraryLoaded()) return
-        val enabledLangs = prefs.getString("enabled_languages", null) ?: getDefaultEnabledLanguages()
-        NativeBridge.nativeSetEnabledLanguages(enabledLangs)
+        NativeBridge.nativeSetEnabledLanguages(Prefs.enabledLanguages(prefs))
+        NativeBridge.nativeSetProfanityEnabled(prefs.getBoolean(Prefs.PROFANITY, true))
+        NativeBridge.nativeSetPopupEnabled(prefs.getBoolean(Prefs.POPUP, true))
+        NativeBridge.nativeSetAdaptiveLearningEnabled(prefs.getBoolean(Prefs.ADAPTIVE_LEARNING, true))
+        NativeBridge.nativeSetEngineSettings(
+            Prefs.engineFlags(prefs),
+            Prefs.doubleSpace(prefs),
+            Prefs.autocorrectLevel(prefs)
+        )
+    }
 
-        val profanityEnabled = prefs.getBoolean("pref_profanity", true)
-        NativeBridge.nativeSetProfanityEnabled(profanityEnabled)
-
-        val autocorrectEnabled = prefs.getBoolean("pref_autocorrect", true)
-        NativeBridge.nativeSetAutocorrectEnabled(autocorrectEnabled)
-
-        val popupEnabled = prefs.getBoolean("pref_popup", true)
-        NativeBridge.nativeSetPopupEnabled(popupEnabled)
-
-        val adaptiveEnabled = prefs.getBoolean("pref_adaptive_learning", true)
-        NativeBridge.nativeSetAdaptiveLearningEnabled(adaptiveEnabled)
+    /** Settings changed (settings screen runs in this process): apply them right away. */
+    private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        applySettings(prefs)
+        when (key) {
+            Prefs.THEME, Prefs.THEME_LIST -> updateThemeAndWindowColors(Prefs.theme(prefs))
+            Prefs.CLIPBOARD_CHIP -> updateClipboardChip()
+        }
+        keyboardView?.onEngineStateChanged()
     }
 
     override fun onUpdateSelection(

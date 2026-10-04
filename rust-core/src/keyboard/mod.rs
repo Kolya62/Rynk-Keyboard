@@ -35,6 +35,7 @@ pub struct KeyboardEngine {
     /// Letter key centers of the current layout, for the touch-aware spelling decoder
     pub key_geometry: crate::prediction::decoder::KeyGeometry,
     pub autocorrect_strength: crate::prediction::correction::AutocorrectStrength,
+    pub settings: state::EngineSettings,
     /// Where each pointer went down
     touch_down_points: std::collections::HashMap<i32, (f32, f32)>,
     /// Touch position of the key being executed, if it came from a tap
@@ -70,6 +71,7 @@ impl KeyboardEngine {
             enter_action: 0,
             key_geometry: Default::default(),
             autocorrect_strength: Default::default(),
+            settings: Default::default(),
             touch_down_points: std::collections::HashMap::new(),
             pending_touch: None,
         };
@@ -105,6 +107,18 @@ impl KeyboardEngine {
         self.rebuild_layout();
     }
 
+    /// Applies the settings screen: behavior flags, double-space action and autocorrect level
+    /// (0 off, 1 mild, 2 normal, 3 aggressive).
+    pub fn apply_settings(&mut self, flags: i32, double_space: i32, autocorrect_level: i32) {
+        self.settings = state::EngineSettings::from_flags(flags, double_space);
+        self.autocorrect_enabled = autocorrect_level > 0;
+        self.autocorrect_strength = crate::prediction::correction::AutocorrectStrength {
+            split_words: flags & state::EngineSettings::SPLIT_WORDS != 0,
+            ..crate::prediction::correction::AutocorrectStrength::from_level(autocorrect_level)
+        };
+        self.suggestions_dirty = true;
+    }
+
     /// Re-anchors the engine on the editor's text (input start, cursor moved by the user):
     /// adopts the word directly before the cursor as the word being typed and the preceding
     /// words as context. `caps` is the editor's cursor caps mode (auto-capitalization request).
@@ -132,7 +146,11 @@ impl KeyboardEngine {
         }
 
         if self.state.shift_state != state::ShiftState::CapsLock && self.state.mode == KeyboardMode::Alphabet {
-            let wanted = if caps { state::ShiftState::Shifted } else { state::ShiftState::Off };
+            let wanted = if caps && self.settings.auto_capitalization {
+                state::ShiftState::Shifted
+            } else {
+                state::ShiftState::Off
+            };
             if wanted != self.state.shift_state {
                 self.state.shift_state = wanted;
                 self.rebuild_layout();
@@ -194,7 +212,8 @@ impl KeyboardEngine {
             let idle_with_clipboard = self.state.composing_text.is_empty()
                 && self.state.last_committed_word.is_empty()
                 && self.state.clipboard_preview.is_some();
-            self.cached_suggestions = if idle_with_clipboard {
+            let predictions_off = self.state.composing_text.is_empty() && !self.settings.next_word_predictions;
+            self.cached_suggestions = if idle_with_clipboard || predictions_off {
                 Vec::new()
             } else {
                 self.prediction.get_suggestions_typed(
@@ -374,6 +393,10 @@ impl KeyboardEngine {
                 ));
             }
 
+            TouchResult::DeleteWordSwipe if !self.settings.backspace_swipe_deletes_word => {
+                self.active_popup_key_id = None;
+            }
+
             TouchResult::DeleteWordSwipe => {
                 self.active_popup_key_id = None;
                 for key in self.keys.iter_mut() {
@@ -407,7 +430,9 @@ impl KeyboardEngine {
                 for key in self.keys.iter_mut() {
                     key.is_pressed = false;
                 }
-                if is_next {
+                if !self.settings.space_swipe_switches_language {
+                    // Swiping on space does nothing then
+                } else if is_next {
                     self.next_language();
                 } else {
                     self.prev_language();
@@ -506,6 +531,7 @@ impl KeyboardEngine {
                 if is_punctuation
                     && self.state.mode == KeyboardMode::Alphabet
                     && self.state.field_mode.allows_smart_punctuation()
+                    && self.settings.smart_punctuation
                 {
                     // Smart Punctuation:
                     // If preceding character was a space, swallow it before punctuation
@@ -528,8 +554,10 @@ impl KeyboardEngine {
                     // Auto-capitalize after sentence ending punctuation
                     if ch == '.' || ch == '!' || ch == '?' {
                         self.state.clear_context(true);
-                        self.state.shift_state = state::ShiftState::Shifted;
-                        self.rebuild_layout();
+                        if self.settings.auto_capitalization {
+                            self.state.shift_state = state::ShiftState::Shifted;
+                            self.rebuild_layout();
+                        }
                     }
                 } else {
                     self.state.last_char_was_space = false;
@@ -577,10 +605,11 @@ impl KeyboardEngine {
             KeyAction::Backspace => {
                 self.last_space_tap_time_ms = 0;
                 self.state.last_char_was_space = false;
-                if let (Some(orig), Some(repl)) = (
+                let undo = (
                     self.state.last_autocorrect_original.take(),
                     self.state.last_autocorrect_replacement.take(),
-                ) {
+                );
+                if let (Some(orig), Some(repl), true) = (undo.0, undo.1, self.settings.undo_autocorrect) {
                     // Undo autocorrect: restore original typed text + space, keeping cursor after space
                     let repl_len = (repl.encode_utf16().count() + 1) as u32;
                     self.state
@@ -701,7 +730,26 @@ impl KeyboardEngine {
                     && now.saturating_sub(self.last_space_tap_time_ms) < 300
                     && self.state.composing_text.is_empty();
 
-                if is_double_tap {
+                if is_double_tap
+                    && self.settings.double_space == state::DoubleSpaceAction::Period
+                    && self.state.field_mode.allows_smart_punctuation()
+                {
+                    // "word  " -> "word. "
+                    self.state
+                        .push_event(KeyboardOutputEvent::DeleteSurroundingText { before: 1, after: 0 });
+                    self.state.push_event(KeyboardOutputEvent::CommitText(". ".to_string()));
+                    self.state.clear_context(true);
+                    if self.settings.auto_capitalization {
+                        self.state.shift_state = state::ShiftState::Shifted;
+                        self.rebuild_layout();
+                    }
+                    self.last_space_tap_time_ms = 0;
+                    self.state.last_char_was_space = true;
+                    self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+                    return;
+                }
+
+                if is_double_tap && self.settings.double_space == state::DoubleSpaceAction::SwitchLanguage {
                     // Double tap on spacebar: switch language
                     self.state
                         .push_event(KeyboardOutputEvent::DeleteSurroundingText {

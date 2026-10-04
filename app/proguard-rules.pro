@@ -42,3 +42,8 @@
 
 # Kotlin Reflection & Coroutines (if any)
 -dontwarn kotlin.**
+
+# Settings sections are instantiated by class name from res/xml/prefs_root.xml (app:fragment)
+-keep class org.rynk.keyboard.** extends androidx.fragment.app.Fragment {
+    <init>();
+}

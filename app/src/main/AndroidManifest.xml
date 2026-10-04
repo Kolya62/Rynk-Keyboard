@@ -38,7 +38,7 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title"
-            android:theme="@style/Theme.Rynk.NoActionBar" />
+            android:theme="@style/Theme.Rynk.Settings" />
 
         <!-- Rynk Input Method Service -->
         <service

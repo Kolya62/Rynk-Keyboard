@@ -1061,3 +1061,69 @@ impl KeyboardState {
         }
     }
 }
+
+/// What a quick double tap on the space bar does
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DoubleSpaceAction {
+    SwitchLanguage,
+    /// ". " like most keyboards
+    Period,
+    Nothing,
+}
+
+/// User-configurable behavior of the engine (settings screen)
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EngineSettings {
+    pub auto_capitalization: bool,
+    /// Auto-space after punctuation and removal of the space before it
+    pub smart_punctuation: bool,
+    pub next_word_predictions: bool,
+    /// Backspace right after an autocorrection restores the typed word
+    pub undo_autocorrect: bool,
+    pub space_swipe_switches_language: bool,
+    pub backspace_swipe_deletes_word: bool,
+    pub double_space: DoubleSpaceAction,
+}
+
+impl Default for EngineSettings {
+    fn default() -> Self {
+        Self {
+            auto_capitalization: true,
+            smart_punctuation: true,
+            next_word_predictions: true,
+            undo_autocorrect: true,
+            space_swipe_switches_language: true,
+            backspace_swipe_deletes_word: true,
+            double_space: DoubleSpaceAction::SwitchLanguage,
+        }
+    }
+}
+
+impl EngineSettings {
+    pub const AUTO_CAPS: i32 = 1;
+    pub const SMART_PUNCTUATION: i32 = 1 << 1;
+    pub const NEXT_WORD: i32 = 1 << 2;
+    pub const UNDO_AUTOCORRECT: i32 = 1 << 3;
+    pub const SPACE_SWIPE_LANGUAGE: i32 = 1 << 4;
+    pub const BACKSPACE_SWIPE_WORD: i32 = 1 << 5;
+    /// Not stored here: read by the engine into `AutocorrectStrength::split_words`
+    pub const SPLIT_WORDS: i32 = 1 << 6;
+
+    /// From the bit flags and double-space code (0 language, 1 period, 2 nothing) sent by Kotlin
+    pub fn from_flags(flags: i32, double_space: i32) -> Self {
+        let on = |bit: i32| flags & bit != 0;
+        Self {
+            auto_capitalization: on(Self::AUTO_CAPS),
+            smart_punctuation: on(Self::SMART_PUNCTUATION),
+            next_word_predictions: on(Self::NEXT_WORD),
+            undo_autocorrect: on(Self::UNDO_AUTOCORRECT),
+            space_swipe_switches_language: on(Self::SPACE_SWIPE_LANGUAGE),
+            backspace_swipe_deletes_word: on(Self::BACKSPACE_SWIPE_WORD),
+            double_space: match double_space {
+                1 => DoubleSpaceAction::Period,
+                2 => DoubleSpaceAction::Nothing,
+                _ => DoubleSpaceAction::SwitchLanguage,
+            },
+        }
+    }
+}

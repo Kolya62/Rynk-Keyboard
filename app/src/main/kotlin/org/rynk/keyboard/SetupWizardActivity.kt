@@ -68,7 +68,7 @@ class SetupWizardActivity : AppCompatActivity() {
     }
 
     private fun checkAndShowSupportDialog() {
-        val prefs = getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
+        val prefs = Prefs.get(this)
         if (!prefs.getBoolean("has_shown_support_dialog", false)) {
             prefs.edit().putBoolean("has_shown_support_dialog", true).apply()
             androidx.appcompat.app.AlertDialog.Builder(this)

@@ -1308,4 +1308,53 @@ mod tests {
         engine.update_suggestions();
         assert_eq!(engine.cached_suggestions.get(1).map(String::as_str), Some("thank"));
     }
+
+    #[test]
+    fn test_settings_change_engine_behavior() {
+        use keyboard::state::{EngineSettings as S, KeyboardOutputEvent};
+        let all = S::AUTO_CAPS | S::SMART_PUNCTUATION | S::NEXT_WORD | S::UNDO_AUTOCORRECT
+            | S::SPACE_SWIPE_LANGUAGE | S::BACKSPACE_SWIPE_WORD | S::SPLIT_WORDS;
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+        engine.set_language(Language::English);
+
+        // Double space -> ". " with sentence caps
+        engine.apply_settings(all, 1, 2);
+        engine.set_editor_context("", false);
+        typed_text(&mut engine, "ok");
+        engine.last_interaction_time_ms = 1000;
+        engine.execute_key_action(KeyAction::Space);
+        engine.last_interaction_time_ms = 1100;
+        engine.execute_key_action(KeyAction::Space);
+        let committed: Vec<_> = engine.state.drain_events().into_iter().filter_map(|e| match e {
+            KeyboardOutputEvent::CommitText(t) => Some(t),
+            _ => None,
+        }).collect();
+        assert_eq!(committed.last().map(String::as_str), Some(". "));
+        assert_eq!(engine.state.shift_state, ShiftState::Shifted);
+
+        // Auto-caps off: no shift after a period, nor from the editor
+        engine.apply_settings(all & !S::AUTO_CAPS, 1, 2);
+        engine.set_editor_context("", true);
+        assert_eq!(engine.state.shift_state, ShiftState::Off);
+        typed_text(&mut engine, "ok.");
+        assert_eq!(engine.state.shift_state, ShiftState::Off);
+
+        // Smart punctuation off: no auto-space
+        engine.apply_settings(all & !S::SMART_PUNCTUATION, 0, 2);
+        engine.set_editor_context("", false);
+        assert_eq!(typed_text(&mut engine, "a,b"), "a,b");
+
+        // Next-word predictions off
+        engine.apply_settings(all & !S::NEXT_WORD, 0, 2);
+        engine.set_editor_context("thank ", false);
+        engine.update_suggestions();
+        assert!(engine.cached_suggestions.is_empty());
+
+        // Autocorrect off: typos stay
+        engine.apply_settings(all, 0, 0);
+        engine.set_editor_context("", false);
+        typed_text(&mut engine, "thnks");
+        engine.execute_key_action(KeyAction::Space);
+        assert!(engine.state.drain_events().contains(&KeyboardOutputEvent::CommitText(" ".to_string())));
+    }
 }

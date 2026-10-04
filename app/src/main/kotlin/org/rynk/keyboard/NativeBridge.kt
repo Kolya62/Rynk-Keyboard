@@ -88,6 +88,8 @@ object NativeBridge {
     /** Re-anchors prediction on the editor text before the cursor; caps = cursor caps mode. */
     external fun nativeSetEditorContext(textBeforeCursor: String, caps: Boolean)
     /** Language models (assets/lm/<code>.rlm) are read through this; call before nativeInit. */
+    /** flags: see Prefs.engineFlags; doubleSpace 0 language/1 period/2 nothing; level 0 off..3 */
+    external fun nativeSetEngineSettings(flags: Int, doubleSpace: Int, autocorrectLevel: Int)
     external fun nativeSetAssetManager(assets: android.content.res.AssetManager)
     /** Returns "composing\tlastCommittedWord" */
     external fun nativeGetComposingState(): String?

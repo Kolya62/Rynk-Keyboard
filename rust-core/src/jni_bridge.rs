@@ -1040,3 +1040,19 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEditorContex
         core.engine.set_editor_context(&text, caps != 0);
     }
 }
+
+/// Settings screen values: flag bits (see `EngineSettings`), double-space action (0 language,
+/// 1 period, 2 nothing) and autocorrect level (0 off .. 3 aggressive).
+#[no_mangle]
+pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeSetEngineSettings(
+    _env: JNIEnv,
+    _class: JClass,
+    flags: jint,
+    double_space: jint,
+    autocorrect_level: jint,
+) {
+    let mut guard = CORE_INSTANCE.lock().unwrap();
+    if let Some(core) = guard.as_mut() {
+        core.engine.apply_settings(flags, double_space, autocorrect_level);
+    }
+}

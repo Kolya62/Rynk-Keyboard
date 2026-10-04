@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="double_space_entries">
+        <item>@string/double_space_language</item>
+        <item>@string/double_space_period</item>
+        <item>@string/double_space_nothing</item>
+    </string-array>
+    <string-array name="double_space_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="autocorrect_entries">
+        <item>@string/autocorrect_off</item>
+        <item>@string/autocorrect_mild</item>
+        <item>@string/autocorrect_normal</item>
+        <item>@string/autocorrect_aggressive</item>
+    </string-array>
+    <string-array name="autocorrect_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <string-array name="theme_entries">
+        <item>@string/theme_light</item>
+        <item>@string/theme_dark</item>
+        <item>@string/theme_amoled</item>
+        <item>@string/theme_sunset</item>
+    </string-array>
+    <string-array name="theme_values" translatable="false">
+        <item>1</item>
+        <item>0</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+</resources>

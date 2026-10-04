@@ -30,12 +30,23 @@ pub struct AutocorrectStrength {
     pub cost_base: f32,
     pub cost_per_char: f32,
     pub cost_cap: f32,
+    /// Fix a missing space between two words ("приветкак" -> "привет как")
+    pub split_words: bool,
 }
 
 impl AutocorrectStrength {
-    pub const MILD: Self = Self { cost_base: 0.4, cost_per_char: 0.35, cost_cap: 2.5 };
-    pub const NORMAL: Self = Self { cost_base: 0.8, cost_per_char: 0.5, cost_cap: 4.0 };
-    pub const AGGRESSIVE: Self = Self { cost_base: 1.2, cost_per_char: 0.65, cost_cap: 5.0 };
+    pub const MILD: Self = Self { cost_base: 0.4, cost_per_char: 0.35, cost_cap: 2.5, split_words: true };
+    pub const NORMAL: Self = Self { cost_base: 0.8, cost_per_char: 0.5, cost_cap: 4.0, split_words: true };
+    pub const AGGRESSIVE: Self = Self { cost_base: 1.2, cost_per_char: 0.65, cost_cap: 5.0, split_words: true };
+
+    /// Settings level: 1 mild, 2 normal, 3 aggressive (0, autocorrect off, is handled by the engine)
+    pub fn from_level(level: i32) -> Self {
+        match level {
+            1 => Self::MILD,
+            3 => Self::AGGRESSIVE,
+            _ => Self::NORMAL,
+        }
+    }
 
     fn max_cost(&self, chars: usize) -> f32 {
         (self.cost_base + self.cost_per_char * chars as f32).min(self.cost_cap)
@@ -242,7 +253,7 @@ impl Dictionary {
             .find(|r| r.cost <= max_cost && r.score > typed_score)
             .cloned();
 
-        let split = self.best_split(lang, ctx, typed, max_cost);
+        let split = if strength.split_words { self.best_split(lang, ctx, typed, max_cost) } else { None };
         match (best, split) {
             (Some(b), Some(s)) if s.score > b.score => Some(s.word),
             (Some(b), _) => Some(b.word),

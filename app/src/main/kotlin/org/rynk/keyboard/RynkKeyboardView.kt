@@ -77,6 +77,16 @@ class RynkKeyboardView @JvmOverloads constructor(
 
     private var isEmojiMode: Boolean = false
 
+    /** Keyboard height as a percentage of the default (settings: 80..130) */
+    private var heightPercent: Int = Prefs.heightPercent(Prefs.get(context))
+
+    fun setHeightPercent(percent: Int) {
+        if (percent != heightPercent) {
+            heightPercent = percent
+            requestLayout()
+        }
+    }
+
     fun checkModeChange() {
         if (!NativeBridge.isLibraryLoaded()) return
         val mode = NativeBridge.nativeGetMode()
@@ -111,7 +121,7 @@ class RynkKeyboardView @JvmOverloads constructor(
         } else {
             if (isLandscape) 200f else if (isEmojiMode) 350f else 280f
         }
-        val contentHeight = (desiredHeightDp * density).toInt()
+        val contentHeight = (desiredHeightDp * heightPercent / 100f * density).toInt()
         val totalHeight = contentHeight + bottomInset
 
         setMeasuredDimension(width, totalHeight)
@@ -128,8 +138,8 @@ class RynkKeyboardView @JvmOverloads constructor(
         ensureBitmaps(w, contentH)
 
         val density = resources.displayMetrics.density
-        val prefs = context.getSharedPreferences("rynk_prefs", Context.MODE_PRIVATE)
-        val themeId = prefs.getInt("theme_id", 1)
+        val prefs = Prefs.get(context)
+        val themeId = Prefs.theme(prefs)
         currentThemeId = themeId
         setBackgroundColor(getThemeBgColor(themeId))
 

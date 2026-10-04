@@ -75,4 +75,72 @@
     <string name="support_dialog_message">Спасибо, что выбрали Rynk Keyboard!\n\nПроект активно развивается благодаря вашей поддержке. Если клавиатура вам нравится, вы можете поддержать автора переводом на карту:\n\n4466 1481 2794 9960\n\nСпасибо за поддержку!</string>
     <string name="btn_close">Понятно</string>
     <string name="clipboard_cleared">Буфер обмена очищен</string>
+
+    <!-- Settings screen (stage 5) -->
+    <string name="prefs_languages">Языки и жесты</string>
+    <string name="prefs_languages_summary">Языки клавиатуры, свайпы, двойной пробел</string>
+    <string name="prefs_typing">Ввод и исправление</string>
+    <string name="prefs_typing_summary">Автозамена, подсказки, пунктуация</string>
+    <string name="prefs_appearance">Внешний вид и отклик</string>
+    <string name="prefs_appearance_summary">Тема, высота, вибрация, звук</string>
+    <string name="prefs_dictionary">Мой словарь</string>
+    <string name="prefs_dictionary_summary">Ваши слова, экспорт и импорт</string>
+    <string name="prefs_privacy">Буфер обмена и приватность</string>
+    <string name="prefs_privacy_summary">Подсказка вставки, обучение на наборе</string>
+    <string name="prefs_about">О приложении</string>
+    <string name="prefs_gestures">Жесты</string>
+    <string name="pref_space_swipe_language">Свайп по пробелу меняет язык</string>
+    <string name="pref_space_swipe_language_desc">Проведите влево или вправо по пробелу</string>
+    <string name="pref_backspace_swipe_word">Свайп влево от Backspace удаляет слово</string>
+    <string name="pref_backspace_swipe_word_desc">Удаляет целое слово перед курсором</string>
+    <string name="pref_double_space">Двойное нажатие пробела</string>
+    <string name="double_space_language">Сменить язык</string>
+    <string name="double_space_period">Поставить точку</string>
+    <string name="double_space_nothing">Ничего</string>
+    <string name="pref_autocorrect_level">Автозамена</string>
+    <string name="autocorrect_off">Выключена</string>
+    <string name="autocorrect_mild">Мягкая — только явные опечатки</string>
+    <string name="autocorrect_normal">Обычная</string>
+    <string name="autocorrect_aggressive">Активная — исправляет больше, ошибается чаще</string>
+    <string name="pref_undo_autocorrect">Отмена через Backspace</string>
+    <string name="pref_undo_autocorrect_desc">Backspace сразу после исправления возвращает набранное</string>
+    <string name="pref_split_words">Исправлять пропущенный пробел</string>
+    <string name="pref_split_words_desc">«приветкак» превращается в «привет как»</string>
+    <string name="pref_next_word">Подсказки следующего слова</string>
+    <string name="pref_next_word_desc">Предлагать следующее слово по контексту</string>
+    <string name="prefs_punctuation">Заглавные буквы и пунктуация</string>
+    <string name="pref_auto_caps">Авто-заглавные</string>
+    <string name="pref_auto_caps_desc">Заглавная буква в начале предложения</string>
+    <string name="pref_smart_punctuation">Умная пунктуация</string>
+    <string name="pref_smart_punctuation_desc">Пробел после запятой и точки, без пробела перед ними</string>
+    <string name="pref_profanity_allow">Нецензурные слова в подсказках</string>
+    <string name="pref_height" formatted="false">Высота клавиатуры, %</string>
+    <string name="pref_haptic_strength">Сила вибрации</string>
+    <string name="pref_sound">Звук нажатия</string>
+    <string name="pref_sound_desc">Щелчок при каждом нажатии</string>
+    <string name="pref_sound_volume">Громкость звука</string>
+    <string name="prefs_backup">Резервная копия</string>
+    <string name="pref_export_words">Экспорт моих слов</string>
+    <string name="pref_export_words_desc">Сохранить словарь в текстовый файл</string>
+    <string name="pref_import_words">Импорт слов</string>
+    <string name="pref_import_words_desc">Добавить слова из текстового файла, по одному в строке</string>
+    <string name="words_exported">Экспортировано слов: %d</string>
+    <string name="words_imported">Импортировано слов: %d</string>
+    <string name="words_file_error">Не удалось прочитать или записать файл</string>
+    <string name="word_added">«%s» добавлено в словарь</string>
+    <string name="dialog_languages_search">Поиск языка</string>
+    <string name="pref_clipboard_chip">Подсказка вставки из буфера</string>
+    <string name="pref_clipboard_chip_desc">Предлагать вставить только что скопированный текст</string>
+    <string name="privacy_note">Всё остаётся на устройстве: у клавиатуры нет доступа к интернету, а выученные слова исключены из облачных резервных копий. Поля паролей и режима инкогнито никогда не читаются и не используются для обучения.</string>
+    <string name="pref_version">Версия</string>
+    <string name="pref_licenses">Лицензии данных</string>
+    <string name="pref_licenses_desc">Словари и статистика слов</string>
+    <string name="licenses_text">Rynk Keyboard — открытое ПО (MPL-2.0).
+
+Языковые модели построены по данным:
+• Leipzig Corpora Collection, Лейпцигский университет — CC BY
+• Tatoeba — CC BY 2.0 FR
+• FrequencyWords (OpenSubtitles 2018), Hermit Dave — CC BY-SA 4.0
+
+Файлы моделей распространяются по лицензии CC BY-SA 4.0.</string>
 </resources>
