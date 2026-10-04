@@ -159,4 +159,8 @@
     <string name="clipboard_ttl_hour">1 час</string>
     <string name="clipboard_ttl_day">1 день</string>
     <string name="clipboard_ttl_week">7 дней</string>
+    <string name="prefs_glide">Свайп-набор</string>
+    <string name="pref_glide_typing">Свайп-набор</string>
+    <string name="pref_glide_typing_desc">Ведите пальцем по буквам, чтобы набрать слово</string>
+    <string name="pref_glide_trail">Показывать след пальца</string>
 </resources>

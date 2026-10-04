@@ -27,6 +27,22 @@
         app:defaultValue="true"
         app:iconSpaceReserved="false" />
     <PreferenceCategory
+        app:title="@string/prefs_glide"
+        app:iconSpaceReserved="false">
+        <SwitchPreferenceCompat
+            app:key="pref_glide_typing"
+            app:title="@string/pref_glide_typing"
+            app:summary="@string/pref_glide_typing_desc"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            app:key="pref_glide_trail"
+            app:title="@string/pref_glide_trail"
+            app:dependency="pref_glide_typing"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+    <PreferenceCategory
         app:title="@string/prefs_punctuation"
         app:iconSpaceReserved="false">
         <SwitchPreferenceCompat

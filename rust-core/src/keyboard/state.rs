@@ -1020,6 +1020,9 @@ pub struct KeyboardState {
     /// Touch position of each letter of `composing_text` that came from a tap (letters adopted
     /// from the editor have none); may lag behind, see `correction::observations`
     pub composing_touches: Vec<Option<(f32, f32)>>,
+    /// `composing_text` is a word entered by a glide gesture (no autocorrect; the next word
+    /// gets a space automatically; backspace deletes it whole)
+    pub gesture_word: bool,
     pub last_committed_word: String,
     /// Word before `last_committed_word` (trigram context)
     pub previous_word: String,
@@ -1044,6 +1047,7 @@ impl Default for KeyboardState {
             field_mode: InputFieldMode::Normal,
             composing_text: String::with_capacity(64),
             composing_touches: Vec::with_capacity(32),
+            gesture_word: false,
             last_committed_word: String::with_capacity(32),
             previous_word: String::with_capacity(32),
             context_at_sentence_start: true,
@@ -1143,6 +1147,8 @@ pub struct EngineSettings {
     pub space_swipe_switches_language: bool,
     pub backspace_swipe_deletes_word: bool,
     pub double_space: DoubleSpaceAction,
+    pub glide_typing: bool,
+    pub glide_trail: bool,
 }
 
 impl Default for EngineSettings {
@@ -1155,6 +1161,8 @@ impl Default for EngineSettings {
             space_swipe_switches_language: true,
             backspace_swipe_deletes_word: true,
             double_space: DoubleSpaceAction::SwitchLanguage,
+            glide_typing: true,
+            glide_trail: true,
         }
     }
 }
@@ -1168,6 +1176,8 @@ impl EngineSettings {
     pub const BACKSPACE_SWIPE_WORD: i32 = 1 << 5;
     /// Not stored here: read by the engine into `AutocorrectStrength::split_words`
     pub const SPLIT_WORDS: i32 = 1 << 6;
+    pub const GLIDE_TYPING: i32 = 1 << 7;
+    pub const GLIDE_TRAIL: i32 = 1 << 8;
 
     /// From the bit flags and double-space code (0 language, 1 period, 2 nothing) sent by Kotlin
     pub fn from_flags(flags: i32, double_space: i32) -> Self {
@@ -1179,6 +1189,8 @@ impl EngineSettings {
             undo_autocorrect: on(Self::UNDO_AUTOCORRECT),
             space_swipe_switches_language: on(Self::SPACE_SWIPE_LANGUAGE),
             backspace_swipe_deletes_word: on(Self::BACKSPACE_SWIPE_WORD),
+            glide_typing: on(Self::GLIDE_TYPING),
+            glide_trail: on(Self::GLIDE_TRAIL),
             double_space: match double_space {
                 1 => DoubleSpaceAction::Period,
                 2 => DoubleSpaceAction::Nothing,

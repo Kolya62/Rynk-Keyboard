@@ -21,6 +21,8 @@ object Prefs {
     const val NEXT_WORD = "pref_next_word"
     const val UNDO_AUTOCORRECT = "pref_undo_autocorrect"
     const val SPLIT_WORDS = "pref_split_words"
+    const val GLIDE_TYPING = "pref_glide_typing"
+    const val GLIDE_TRAIL = "pref_glide_trail"
     const val PROFANITY = "pref_profanity"
     const val ADAPTIVE_LEARNING = "pref_adaptive_learning"
 
@@ -57,6 +59,8 @@ object Prefs {
     private const val FLAG_SPACE_SWIPE_LANGUAGE = 1 shl 4
     private const val FLAG_BACKSPACE_SWIPE_WORD = 1 shl 5
     private const val FLAG_SPLIT_WORDS = 1 shl 6
+    private const val FLAG_GLIDE_TYPING = 1 shl 7
+    private const val FLAG_GLIDE_TRAIL = 1 shl 8
 
     fun get(context: Context): SharedPreferences =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).also { migrate(it) }
@@ -100,6 +104,8 @@ object Prefs {
         if (prefs.getBoolean(SPACE_SWIPE_LANGUAGE, true)) flags = flags or FLAG_SPACE_SWIPE_LANGUAGE
         if (prefs.getBoolean(BACKSPACE_SWIPE_WORD, true)) flags = flags or FLAG_BACKSPACE_SWIPE_WORD
         if (prefs.getBoolean(SPLIT_WORDS, true)) flags = flags or FLAG_SPLIT_WORDS
+        if (prefs.getBoolean(GLIDE_TYPING, true)) flags = flags or FLAG_GLIDE_TYPING
+        if (prefs.getBoolean(GLIDE_TRAIL, true)) flags = flags or FLAG_GLIDE_TRAIL
         return flags
     }
 

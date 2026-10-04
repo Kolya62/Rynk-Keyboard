@@ -37,7 +37,7 @@ class PrefsTest {
     @Test
     fun defaultsEnableEverythingExceptNothing() {
         val prefs = MemoryPrefs()
-        assertEquals(0b1111111, Prefs.engineFlags(prefs))
+        assertEquals(0b111111111, Prefs.engineFlags(prefs))
         assertEquals(Prefs.AUTOCORRECT_NORMAL, Prefs.autocorrectLevel(prefs))
         assertEquals(0, Prefs.doubleSpace(prefs))
         assertEquals(100, Prefs.heightPercent(prefs))

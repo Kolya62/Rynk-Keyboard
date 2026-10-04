@@ -4,6 +4,7 @@ pub mod decoder;
 pub mod cjk;
 pub mod correction;
 pub mod dictionary;
+pub mod gesture;
 pub mod lexicon;
 pub mod lm;
 pub mod lm_data;

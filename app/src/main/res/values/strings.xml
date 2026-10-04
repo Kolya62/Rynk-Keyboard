@@ -159,4 +159,8 @@ The model files are distributed under CC BY-SA 4.0.</string>
     <string name="clipboard_ttl_hour">1 hour</string>
     <string name="clipboard_ttl_day">1 day</string>
     <string name="clipboard_ttl_week">7 days</string>
+    <string name="prefs_glide">Glide typing</string>
+    <string name="pref_glide_typing">Glide typing</string>
+    <string name="pref_glide_typing_desc">Slide across the letters to type a word</string>
+    <string name="pref_glide_trail">Show the finger trail</string>
 </resources>

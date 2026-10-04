@@ -14,6 +14,9 @@ use layout::{LayoutBuilder, LayoutMetrics};
 use state::{HapticFeedbackType, KeyboardOutputEvent, KeyboardState, Language};
 use touch::{TouchAction, TouchResult, TouchTracker};
 
+/// Readings of a glide gesture kept for the suggestion bar
+const GESTURE_CANDIDATES: usize = 5;
+
 pub struct KeyboardEngine {
     pub state: KeyboardState,
     pub metrics: LayoutMetrics,
@@ -45,6 +48,8 @@ pub struct KeyboardEngine {
     touch_down_points: std::collections::HashMap<i32, (f32, f32)>,
     /// Touch position of the key being executed, if it came from a tap
     pending_touch: Option<(f32, f32)>,
+    /// Other readings of the last glide gesture, shown around it in the suggestion bar
+    gesture_alternatives: Vec<String>,
 }
 
 impl KeyboardEngine {
@@ -81,6 +86,7 @@ impl KeyboardEngine {
             voice_key: false,
             touch_down_points: std::collections::HashMap::new(),
             pending_touch: None,
+            gesture_alternatives: Vec::new(),
         };
         engine.key_geometry = Self::geometry_of(&engine.keys);
         engine
@@ -171,6 +177,79 @@ impl KeyboardEngine {
         self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
     }
 
+    /// Commits the gestured word as typed and adds the space after it.
+    fn finish_gesture_word(&mut self) {
+        let word = std::mem::take(&mut self.state.composing_text);
+        self.state.composing_touches.clear();
+        self.state.push_event(KeyboardOutputEvent::CommitText(" ".to_string()));
+        if self.state.field_mode.allows_learning() {
+            if !self.state.last_committed_word.is_empty() {
+                self.prediction.learn_bigram(&self.state.last_committed_word, &word);
+            }
+            self.prediction.learn_word(&word, self.state.language);
+        }
+        self.state.commit_context_word(word);
+        self.state.last_char_was_space = true;
+    }
+
+    /// Decodes a glide path into a word and enters it, with a separating space if needed.
+    pub fn commit_gesture(&mut self, path: &[(f32, f32)]) {
+        self.active_popup_key_id = None;
+        for key in self.keys.iter_mut() {
+            key.is_pressed = false;
+        }
+        if self.state.gesture_word && !self.state.composing_text.is_empty() {
+            self.state.gesture_word = false;
+            self.finish_gesture_word();
+        } else if !self.state.composing_text.is_empty() {
+            // Letters tapped just before: keep them as their own word
+            let word = std::mem::take(&mut self.state.composing_text);
+            self.state.composing_touches.clear();
+            self.state.push_event(KeyboardOutputEvent::CommitText(" ".to_string()));
+            self.state.commit_context_word(word);
+        } else if !self.state.last_char_was_space && !self.state.last_committed_word.is_empty() {
+            self.state.push_event(KeyboardOutputEvent::CommitText(" ".to_string()));
+        }
+
+        let candidates = self.prediction.dictionary.decode_gesture(
+            self.state.language,
+            &self.state.word_context(),
+            path,
+            &self.key_geometry,
+            GESTURE_CANDIDATES,
+        );
+        let Some(best) = candidates.first() else {
+            self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+            return;
+        };
+        let shift = self.state.shift_state;
+        let cased = |w: &str| -> String {
+            match shift {
+                state::ShiftState::CapsLock => w.to_uppercase(),
+                state::ShiftState::Shifted => {
+                    let mut c = w.chars();
+                    c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+                }
+                state::ShiftState::Off => w.to_string(),
+            }
+        };
+        let word = cased(&best.word);
+        self.gesture_alternatives = candidates.iter().skip(1).map(|c| cased(&c.word)).collect();
+        self.state.push_event(KeyboardOutputEvent::CommitText(word.clone()));
+        self.state.composing_text = word;
+        self.state.composing_touches.clear();
+        self.state.gesture_word = true;
+        self.state.last_char_was_space = false;
+        self.state.last_autocorrect_original = None;
+        self.state.last_autocorrect_replacement = None;
+        if self.state.shift_state == state::ShiftState::Shifted {
+            self.state.shift_state = state::ShiftState::Off;
+            self.rebuild_layout();
+        }
+        self.suggestions_dirty = true;
+        self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyClick));
+    }
+
     /// Switches one-handed mode from the keyboard itself; the app persists it.
     pub fn set_one_handed(&mut self, mode: layout::OneHanded) {
         if self.layout_options.one_handed != mode {
@@ -185,6 +264,7 @@ impl KeyboardEngine {
     pub fn apply_settings(&mut self, flags: i32, double_space: i32, autocorrect_level: i32) {
         self.settings = state::EngineSettings::from_flags(flags, double_space);
         self.touch_tracker.space_swipe_switches_language = self.settings.space_swipe_switches_language;
+        self.rebuild_layout();
         self.autocorrect_enabled = autocorrect_level > 0;
         self.autocorrect_strength = crate::prediction::correction::AutocorrectStrength {
             split_words: flags & state::EngineSettings::SPLIT_WORDS != 0,
@@ -258,6 +338,9 @@ impl KeyboardEngine {
             } else if self.state.mode == KeyboardMode::Numbers {
                 self.set_mode(KeyboardMode::Alphabet);
             }
+            self.touch_tracker.glide_enabled = self.settings.glide_typing
+                && self.state.mode == KeyboardMode::Alphabet
+                && self.state.field_mode.allows_suggestions();
         }
     }
 
@@ -272,6 +355,9 @@ impl KeyboardEngine {
         if self.state.mode == KeyboardMode::Alphabet {
             self.key_geometry = Self::geometry_of(&self.keys);
         }
+        self.touch_tracker.glide_enabled = self.settings.glide_typing
+            && self.state.mode == KeyboardMode::Alphabet
+            && self.state.field_mode.allows_suggestions();
     }
 
     pub fn update_suggestions(&mut self) {
@@ -288,6 +374,17 @@ impl KeyboardEngine {
                 && self.state.last_committed_word.is_empty()
                 && self.state.clipboard_preview.is_some();
             let predictions_off = self.state.composing_text.is_empty() && !self.settings.next_word_predictions;
+            if self.state.gesture_word && !self.state.composing_text.is_empty() {
+                // Gestured word in the center, other readings around it
+                let mut chips = Vec::with_capacity(3);
+                chips.extend(self.gesture_alternatives.first().cloned());
+                chips.push(self.state.composing_text.clone());
+                chips.extend(self.gesture_alternatives.get(1).cloned());
+                self.cached_suggestions = chips;
+                self.suggestions_dirty = false;
+                self.cached_suggestions_version = self.prediction_version;
+                return;
+            }
             self.cached_suggestions = if idle_with_clipboard || predictions_off {
                 Vec::new()
             } else {
@@ -488,6 +585,15 @@ impl KeyboardEngine {
                 }
             }
 
+            TouchResult::GestureStarted => {
+                self.active_popup_key_id = None;
+                for key in self.keys.iter_mut() {
+                    key.is_pressed = false;
+                }
+            }
+
+            TouchResult::Gesture { path } => self.commit_gesture(&path),
+
             TouchResult::BackspaceSelectCommit => {
                 for key in self.keys.iter_mut() {
                     key.is_pressed = false;
@@ -556,7 +662,22 @@ impl KeyboardEngine {
 
     pub fn execute_key_action(&mut self, action: KeyAction) {
         self.suggestions_dirty = true;
+        // Any key ends the gesture word; the handlers below decide what that means
+        let after_gesture = std::mem::take(&mut self.state.gesture_word) && !self.state.composing_text.is_empty();
         match action {
+            KeyAction::Character(ch) if after_gesture && ch.is_alphanumeric() => {
+                // Typing on after a gestured word starts a new word
+                self.finish_gesture_word();
+                self.execute_key_action(KeyAction::Character(ch));
+            }
+            KeyAction::Backspace if after_gesture => {
+                // Backspace right after a gesture removes the whole word
+                let units = self.state.composing_text.encode_utf16().count() as u32;
+                self.state.push_event(KeyboardOutputEvent::DeleteSurroundingText { before: units, after: 0 });
+                self.state.composing_text.clear();
+                self.state.composing_touches.clear();
+                self.state.push_event(KeyboardOutputEvent::PerformHaptic(HapticFeedbackType::KeyTick));
+            }
             KeyAction::Character(ch) => {
                 self.last_space_tap_time_ms = 0;
                 self.state.last_autocorrect_original = None;
@@ -860,6 +981,7 @@ impl KeyboardEngine {
                     // Check dictionaries + user dictionary + whether autocorrect was rejected:
                     let dictionary = &self.prediction.dictionary;
                     let is_valid_word = is_rejected
+                        || after_gesture
                         || (dictionary.contains_word_for_lang(&clean, self.state.language)
                             && dictionary.dominant_alternative(&clean, self.state.language).is_none());
 

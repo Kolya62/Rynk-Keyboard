@@ -75,6 +75,18 @@ impl KeyboardRenderer {
         self.animation_mgr
             .render_and_update(canvas, current_time_ms);
 
+        // Glide trail: dots along the finger path, fading towards its start
+        if engine.settings.glide_trail {
+            if let Some(path) = engine.touch_tracker.active_gesture_path() {
+                let n = path.len().max(1) as f32;
+                for (i, &(x, y)) in path.iter().enumerate() {
+                    let t = (i + 1) as f32 / n;
+                    let color = self.theme.brand_accent.with_alpha((60.0 + 170.0 * t) as u8);
+                    canvas.fill_circle(x, y, (1.5 + 2.5 * t) * density, color);
+                }
+            }
+        }
+
         // 5. Active Key Popup or Long-press strip
         self.render_popups(canvas, engine, density);
 

@@ -30,6 +30,13 @@ pub struct PointerState {
     pub cursor_mode: bool,
     /// Words selected for deletion by dragging left from backspace
     pub backspace_words: u32,
+    /// Started on a letter key: candidate for a glide gesture
+    pub on_letter: bool,
+    /// Distance the finger must travel for a glide gesture (about one key width)
+    pub gesture_threshold: f32,
+    pub is_gesture: bool,
+    /// Finger path of a (potential) gesture
+    pub path: Vec<(f32, f32)>,
 }
 
 pub struct TouchTracker {
@@ -45,6 +52,8 @@ pub struct TouchTracker {
     /// Drag distance per cursor step / per selected word
     pub cursor_step_px: f32,
     pub word_step_px: f32,
+    /// Glide typing on letter keys (letter layouts only)
+    pub glide_enabled: bool,
 }
 
 impl Default for TouchTracker {
@@ -67,7 +76,13 @@ impl TouchTracker {
             space_swipe_switches_language: true,
             cursor_step_px: 9.0 * d,
             word_step_px: 28.0 * d,
+            glide_enabled: true,
         }
+    }
+
+    /// Path of the glide gesture in progress, for drawing the trail
+    pub fn active_gesture_path(&self) -> Option<&[(f32, f32)]> {
+        self.pointers.iter().find(|p| p.is_gesture).map(|p| p.path.as_slice())
     }
 
     pub fn update_density(&mut self, density: f32) {
@@ -110,6 +125,12 @@ pub enum TouchResult {
     },
     /// Released after selecting words from backspace: delete them
     BackspaceSelectCommit,
+    /// A finger on a letter started gliding: cancel the key press
+    GestureStarted,
+    /// Glide finished: the finger path
+    Gesture {
+        path: Vec<(f32, f32)>,
+    },
     SwitchLanguageSwipe {
         is_next: bool,
     },
@@ -141,6 +162,7 @@ impl TouchTracker {
                 let is_space = hit_key.is_some_and(|k| matches!(k.action, KeyAction::Space));
                 let is_backspace =
                     hit_key.is_some_and(|k| matches!(k.action, KeyAction::Backspace));
+                let letter_key = hit_key.filter(|k| matches!(k.action, KeyAction::Character(c) if c.is_alphabetic()));
 
                 self.pointers.retain(|p| p.id != pointer_id);
                 self.pointers.push(PointerState {
@@ -161,6 +183,10 @@ impl TouchTracker {
                     has_swiped_backspace: false,
                     cursor_mode: false,
                     backspace_words: 0,
+                    on_letter: self.glide_enabled && letter_key.is_some(),
+                    gesture_threshold: letter_key.map(|k| k.width * 1.2).unwrap_or(f32::MAX),
+                    is_gesture: false,
+                    path: if letter_key.is_some() { vec![(x, y)] } else { Vec::new() },
                 });
 
                 if let Some(key) = hit_key {
@@ -183,6 +209,24 @@ impl TouchTracker {
                 if let Some(pointer) = self.pointers.iter_mut().find(|p| p.id == pointer_id) {
                     pointer.current_x = x;
                     pointer.current_y = y;
+
+                    // Glide typing: record the path; past a key width it becomes a gesture
+                    if pointer.on_letter && !pointer.is_long_pressed {
+                        let last = *pointer.path.last().unwrap_or(&(x, y));
+                        if (x - last.0).powi(2) + (y - last.1).powi(2) >= 4.0 {
+                            pointer.path.push((x, y));
+                        }
+                        if !pointer.is_gesture {
+                            let dist = ((x - pointer.start_x).powi(2) + (y - pointer.start_y).powi(2)).sqrt();
+                            if dist >= pointer.gesture_threshold {
+                                pointer.is_gesture = true;
+                                return TouchResult::GestureStarted;
+                            }
+                        }
+                        if pointer.is_gesture {
+                            return TouchResult::None;
+                        }
+                    }
 
                     if pointer.is_spacebar_drag && pointer.cursor_mode {
                         let steps = ((x - pointer.space_last_drag_x) / self.cursor_step_px).trunc() as i32;
@@ -265,6 +309,10 @@ impl TouchTracker {
                         return TouchResult::None;
                     }
 
+                    if p.is_gesture {
+                        return TouchResult::Gesture { path: p.path };
+                    }
+
                     // Backspace drag: delete the selected words, or nothing if dragged back
                     if p.has_swiped_backspace {
                         return if p.backspace_words > 0 { TouchResult::BackspaceSelectCommit } else { TouchResult::None };
@@ -321,7 +369,7 @@ impl TouchTracker {
                     return Some(TouchResult::CursorModeStarted);
                 }
             }
-            if !pointer.is_long_pressed && !pointer.is_spacebar_drag && !pointer.is_backspace_drag {
+            if !pointer.is_long_pressed && !pointer.is_spacebar_drag && !pointer.is_backspace_drag && !pointer.is_gesture {
                 let elapsed = current_time_ms.saturating_sub(pointer.start_time_ms);
                 if elapsed >= self.long_press_threshold_ms {
                     let dist_sq = (pointer.current_x - pointer.start_x).powi(2)
