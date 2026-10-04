@@ -1,5 +1,6 @@
 pub mod autocorrect;
 pub mod dictionary;
+pub mod morphology;
 pub mod suggestions;
 pub mod trie;
 pub mod typos;

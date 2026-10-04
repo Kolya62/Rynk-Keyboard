@@ -154,11 +154,16 @@ impl SuggestionEngine {
             } else {
                 Autocorrect::score_candidate(&clean, &comp_lower, *freq)
             };
-            let ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(&comp_lower)) {
+            let mut ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(&comp_lower)) {
                 2.5
             } else {
                 0.0
             };
+            if let Some(lw) = last_word {
+                if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, &comp_lower, lang) {
+                    ctx_bonus += 3.5;
+                }
+            }
             candidates_map.insert(comp.clone(), score + ctx_bonus);
         }
 
@@ -172,11 +177,16 @@ impl SuggestionEngine {
             }
             let score = Autocorrect::score_candidate(&clean, w, freq);
             if score > 1.5 {
-                let ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(w)) {
+                let mut ctx_bonus = if context_nexts.iter().any(|c| c.eq_ignore_ascii_case(w)) {
                     2.5
                 } else {
                     0.0
                 };
+                if let Some(lw) = last_word {
+                    if crate::prediction::morphology::Morphology::matches_preposition_agreement(lw, w, lang) {
+                        ctx_bonus += 3.5;
+                    }
+                }
                 let entry = candidates_map.entry(w.to_string()).or_insert(0.0);
                 if score + ctx_bonus > *entry {
                     *entry = score + ctx_bonus;

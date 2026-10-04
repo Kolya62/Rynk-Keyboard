@@ -168,6 +168,14 @@ impl Autocorrect {
             }
         }
 
+        // Morphology check: recognized prefix alternation or suffix/inflection match
+        if let Some(prefix_cost) = crate::prediction::morphology::Morphology::analyze_prefix_match(s1, s2) {
+            return prefix_cost;
+        }
+        if let Some(suffix_cost) = crate::prediction::morphology::Morphology::analyze_suffix_and_ending(s1, s2) {
+            return suffix_cost;
+        }
+
         let width = len2 + 1;
         let mut d = vec![0.0f32; (len1 + 1) * width];
 
@@ -217,12 +225,17 @@ impl Autocorrect {
         let input_len = input.chars().count();
         let cand_len = candidate.chars().count();
 
-        // Distance filtering: never suggest words with large edit distance
-        if dist > 2.5 {
-            return 0.0;
-        }
-        if dist > 1.8 && (input_len < 4 || cand_len < 4) {
-            return 0.0;
+        let morph_match = crate::prediction::morphology::Morphology::analyze_prefix_match(input, candidate).is_some()
+            || crate::prediction::morphology::Morphology::analyze_suffix_and_ending(input, candidate).is_some();
+
+        // Distance filtering: never suggest words with large edit distance unless morphology matches
+        if !morph_match {
+            if dist > 2.5 {
+                return 0.0;
+            }
+            if dist > 1.8 && (input_len < 4 || cand_len < 4) {
+                return 0.0;
+            }
         }
 
         let dist_base = (10.0 - dist * 3.5).max(0.0);
@@ -232,7 +245,8 @@ impl Autocorrect {
 
         let first_matches = input.chars().next() == candidate.chars().next()
             || Self::strip_diacritics(input.chars().next().unwrap_or('\0'))
-                == Self::strip_diacritics(candidate.chars().next().unwrap_or('\0'));
+                == Self::strip_diacritics(candidate.chars().next().unwrap_or('\0'))
+            || morph_match;
         let first_bonus = if first_matches { 0.8 } else { 0.0 };
 
         let prefix_bonus = if candidate.starts_with(input) {
@@ -241,9 +255,11 @@ impl Autocorrect {
             0.0
         };
 
+        let morph_bonus = if morph_match { 3.0 } else { 0.0 };
+
         let freq_weight = (frequency as f32).min(2000.0) / 2000.0 * 2.0;
 
-        dist_base - len_penalty + first_bonus + prefix_bonus + freq_weight
+        dist_base - len_penalty + first_bonus + prefix_bonus + morph_bonus + freq_weight
     }
 
     /// Determines if a candidate is a high-confidence autocorrect replacement on spacebar
@@ -271,6 +287,15 @@ impl Autocorrect {
         let c_norm: String = c.chars().map(Self::strip_diacritics).collect();
         if t_norm == c_norm && frequency >= 50 {
             return true;
+        }
+
+        // 3. Morphology: Prefix or Suffix / Inflectional Ending match
+        if crate::prediction::morphology::Morphology::analyze_prefix_match(&t, &c).is_some()
+            || crate::prediction::morphology::Morphology::analyze_suffix_and_ending(&t, &c).is_some()
+        {
+            if frequency >= 40 {
+                return true;
+            }
         }
 
         // If candidate is a pure prefix extension of typed, do not auto-complete on space

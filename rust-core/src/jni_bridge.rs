@@ -354,6 +354,9 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                 }
             } else if let Some(clip_text) = core.engine.state.clipboard_preview.clone() {
                 let settings_w = 40.0 * dp;
+                let clear_btn_w = 40.0 * dp;
+                let clear_btn_x = total_w - clear_btn_w - 4.0 * dp;
+
                 if x <= settings_w {
                     core.engine
                         .state
@@ -364,11 +367,27 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                             HapticFeedbackType::KeyClick,
                         ));
                     return 1;
-                } else {
+                } else if x >= clear_btn_x {
+                    // Tap on Clear/Trash button: clear system clipboard!
                     core.engine.state.clipboard_preview = None;
                     core.engine
                         .state
-                        .push_event(KeyboardOutputEvent::CommitText(clip_text));
+                        .push_event(KeyboardOutputEvent::ClearClipboard);
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::PerformHaptic(
+                            HapticFeedbackType::KeyHeavyClick,
+                        ));
+                    return 1;
+                } else {
+                    // Tap on Clip Chip: paste clipboard text!
+                    core.engine.state.clipboard_preview = None;
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::CommitText(clip_text.clone()));
+                    core.engine
+                        .state
+                        .push_event(KeyboardOutputEvent::ClipboardPasted(clip_text));
                     core.engine
                         .state
                         .push_event(KeyboardOutputEvent::PerformHaptic(
@@ -570,6 +589,12 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativePollEvents(
                 }
                 KeyboardOutputEvent::HideKeyboard => {
                     output.push_str("HIDE\n");
+                }
+                KeyboardOutputEvent::ClearClipboard => {
+                    output.push_str("CLEAR_CLIPBOARD\n");
+                }
+                KeyboardOutputEvent::ClipboardPasted(text) => {
+                    output.push_str(&format!("CLIPBOARD_PASTED\t{}\n", text));
                 }
             }
         }

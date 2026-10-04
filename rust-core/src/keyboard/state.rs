@@ -829,6 +829,8 @@ pub enum KeyboardOutputEvent {
     MoveCursor(i32),
     DeleteWord,
     HideKeyboard,
+    ClearClipboard,
+    ClipboardPasted(String),
 }
 
 impl KeyboardOutputEvent {
@@ -882,6 +884,16 @@ impl KeyboardOutputEvent {
             KeyboardOutputEvent::HideKeyboard => {
                 buf.push(9); // Type 9: HideKeyboard
                 buf.extend_from_slice(&0u32.to_le_bytes());
+            }
+            KeyboardOutputEvent::ClearClipboard => {
+                buf.push(10); // Type 10: ClearClipboard
+                buf.extend_from_slice(&0u32.to_le_bytes());
+            }
+            KeyboardOutputEvent::ClipboardPasted(text) => {
+                buf.push(11); // Type 11: ClipboardPasted
+                let bytes = text.as_bytes();
+                buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+                buf.extend_from_slice(bytes);
             }
         }
     }

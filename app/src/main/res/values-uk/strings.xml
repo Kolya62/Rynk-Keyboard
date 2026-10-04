@@ -62,4 +62,5 @@
     <string name="support_dialog_title">Підтримайте автора Rynk</string>
     <string name="support_dialog_message">Дякуємо, що обрали Rynk Keyboard!\n\nПроєкт розвивається завдяки вашій підтримці. Якщо клавіатура вам корисна, ви можете підтримати автора переказом на картку:\n\n4466 1481 2794 9960\n\nЩиро дякуємо за підтримку!</string>
     <string name="btn_close">Зрозуміло</string>
+    <string name="clipboard_cleared">Буфер обміну очищено</string>
 </resources>

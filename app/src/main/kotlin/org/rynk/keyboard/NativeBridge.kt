@@ -41,6 +41,8 @@ object NativeBridge {
     const val EVENT_OPEN_SETTINGS = 7
     const val EVENT_SWITCH_IME = 8
     const val EVENT_HIDE_KEYBOARD = 9
+    const val EVENT_CLEAR_CLIPBOARD = 10
+    const val EVENT_CLIPBOARD_PASTED = 11
 
     external fun nativeInit(width: Float, height: Float, density: Float, themeId: Int)
     external fun nativeDestroy()

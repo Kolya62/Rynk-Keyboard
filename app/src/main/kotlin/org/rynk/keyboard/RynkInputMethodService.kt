@@ -26,6 +26,7 @@ class RynkInputMethodService : InputMethodService() {
     private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
     private var isDispatchingEvents = false
     private var currentInputFieldMode: Int = NativeBridge.INPUT_MODE_NORMAL
+    private var consumedClipboardText: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +34,7 @@ class RynkInputMethodService : InputMethodService() {
 
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+            consumedClipboardText = null
             updateClipboardChip()
         }
         clipboard?.addPrimaryClipChangedListener(clipboardListener)
@@ -92,6 +94,12 @@ class RynkInputMethodService : InputMethodService() {
         if (clip != null && clip.itemCount > 0) {
             val text = clip.getItemAt(0)?.coerceToText(this)?.toString()?.trim()
             if (!text.isNullOrEmpty() && text.length <= 1000) {
+                if (text == consumedClipboardText) {
+                    // Single-use guarantee: already consumed or deleted, do not show again
+                    NativeBridge.nativeSetClipboardText(null)
+                    keyboardView?.invalidate()
+                    return
+                }
                 NativeBridge.nativeSetClipboardText(text)
                 keyboardView?.invalidate()
                 return
@@ -99,6 +107,23 @@ class RynkInputMethodService : InputMethodService() {
         }
         NativeBridge.nativeSetClipboardText(null)
         keyboardView?.invalidate()
+    }
+
+    private fun clearSystemClipboard() {
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                clipboard?.clearPrimaryClip()
+            } else {
+                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RynkIME", "Failed to clear clipboard", e)
+        }
+        consumedClipboardText = null
+        NativeBridge.nativeSetClipboardText(null)
+        keyboardView?.invalidate()
+        Toast.makeText(this, getString(R.string.clipboard_cleared), Toast.LENGTH_SHORT).show()
     }
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
@@ -407,6 +432,17 @@ class RynkInputMethodService : InputMethodService() {
                     NativeBridge.EVENT_HIDE_KEYBOARD -> {
                         requestHideSelf(0)
                     }
+                    NativeBridge.EVENT_CLEAR_CLIPBOARD -> {
+                        clearSystemClipboard()
+                    }
+                    NativeBridge.EVENT_CLIPBOARD_PASTED -> {
+                        val strBytes = ByteArray(len)
+                        buffer.get(strBytes)
+                        val text = String(strBytes, java.nio.charset.StandardCharsets.UTF_8)
+                        consumedClipboardText = text
+                        NativeBridge.nativeSetClipboardText(null)
+                        keyboardView?.invalidate()
+                    }
                     else -> {
                         buffer.position(buffer.position() + len)
                     }
@@ -450,6 +486,9 @@ class RynkInputMethodService : InputMethodService() {
                         "DELETE_WORD" -> {
                             deletePreviousWord()
                         }
+                        "CLEAR_CLIPBOARD" -> {
+                            clearSystemClipboard()
+                        }
                     }
                     continue
                 }
@@ -459,6 +498,11 @@ class RynkInputMethodService : InputMethodService() {
                 when (command) {
                     "COMMIT" -> {
                         ic?.commitText(payload, 1)
+                    }
+                    "CLIPBOARD_PASTED" -> {
+                        consumedClipboardText = payload
+                        NativeBridge.nativeSetClipboardText(null)
+                        keyboardView?.invalidate()
                     }
                     "DELETE" -> {
                         val parts = payload.split("\t")

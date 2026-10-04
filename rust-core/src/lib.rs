@@ -727,4 +727,72 @@ mod tests {
             avg_micros
         );
     }
+
+    #[test]
+    fn test_morphology_prefixes_and_suffixes() {
+        use crate::prediction::morphology::Morphology;
+        use crate::prediction::autocorrect::Autocorrect;
+
+        // 1. Prefix tests
+        assert!(Morphology::analyze_prefix_match("зделал", "сделал").is_some());
+        assert!(Morphology::analyze_prefix_match("прикрасный", "прекрасный").is_some());
+        assert!(Morphology::analyze_prefix_match("разсказ", "рассказ").is_some());
+        assert!(Morphology::analyze_prefix_match("безполезный", "бесполезный").is_some());
+        assert!(Morphology::analyze_prefix_match("unpossible", "impossible").is_some());
+        assert!(Morphology::analyze_prefix_match("dissapoint", "disappoint").is_some());
+
+        // 2. Suffix & Ending tests
+        assert!(Morphology::analyze_suffix_and_ending("нравитса", "нравится").is_some());
+        assert!(Morphology::analyze_suffix_and_ending("делаеш", "делаешь").is_some());
+        assert!(Morphology::analyze_suffix_and_ending("знаеш", "знаешь").is_some());
+        assert!(Morphology::analyze_suffix_and_ending("runing", "running").is_some());
+        assert!(Morphology::analyze_suffix_and_ending("definately", "definitely").is_some());
+        assert!(Morphology::analyze_suffix_and_ending("occurance", "occurrence").is_some());
+
+        // 3. Confident corrections
+        assert!(Autocorrect::is_confident_correction("зделал", "сделал", 100));
+        assert!(Autocorrect::is_confident_correction("прикрасный", "прекрасный", 100));
+        assert!(Autocorrect::is_confident_correction("делаеш", "делаешь", 100));
+        assert!(Autocorrect::is_confident_correction("runing", "running", 100));
+        assert!(Autocorrect::is_confident_correction("definately", "definitely", 100));
+    }
+
+    #[test]
+    fn test_preposition_context_and_agreement() {
+        use crate::prediction::morphology::Morphology;
+        use crate::keyboard::state::Language;
+
+        assert!(Morphology::is_preposition("в", Language::Russian));
+        assert!(Morphology::is_preposition("на", Language::Russian));
+        assert!(Morphology::is_preposition("with", Language::English));
+        assert!(Morphology::is_preposition("to", Language::English));
+        assert!(!Morphology::is_preposition("собака", Language::Russian));
+
+        let ru_prep_nexts = Morphology::get_preposition_context_predictions("в", Language::Russian);
+        assert!(!ru_prep_nexts.is_empty());
+        assert!(ru_prep_nexts.contains(&"том") || ru_prep_nexts.contains(&"этом"));
+
+        let en_prep_nexts = Morphology::get_preposition_context_predictions("to", Language::English);
+        assert!(!en_prep_nexts.is_empty());
+        assert!(en_prep_nexts.contains(&"be") || en_prep_nexts.contains(&"do"));
+
+        assert!(Morphology::matches_preposition_agreement("в", "городе", Language::Russian));
+        assert!(Morphology::matches_preposition_agreement("с", "друзьями", Language::Russian));
+        assert!(Morphology::matches_preposition_agreement("to", "be", Language::English));
+    }
+
+    #[test]
+    fn test_clipboard_output_events_and_serialization() {
+        use crate::keyboard::state::KeyboardOutputEvent;
+        let mut buf = Vec::new();
+        let ev1 = KeyboardOutputEvent::ClearClipboard;
+        let ev2 = KeyboardOutputEvent::ClipboardPasted("https://rynk.org".to_string());
+
+        ev1.write_to_binary(&mut buf);
+        ev2.write_to_binary(&mut buf);
+
+        assert_eq!(buf[0], 10); // ClearClipboard Type 10
+        assert_eq!(buf[5], 11); // ClipboardPasted Type 11
+    }
 }
+

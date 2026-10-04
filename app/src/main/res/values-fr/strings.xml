@@ -62,4 +62,5 @@
     <string name="support_dialog_title">Soutenez le créateur de Rynk</string>
     <string name="support_dialog_message">Merci d\'avoir choisi Rynk Keyboard !\n\nLe projet s\'améliore continuellement grâce à votre soutien. Si le clavier vous est utile, vous pouvez soutenir l\'auteur :\n\n4466 1481 2794 9960\n\nMerci infiniment pour votre aide !</string>
     <string name="btn_close">Compris</string>
+    <string name="clipboard_cleared">Presse-papiers effacé</string>
 </resources>

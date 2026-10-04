@@ -154,8 +154,10 @@ impl KeyboardRenderer {
                 });
             }
         } else if let Some(ref clip_text) = engine.state.clipboard_preview {
-            // Idle mode with Clipboard Chip (FlorisBoard / Gboard style)
+            // Idle mode with Clipboard Chip and Clear Button
             let settings_w = 40.0 * dp;
+            let clear_btn_w = 40.0 * dp;
+            let clear_btn_x = m.total_width - clear_btn_w - 4.0 * dp;
 
             // Settings icon
             self.text_labels.push(TextLabel {
@@ -172,7 +174,7 @@ impl KeyboardRenderer {
             });
 
             let chip_x = settings_w + 4.0 * dp;
-            let chip_w = (m.total_width - chip_x - 8.0 * dp).max(60.0);
+            let chip_w = (clear_btn_x - chip_x - 4.0 * dp).max(60.0);
             let chip_h = bar_h - 10.0 * dp;
             let chip_y = 5.0 * dp;
 
@@ -185,8 +187,8 @@ impl KeyboardRenderer {
                 self.theme.suggestion_chip_active,
             );
 
-            let preview_display = if clip_text.chars().count() > 28 {
-                let s: String = clip_text.chars().take(25).collect();
+            let preview_display = if clip_text.chars().count() > 24 {
+                let s: String = clip_text.chars().take(21).collect();
                 format!("📋 Вставить: {}...", s)
             } else {
                 format!("📋 Вставить: {}", clip_text)
@@ -203,6 +205,29 @@ impl KeyboardRenderer {
                 color_a: self.theme.suggestion_text_active.a,
                 is_bold: true,
                 label_type: 2,
+            });
+
+            // Clear clipboard button (Trash icon)
+            canvas.fill_rounded_rect(
+                clear_btn_x,
+                chip_y,
+                clear_btn_w,
+                chip_h,
+                8.0 * dp,
+                self.theme.key_normal,
+            );
+
+            self.text_labels.push(TextLabel {
+                text: "🗑".to_string(),
+                cx: clear_btn_x + clear_btn_w * 0.5,
+                cy: chip_y + chip_h * 0.5,
+                font_size: 16.0 * dp,
+                color_r: self.theme.text_secondary.r,
+                color_g: self.theme.text_secondary.g,
+                color_b: self.theme.text_secondary.b,
+                color_a: self.theme.text_secondary.a,
+                is_bold: false,
+                label_type: 5,
             });
         } else {
             // Idle mode: Settings on left, clean punctuation shortcuts across the rest of the bar

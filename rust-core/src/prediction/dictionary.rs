@@ -600,6 +600,28 @@ impl Dictionary {
             }
         }
 
+        // Prefix variants check (e.g. зделал -> check 'с', unpossible -> check 'i', etc.)
+        let alt_c0 = match c0 {
+            Some('з') => Some('с'),
+            Some('с') => Some('з'),
+            Some('u') if clean.starts_with("un") => Some('i'),
+            Some('i') if clean.starts_with("in") || clean.starts_with("im") => Some('u'),
+            Some('d') if clean.starts_with("dis") => Some('m'),
+            Some('m') if clean.starts_with("mis") => Some('d'),
+            _ => None,
+        };
+        if let Some(alt) = alt_c0 {
+            for len in min_len..=max_len {
+                if let Some(list) = buckets.get(&(alt, len)) {
+                    for &(w, freq) in list {
+                        if seen.insert(w) {
+                            candidates.push((w, freq));
+                        }
+                    }
+                }
+            }
+        }
+
         candidates
     }
 
@@ -753,6 +775,15 @@ impl Dictionary {
                         res.push(w.clone());
                     }
                 }
+            }
+        }
+
+        // 3. Preposition context predictions from Morphology engine
+        let prep_preds = crate::prediction::morphology::Morphology::get_preposition_context_predictions(&k, lang);
+        for &pw in prep_preds {
+            let s = pw.to_string();
+            if !res.contains(&s) && !self.removed_words.contains(&s) {
+                res.push(s);
             }
         }
 

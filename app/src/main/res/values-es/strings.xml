@@ -62,4 +62,5 @@
     <string name="support_dialog_title">Apoye al creador de Rynk</string>
     <string name="support_dialog_message">¡Gracias por elegir Rynk Keyboard!\n\nEl proyecto mejora activamente gracias a su apoyo. Si el teclado le resulta útil, puede apoyar al autor:\n\n4466 1481 2794 9960\n\n¡Muchas gracias por su apoyo!</string>
     <string name="btn_close">Entendido</string>
+    <string name="clipboard_cleared">Portapapeles borrado</string>
 </resources>
