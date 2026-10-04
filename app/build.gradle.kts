@@ -44,18 +44,14 @@ android {
                 ?: System.getenv("RYNK_RELEASE_KEY_PASSWORD")
                 ?: localProps.getProperty("rynk.release.keyPassword")
 
-            val defaultKeystore = file("rynk-release.jks")
+            // The keystore and its passwords never live in the repository: environment variables
+            // or local.properties (git-ignored); without them the release build is unsigned
             if (!keystorePath.isNullOrBlank() && file(keystorePath).exists() &&
                 !keystorePass.isNullOrBlank() && !keyAliasStr.isNullOrBlank() && !keyPassStr.isNullOrBlank()) {
                 storeFile = file(keystorePath)
                 storePassword = keystorePass
                 keyAlias = keyAliasStr
                 keyPassword = keyPassStr
-            } else if (defaultKeystore.exists()) {
-                storeFile = defaultKeystore
-                storePassword = "REMOVED"
-                keyAlias = "rynk"
-                keyPassword = "REMOVED"
             }
             enableV1Signing = true
             enableV2Signing = true

@@ -31,3 +31,7 @@ output.json
 
 # Downloaded corpora for tools/dictgen
 tools/dictgen/.cache/
+
+# Signing keys stay outside the repository (see local.properties.example)
+*.jks
+*.keystore
