@@ -42,84 +42,96 @@
    - Канонический регистр аббревиатур (`OST`, `macOS`, `СПб`, `СНиП`, `хз`, `спс`).
    - Мгновенная отмена автозамены: нажатие Backspace сразу после пробела восстанавливает введённое слово и защищает его от повторной автокоррекции.
    - Защита словаря: опечатки не засоряют пользовательский лексикон.
+   - Глубокая морфология: контекстный анализ приставок, суффиксов, окончаний и предлогов, а также современные слова, сокращения и сленг.
 3. **Глобальная мультиязычность (85+ языков)**:
    - **Китайские языки**: Упрощённый китайский (中文 简体), Традиционный китайский (中文 繁體), Кантонский диалект (粵語 香港).
-   - **Корейский язык**: Нативная двухраскладочная клавиатура 2-Set Hangul (두벌식) с поддержкой диакритики и сдвоенных согласных.
-   - **Японский язык**: Японский ввод (日本語) с частотным словарем и автозаменой.
+   - **Корейский язык**: Нативная двухраскладочная клавиатура 2-Set Hangul (두벌식) с автоматической сборкой слогов и поддержкой сдвоенных согласных.
+   - **Японский язык**: Японский ввод Romaji (日本語) с частотным словарем и автозаменой.
    - **Вьетнамский язык**: Вьетнамский ввод (Tiếng Việt) с полной поддержкой тонов и диакритических знаков.
    - **Европейские и мировые языки**: Русский, Английский, Арабский, Польский, Чешский, Румынский, Немецкий, Французский, Испанский, Итальянский, Турецкий, Украинский, Казахский, Иврит, Хинди и многие другие (более 85 языков мира).
    - Быстрое переключение раскладок свайпом влево/вправо по пробелу или клавишей глобуса.
-4. **Жесты и быстрое переключение**:
-   - **Свайп по пробелу**: быстрое переключение языка раскладки свайпом влево или вправо.
+4. **Сенсорные зоны и жесты**:
+   - **Бесшовный сенсорный слой без мёртвых зон (Gapless Hit-Boxes)**: активные сенсорные области клавиш расширены и перекрывают зазоры между кнопками, исключая промахи при быстром слепом наборе.
+   - **Символ подчёркивания `_`**: доступен на цифро-символьной раскладке и по удержанию дефиса/пробела.
+   - **Свайп по пробелу**: быстрое переключение языка раскладки свайпом влево или вправо (без сдвига курсора).
    - **Свайп влево от Backspace**: мгновенное удаление целого слова.
    - **Long-Press (удержание)**: всплывающее меню акцентов, цифр и спецсимволов.
    - Двойной тап по Shift для CapsLock с визуальным индикатором.
-5. **Все эмодзи Unicode 16.0 со встроенным поиском**:
+5. **Умный буфер обмена и адаптация под экраны**:
+   - **Однократная подсказка буфера обмена**: превью скопированного текста отображается ровно один раз, исчезает сразу после вставки; доступна кнопка быстрого удаления текста из буфера.
+   - **Оптимизация для планшетов и смартфонов**: специализированные адаптивные профили разметки (`sw600dp`) и альбомной ориентации для максимального удобства набора на планшетах.
+6. **Все эмодзи Unicode 16.0 со встроенным поиском**:
    - Полная база из 3 790 эмодзи Unicode 16.0 с разделением по категориям.
    - Быстрый встроенный поиск эмодзи на русском и английском языках с ключевыми словами CLDR.
    - Текстовые шорткаты (`:)` $\rightarrow$ 😊, `<3` $\rightarrow$ ❤️).
-6. **Темы оформления**:
+7. **Темы оформления**:
    - **Rynk Dark (Cyan)** — фирменный графитовый стиль с неоновым акцентом.
    - **Rynk Light (Sapphire)** — чистая жемчужная тема с сапфировым акцентом.
    - **AMOLED Black** — абсолютный чёрный (`#000000`) для экономии батареи на OLED-экранах.
    - **Sunset Twilight** — тёплая вечерняя палитра.
-7. **Конфиденциальность и безопасность (Privacy-First)**:
+8. **Конфиденциальность и безопасность (Privacy-First)**:
    - Никаких сетевых разрешений (`INTERNET` отсутствует в AndroidManifest.xml).
    - Интеллектуальное распознавание типов полей ввода (`EditorInfo`): подсказки, автозамена, локальное обучение и превью буфера обмена автоматически блокируются в полях ввода паролей.
    - Локальные словари защищены правилами резервного копирования (`backup_rules.xml`, `data_extraction_rules.xml`) и никогда не отправляются в облако.
-8. **Высокоскоростной бинарный JNI-протокол и двойная буферизация**:
-   - Обмен событиями через бинарный формат `[count: u32 LE] [type: u8][len: u32 LE][payload: N]`, исключающий строковые аллокации.
+9. **Высокоскоростной бинарный JNI-протокол и двойная буферизация**:
+   - Двунаправленный обмен событиями через бинарный формат `[count: u32 LE] [type: u8][len: u32 LE][payload: N]`, исключающий строковые аллокации.
    - Двойная буферизация кадров (`frontBitmap` / `backBitmap`) с прямым замком пикселей в Rust.
 
 ---
 
 ### 🏗️ Архитектура
 
+Архитектура **Rynk Keyboard** построена на строгом принципе разделения ответственности: **100% вычислительной логики, геометрии и рендеринга сосредоточено в Rust Core**, а Android SDK (Kotlin) используется исключительно в роли ультратонкого системного моста ввода без тяжелых иерархий `View`:
+
 ```
 Rynk/
-├── rust-core/                        # ОСНОВНОЕ ВЫСОКОПРОИЗВОДИТЕЛЬНОЕ ЯДРО (RUST)
-│   ├── Cargo.toml                    # cdylib + rlib конфигурация
+├── rust-core/                        # ВЫСОКОПРОИЗВОДИТЕЛЬНОЕ ЯДРО (RUST 2024 / NIGHTLY-COMPATIBLE)
+│   ├── Cargo.toml                    # cdylib + rlib конфигурация, LTO, opt-level = 3
 │   └── src/
-│       ├── lib.rs                    # Модуль интеграции и комплексные unit-тесты
-│       ├── jni_bridge.rs             # Безнакладной JNI FFI интерфейс к Android SDK
+│       ├── lib.rs                    # Модуль интеграции ядра, стресс-тесты и замеры задержки
+│       ├── jni_bridge.rs             # Zero-copy JNI FFI интерфейс через прямой бинарный ByteBuffer
 │       ├── keyboard/
-│       │   ├── mod.rs                # Координатор движка KeyboardEngine
-│       │   ├── key.rs                # Описание геометрии, типов и кодов клавиш
-│       │   ├── layout.rs             # Генератор раскладок (RU, EN, 123, символы)
-│       │   ├── state.rs              # Состояние ввода (Shift, Caps, язык, события)
-│       │   ├── touch.rs              # Мультитач-трекер, жесты курсора и лонг-пресс
-│       │   └── hangul.rs             # Корейский композитор 2-Set Hangul с разборкой слогов
+│       │   ├── mod.rs                # Главный координатор KeyboardEngine (состояния, события, пайплайн)
+│       │   ├── key.rs                # Геометрия клавиш, бесшовные расширенные хит-боксы без слепых зон
+│       │   ├── layout.rs             # Генерация матриц раскладок (85+ языков, планшетные и телефонные сетки)
+│       │   ├── state.rs              # Состояние ввода (Shift/Caps, режим, язык, очередь бинарных событий)
+│       │   ├── touch.rs              # Мультитач-трекер, лонг-пресс, свайп пробела (переключение языка)
+│       │   └── hangul.rs             # 2-Set Hangul композитор (автоматическая сборка/разборка корейских слогов)
 │       ├── render/
-│       │   ├── mod.rs                # Главный конвейер отрисовки кадра
-│       │   ├── canvas.rs             # Прямой 2D-растеризатор, SDF-сглаживание и тени
-│       │   ├── font.rs               # Векторный рендерер букв и системных иконок
-│       │   ├── popup.rs              # Всплывающие превью и меню альтернатив
-│       │   ├── animation.rs          # Плавные тайминги нажатия и ripple-эффектов
-│       │   └── theme.rs              # Цветовые палитры и стилизация тем
+│       │   ├── mod.rs                # Координатор конвейера отрисовки (двойная буферизация кадров)
+│       │   ├── canvas.rs             # 2D SDF-растеризатор пикселей, субпиксельный AA, тени клавиш
+│       │   ├── font.rs               # Рендерер векторных глифов и системных иконок
+│       │   ├── popup.rs              # Всплывающие превью и контекстные меню символов
+│       │   ├── animation.rs          # Плавная интерполяция нажатий и ripple-эффектов (до 120 FPS)
+│       │   └── theme.rs              # Цветовые темы (Rynk Dark, Rynk Light, AMOLED Black, Sunset Twilight)
 │       ├── prediction/
-│       │   ├── mod.rs                # Сервис подсказок и предсказания
-│       │   ├── trie.rs               # Высокоэффективное дерево префиксов
-│       │   ├── dictionary.rs         # Частотные словари и защищённый адаптивный лексикон
-│       │   ├── autocorrect.rs        # Ранжирование кандидатов по Левенштейну
-│       │   ├── typos.rs              # Таблица частых орфографических опечаток
-│       │   ├── morphology.rs         # Анализ приставок, суффиксов, окончаний и контекста
-│       │   ├── cjk.rs                # Pinyin (中文) и Romaji (日本語) генератор кандидатов
-│       │   └── suggestions.rs        # Унифицированное ранжирование кандидатов
+│       │   ├── mod.rs                # Координатор предиктивного ввода, автокоррекции и словарей
+│       │   ├── trie.rs               # Префиксное дерево Trie для сверхбыстрого поиска (< 0.5 мс)
+│       │   ├── dictionary.rs         # Частотные словари 85+ языков, атомарный пользовательский лексикон
+│       │   ├── autocorrect.rs        # Ранжирование по Дамерау-Левенштейну с учётом геометрии клавиатуры
+│       │   ├── typos.rs              # Таблицы частых орфографических опечаток и соседних клавиш
+│       │   ├── morphology.rs         # Морфологический анализ (приставки, суффиксы, окончания, предлоги)
+│       │   ├── cjk.rs                # CJK-модуль: Pinyin (китайский) и Romaji (японский) кандидаты
+│       │   ├── suggestions.rs        # Унифицированное ранжирование кандидатов подсказок
+│       │   └── data/                 # Базы слов на 85+ языках, биграммы, сленг, сокращения и лексика
 │       └── emoji/
-│           ├── mod.rs                # Менеджер каталога и рендера эмодзи
-│           └── data.rs               # База данных эмодзи Android 15.1
-└── app/                              # ТОНКИЙ СЛОЙ ANDROID SDK (KOTLIN)
-    ├── build.gradle.kts              # Автоматизированная сборка Rust NDK + AGP
+│           ├── mod.rs                # Менеджер каталога и рендера эмодзи (Unicode 16.0)
+│           ├── data.rs               # База данных из 3 790 эмодзи со всеми категориями
+│           └── search.rs             # Быстрый многоязычный поиск эмодзи по ключевым словам CLDR
+└── app/                              # МИНИМАЛЬНЫЙ СИСТЕМНЫЙ СЛОЙ ANDROID SDK (KOTLIN)
+    ├── build.gradle.kts              # Автоматизация кросс-компиляции NDK + AGP + Proguard/R8
     └── src/main/
-        ├── AndroidManifest.xml       # Регистрация InputMethodService и активити
+        ├── AndroidManifest.xml       # Регистрация InputMethodService (0 сетевых разрешений)
         ├── kotlin/org/rynk/keyboard/
-        │   ├── NativeBridge.kt       # JNI-мост загрузки librynk_core.so
-        │   ├── RynkKeyboardView.kt   # Hardware-accelerated View с Bitmap буфером
-        │   ├── RynkInputMethodService.kt # Системный IME сервис Android
-        │   ├── HapticManager.kt      # Тактильная отдача (VibrationEffect)
-        │   ├── SetupWizardActivity.kt# Мастер первоначальной настройки
-        │   └── SettingsActivity.kt   # Полнофункциональный экран настроек
-        └── res/                      # Локализация на 85+ языков и векторные ресурсы
+        │   ├── NativeBridge.kt       # JNI-загрузчик librynk_core.so и бинарная десериализация
+        │   ├── RynkKeyboardView.kt   # Hardware-accelerated View с Bitmap буфером и адаптацией под экраны
+        │   ├── RynkInputMethodService.kt # Системный IME сервис: жизненный цикл, буфер обмена, безопасность
+        │   ├── HapticManager.kt      # Тактильная отдача с низкой задержкой (VibrationEffect)
+        │   ├── UserDictionaryManager.kt # Синхронизация и локальное хранилище пользовательских слов
+        │   ├── SetupWizardActivity.kt# Мастер первоначальной настройки с окном поддержки автора
+        │   ├── SettingsActivity.kt   # Экран настроек (темы, языки, высота, планшет, поддержка автора)
+        │   └── SvgIcons.kt           # Компактные векторные пиктограммы интерфейса
+        └── res/                      # Полная локализация на 85+ языков и планшетные ресурсы (sw600dp)
 ```
 
 ---
@@ -166,41 +178,104 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
    - High-performance Signed Distance Fields (**SDF**) 2D rasterizer with subpixel anti-aliasing.
    - Smooth elevation drop shadows under keys for tactile realism.
    - Key-press micro-animations, popups, and ripple effects rendering up to 120 FPS.
-2. **Next-Gen Autocorrect & Suggestions**:
+2. **Next-Gen Autocorrect & Morphological Engine**:
    - In-memory **Trie** structure yielding lookups under 0.5 ms.
    - Proximity-aware autocorrect accounting for keyboard geometry, transpositions, and diacritics.
    - Cross-language bigram next-word prediction.
    - Canonical abbreviation casing preservation (`OST`, `macOS`, `AFK`).
    - Instant autocorrect undo: tapping Backspace once after spacebar restores the exact user input and prevents re-correction.
+   - Deep morphological analysis: context-aware handling of prefixes, suffixes, inflectional endings, and prepositions.
    - Clean user dictionary guarantee: uncorrected typos never pollute the dictionary.
 3. **85+ Supported Languages**:
    - **Chinese**: Simplified Chinese (中文 简体), Traditional Chinese (中文 繁體), Cantonese (粵語 香港).
-   - **Korean**: Native 2-Set Hangul (두벌식) layout with double-consonant shift support.
+   - **Korean**: Native 2-Set Hangul (두벌식) layout with syllable composition and double-consonant shift support.
    - **Japanese**: Romaji Japanese (日本語) with dedicated vocabulary and suggestion engine.
    - **Vietnamese**: Vietnamese (Tiếng Việt) with full diacritic and tone mark handling.
    - **Global & European languages**: English, Russian, Arabic, Polish, Czech, Romanian, German, French, Spanish, Italian, Hebrew, Hindi, and 70+ more.
    - Instant language switching via spacebar swipe or dedicated globe key.
-4. **Precision Gestures**:
-   - **Spacebar Swipe Language Switch**: Swiftly switch keyboard language layout by swiping left or right across the spacebar.
+4. **Touch Precision & Gestures**:
+   - **Gapless Hit-Box Layer**: Active touch hit-boxes dynamically bridge inter-key spacing, eliminating dead zones and accidental mis-taps.
+   - **Dedicated Underscore `_` Symbol**: Instantly accessible on numeric/symbol layouts and via long-press.
+   - **Spacebar Swipe Language Switch**: Swiftly switch keyboard language layout by swiping left or right across the spacebar (without moving the text cursor).
    - **Backspace Swipe**: Swipe left from Backspace to delete whole words in one stroke.
    - **Long-Press Diacritics**: Hold any key to reveal alternative characters, symbols, and digits.
    - Double-tap Shift for persistent CapsLock with visual state indicator.
-5. **Full Unicode 16.0 Emoji Catalog & Search**:
+5. **Smart Clipboard & Tablet Optimization**:
+   - **One-Time Clipboard Suggestion**: Copied snippets appear as a single-use chip, disappearing automatically upon insertion, with one-tap clipboard deletion.
+   - **Adaptive Tablet Support**: Tailored multi-column key matrices and landscape geometry for large screens (`sw600dp`).
+6. **Full Unicode 16.0 Emoji Catalog & Search**:
    - Complete database of 3,790 Unicode 16.0 emojis across all categories.
    - High-speed interactive search in Russian and English based on CLDR keywords.
    - Instant inline emoji shortcuts (`:)` $\rightarrow$ 😊, `<3` $\rightarrow$ ❤️).
-6. **Curated Themes**:
+7. **Curated Themes**:
    - **Rynk Dark (Cyan)** — Signature graphite background with neon cyan accents.
    - **Rynk Light (Sapphire)** — Crisp pearl palette with deep sapphire highlights.
    - **AMOLED Black** — Pure `#000000` dark theme for maximum OLED battery savings.
    - **Sunset Twilight** — Warm gradient evening palette.
-7. **100% Privacy by Design**:
+8. **100% Privacy by Design**:
    - Zero network permissions (`INTERNET` is completely absent from `AndroidManifest.xml`).
    - Sensitive field intelligence (`EditorInfo`): suggestions, autocorrect, n-gram learning, and clipboard preview are strictly suppressed when editing password fields.
    - User dictionaries and adaptive learning history are excluded from cloud backups via `backup_rules.xml` and `data_extraction_rules.xml`.
-8. **High-Throughput Binary Protocol & Double Buffering**:
+9. **High-Throughput Binary Protocol & Double Buffering**:
    - Length-prefixed binary event protocol `[count: u32 LE] [type: u8][len: u32 LE][payload: N]` eliminating string allocations during typing.
    - Double-buffered frame presentation (`frontBitmap` / `backBitmap`) delivering consistent 120 FPS frame rates.
+
+---
+
+### 🏗️ Architecture
+
+Rynk Keyboard strictly enforces clean separation of concerns: **100% of calculation, layout geometry, predictive search, and rendering resides in the native Rust Core**, while the Android SDK (Kotlin) serves solely as a minimal system input bridge without heavy `View` hierarchies:
+
+```
+Rynk/
+├── rust-core/                        # HIGH-PERFORMANCE CORE (RUST 2024 / NIGHTLY-COMPATIBLE)
+│   ├── Cargo.toml                    # cdylib + rlib configuration, LTO, opt-level = 3
+│   └── src/
+│       ├── lib.rs                    # Core integration entry point, stress tests & latency benchmarks
+│       ├── jni_bridge.rs             # Zero-copy JNI FFI interface over direct binary ByteBuffer
+│       ├── keyboard/
+│       │   ├── mod.rs                # Central KeyboardEngine coordinator (state, events, pipeline)
+│       │   ├── key.rs                # Key geometry, gapless touch hit-box expansion
+│       │   ├── layout.rs             # Layout matrix generator (85+ languages, tablet & phone grids)
+│       │   ├── state.rs              # Runtime input state (Shift/Caps, mode, language, binary output queue)
+│       │   ├── touch.rs              # Multitouch tracker, long-press timer, spacebar swipe language switch
+│       │   └── hangul.rs             # 2-Set Hangul composer (syllable assembly & jamo decomposition)
+│       ├── render/
+│       │   ├── mod.rs                # Frame rendering coordinator (double-buffered frame presentation)
+│       │   ├── canvas.rs             # 2D SDF pixel rasterizer, subpixel AA, soft key elevation shadows
+│       │   ├── font.rs               # Vector glyph & system icon renderer
+│       │   ├── popup.rs              # Key preview bubbles & diacritic popup selector
+│       │   ├── animation.rs          # Key-press micro-animations & ripple effect interpolation (up to 120 FPS)
+│       │   └── theme.rs              # Color themes (Rynk Dark, Rynk Light, AMOLED Black, Sunset Twilight)
+│       ├── prediction/
+│       │   ├── mod.rs                # Predictive typing coordinator, autocorrect & lexicon engine
+│       │   ├── trie.rs               # High-speed prefix Trie data structure (< 0.5 ms lookup)
+│       │   ├── dictionary.rs         # 85+ language dictionaries, atomic persistent user lexicon
+│       │   ├── autocorrect.rs        # Damerau-Levenshtein ranking with keyboard layout proximity
+│       │   ├── typos.rs              # Common spelling typos & neighboring key substitution maps
+│       │   ├── morphology.rs         # Morphological analysis (prefixes, suffixes, endings, prepositions)
+│       │   ├── cjk.rs                # CJK engine: Pinyin (Chinese) and Romaji (Japanese) candidates
+│       │   ├── suggestions.rs        # Unified candidate scoring & suggestion ranking
+│       │   └── data/                 # 85+ language word lists, bigrams, slang, and vocabulary
+│       └── emoji/
+│           ├── mod.rs                # Unicode 16.0 emoji organizer & renderer
+│           ├── data.rs               # Comprehensive 3,790+ emoji database
+│           └── search.rs             # Multilingual CLDR keyword-based emoji search engine
+└── app/                              # MINIMAL ANDROID SDK BINDINGS (KOTLIN)
+    ├── build.gradle.kts              # Automated NDK cross-compilation + AGP + Proguard/R8
+    └── src/main/
+        ├── AndroidManifest.xml       # InputMethodService declaration (0 network permissions)
+        ├── kotlin/org/rynk/keyboard/
+        │   ├── NativeBridge.kt       # JNI loader for librynk_core.so & binary deserialization
+        │   ├── RynkKeyboardView.kt   # Hardware-accelerated View with double Bitmap buffer
+        │   ├── RynkInputMethodService.kt # System IME service: lifecycle, clipboard, private mode security
+        │   ├── HapticManager.kt      # Low-latency haptic feedback via VibrationEffect
+        │   ├── UserDictionaryManager.kt # Thread-safe persistent storage for user learned words
+        │   ├── SetupWizardActivity.kt# Setup wizard with one-time author support dialog
+        │   ├── SettingsActivity.kt   # Full settings screen (themes, languages, height, tablet, support)
+        │   └── SvgIcons.kt           # Compact vector UI icons
+        └── res/                      # Complete localization in 85+ languages & tablet resources (sw600dp)
+```
 
 ---
 
@@ -232,6 +307,8 @@ export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
 ### 💖 Поддержать автора / Support the Author
 
 - **Банковская карта / Bank Card**: `4466 1481 2794 9960`
+- Доступно разовое окно благодарности при первом запуске, а также постоянный раздел в настройках клавиатуры.
+- One-time support dialog shown on first launch, plus a dedicated section in the keyboard settings.
 - Спасибо за поддержку разработки проекта Rynk Keyboard! / Thank you for supporting the continuous development of Rynk Keyboard!
 
 ---
@@ -242,3 +319,4 @@ export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
 - **English:** Distributed under the **Mozilla Public License Version 2.0 (MPL-2.0)**. See `LICENSE` for details.
 
 Designed and crafted with passion for performance.
+
