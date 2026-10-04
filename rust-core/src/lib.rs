@@ -7,7 +7,7 @@ pub mod render;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyboard::key::KeyboardMode;
+    use keyboard::key::{KeyAction, KeyboardMode};
     use keyboard::layout::{LayoutBuilder, LayoutMetrics};
     use keyboard::state::{Language, ShiftState};
     use keyboard::KeyboardEngine;
@@ -842,6 +842,123 @@ mod tests {
         assert!(dict.contains_word_for_lang("пойти", Language::Russian));
         assert!(dict.contains_word_for_lang("developer", Language::English));
         assert!(dict.contains_word_for_lang("unmanageable", Language::English) || dict.contains_word_for_lang("uncheck", Language::English));
+    }
+
+    #[test]
+    fn test_underscore_symbol_availability() {
+        let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
+
+        // 1. Check Symbols mode: '_' is a direct key
+        let sym_keys = LayoutBuilder::build_layout(
+            KeyboardMode::Symbols,
+            Language::English,
+            ShiftState::Off,
+            &metrics,
+        );
+        let underscore_key = sym_keys.iter().find(|k| k.label == "_");
+        assert!(underscore_key.is_some(), "Underscore '_' must be present in symbols layout");
+        let u_key = underscore_key.unwrap();
+        assert_eq!(u_key.action, KeyAction::Character('_'));
+
+        // 2. Check Numbers mode: '-' has '_' in alternates
+        let num_keys = LayoutBuilder::build_layout(
+            KeyboardMode::Numbers,
+            Language::English,
+            ShiftState::Off,
+            &metrics,
+        );
+        let hyphen_key = num_keys.iter().find(|k| k.label == "-");
+        assert!(hyphen_key.is_some(), "Hyphen '-' must be present in numbers layout");
+        assert!(
+            hyphen_key.unwrap().alternate_chars.contains(&'_'),
+            "Hyphen '-' must have '_' in alternate chars in numbers mode"
+        );
+
+        // 3. Check Russian Alphabet mode: comma and dot have '_' in alternates
+        let ru_keys = LayoutBuilder::build_layout(
+            KeyboardMode::Alphabet,
+            Language::Russian,
+            ShiftState::Off,
+            &metrics,
+        );
+        let ru_comma = ru_keys.iter().find(|k| k.label == ",").unwrap();
+        let ru_dot = ru_keys.iter().find(|k| k.label == ".").unwrap();
+        assert!(ru_comma.alternate_chars.contains(&'_'));
+        assert!(ru_dot.alternate_chars.contains(&'_'));
+
+        // 4. Check English Alphabet mode: comma and dot have '_' in alternates
+        let en_keys = LayoutBuilder::build_layout(
+            KeyboardMode::Alphabet,
+            Language::English,
+            ShiftState::Off,
+            &metrics,
+        );
+        let en_comma = en_keys.iter().find(|k| k.label == ",").unwrap();
+        let en_dot = en_keys.iter().find(|k| k.label == ".").unwrap();
+        assert!(en_comma.alternate_chars.contains(&'_'));
+        assert!(en_dot.alternate_chars.contains(&'_'));
+    }
+
+    #[test]
+    fn test_invisible_hit_box_gap_coverage() {
+        let metrics = LayoutMetrics::new(1080.0, 800.0, 2.75);
+        let keys = LayoutBuilder::build_layout(
+            KeyboardMode::Alphabet,
+            Language::Russian,
+            ShiftState::Off,
+            &metrics,
+        );
+
+        // Find two adjacent keys in row 1 (e.g. 'й' and 'ц')
+        let key_j = keys.iter().find(|k| k.label == "й").unwrap();
+        let key_c = keys.iter().find(|k| k.label == "ц").unwrap();
+
+        // There is a visible gap between them
+        let visual_gap = key_c.x - (key_j.x + key_j.width);
+        assert!(visual_gap > 0.0, "There must be a visual gap between keys: {}", visual_gap);
+
+        // The midpoint of the horizontal gap
+        let mid_x = (key_j.x + key_j.width + key_c.x) * 0.5;
+        let test_y = key_j.center().1;
+
+        // Visual bounds do NOT contain the gap midpoint
+        assert!(!key_j.contains_visual(mid_x, test_y));
+        assert!(!key_c.contains_visual(mid_x, test_y));
+
+        // Invisible expanded hit-box DOES contain the gap midpoint!
+        assert!(
+            key_j.contains(mid_x, test_y) || key_c.contains(mid_x, test_y),
+            "Invisible hit-box must cover the gap between adjacent keys"
+        );
+
+        // Hit-boxes must expand horizontally beyond visual bounds
+        assert!(key_j.hit_x <= key_j.x);
+        assert!(key_j.hit_width > key_j.width);
+
+        // First key expands to the very left edge of the screen (x = 0)
+        assert_eq!(key_j.hit_x, 0.0);
+        assert!(key_j.contains(0.0, test_y), "First key must hit at x = 0.0");
+
+        // Top edge test: row 1 hit-box expands up to suggestion bar
+        assert!(key_j.hit_y <= metrics.key_area_top);
+        assert!(key_j.contains(key_j.center().0, metrics.suggestion_bar_height + 0.1));
+
+        // Test vertical gap between row 1 and row 2:
+        // Key in row 1: 'й', Key in row 2: 'ф'
+        let key_f = keys.iter().find(|k| k.label == "ф").unwrap();
+        let vertical_gap = key_f.y - (key_j.y + key_j.height);
+        assert!(vertical_gap > 0.0, "There must be a vertical gap between rows");
+
+        let mid_y = (key_j.y + key_j.height + key_f.y) * 0.5;
+        let test_x = key_j.center().0;
+        // Visual bounds do not contain vertical gap midpoint
+        assert!(!key_j.contains_visual(test_x, mid_y));
+        assert!(!key_f.contains_visual(test_x, mid_y));
+        // Hit-box seamlessly contains vertical gap midpoint
+        assert!(
+            key_j.contains(test_x, mid_y) || key_f.contains(test_x, mid_y),
+            "Invisible hit-box must cover vertical gap between rows"
+        );
     }
 }
 

@@ -84,7 +84,16 @@ impl TouchTracker {
     ) -> TouchResult {
         match action {
             TouchAction::Down => {
-                let hit_key = keys.iter().find(|k| k.contains(x, y));
+                let hit_key = keys.iter().find(|k| k.contains(x, y)).or_else(|| {
+                    // Fallback to nearest key by Euclidean distance to center
+                    keys.iter().min_by(|a, b| {
+                        let (ax, ay) = a.center();
+                        let (bx, by) = b.center();
+                        let dist_a = (x - ax).powi(2) + (y - ay).powi(2);
+                        let dist_b = (x - bx).powi(2) + (y - by).powi(2);
+                        dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                });
                 let active_key_id = hit_key.map(|k| k.id);
                 let is_space = hit_key.is_some_and(|k| matches!(k.action, KeyAction::Space));
                 let is_backspace =

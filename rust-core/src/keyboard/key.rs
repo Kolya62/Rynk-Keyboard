@@ -38,6 +38,11 @@ pub struct Key {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    // Invisible touch hit-box expanding over gaps and borders
+    pub hit_x: f32,
+    pub hit_y: f32,
+    pub hit_width: f32,
+    pub hit_height: f32,
     pub action: KeyAction,
     pub label: String,
     pub sub_label: Option<String>,
@@ -65,6 +70,10 @@ impl Key {
             y,
             width,
             height,
+            hit_x: x,
+            hit_y: y,
+            hit_width: width,
+            hit_height: height,
             action,
             label: label.into(),
             sub_label: None,
@@ -85,7 +94,29 @@ impl Key {
         self
     }
 
+    pub fn with_hit_box(mut self, hx: f32, hy: f32, hw: f32, hh: f32) -> Self {
+        self.hit_x = hx;
+        self.hit_y = hy;
+        self.hit_width = hw;
+        self.hit_height = hh;
+        self
+    }
+
+    pub fn set_hit_box(&mut self, hx: f32, hy: f32, hw: f32, hh: f32) {
+        self.hit_x = hx;
+        self.hit_y = hy;
+        self.hit_width = hw;
+        self.hit_height = hh;
+    }
+
     pub fn contains(&self, px: f32, py: f32) -> bool {
+        px >= self.hit_x
+            && px <= (self.hit_x + self.hit_width)
+            && py >= self.hit_y
+            && py <= (self.hit_y + self.hit_height)
+    }
+
+    pub fn contains_visual(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= (self.x + self.width) && py >= self.y && py <= (self.y + self.height)
     }
 

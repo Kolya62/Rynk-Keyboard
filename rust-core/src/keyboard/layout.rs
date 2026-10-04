@@ -56,7 +56,7 @@ impl LayoutBuilder {
         shift_state: ShiftState,
         metrics: &LayoutMetrics,
     ) -> Vec<Key> {
-        match mode {
+        let mut keys = match mode {
             KeyboardMode::Alphabet => match language {
                 Language::Russian => Self::build_russian(shift_state, metrics),
                 Language::English => Self::build_english(shift_state, metrics),
@@ -80,6 +80,132 @@ impl LayoutBuilder {
             KeyboardMode::Numbers => Self::build_numbers(metrics),
             KeyboardMode::Symbols => Self::build_symbols(metrics),
             KeyboardMode::Emoji => Vec::new(),
+        };
+
+        Self::expand_invisible_hit_boxes(&mut keys, metrics);
+        keys
+    }
+
+    pub fn expand_invisible_hit_boxes(keys: &mut [Key], metrics: &LayoutMetrics) {
+        if keys.is_empty() {
+            return;
+        }
+
+        // 1. Group keys into rows by their y position
+        let mut indices: Vec<usize> = (0..keys.len()).collect();
+        indices.sort_by(|&a, &b| {
+            let ya = keys[a].y;
+            let yb = keys[b].y;
+            ya.partial_cmp(&yb).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let mut row_indices: Vec<Vec<usize>> = Vec::new();
+        for idx in indices {
+            let key_y = keys[idx].y;
+            let mut matched = false;
+            for row in &mut row_indices {
+                let first_idx = row[0];
+                if (keys[first_idx].y - key_y).abs() < 8.0 {
+                    row.push(idx);
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched {
+                row_indices.push(vec![idx]);
+            }
+        }
+
+        // Sort rows strictly from top to bottom
+        row_indices.sort_by(|r1, r2| {
+            let y1 = keys[r1[0]].y;
+            let y2 = keys[r2[0]].y;
+            y1.partial_cmp(&y2).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // For each row, sort keys strictly from left to right
+        for row in &mut row_indices {
+            row.sort_by(|&a, &b| {
+                let xa = keys[a].x;
+                let xb = keys[b].x;
+                xa.partial_cmp(&xb).unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+
+        let num_rows = row_indices.len();
+        if num_rows == 0 {
+            return;
+        }
+
+        // Calculate vertical boundaries for each row
+        let mut row_top_bounds = vec![0.0f32; num_rows];
+        let mut row_bottom_bounds = vec![0.0f32; num_rows];
+
+        for r in 0..num_rows {
+            let row = &row_indices[r];
+            let row_min_y = row.iter().map(|&i| keys[i].y).fold(f32::INFINITY, f32::min);
+            let row_max_bottom = row
+                .iter()
+                .map(|&i| keys[i].y + keys[i].height)
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            if r == 0 {
+                // Top row extends up to suggestion bar
+                row_top_bounds[r] = metrics.suggestion_bar_height.min(row_min_y);
+            } else {
+                let prev_row = &row_indices[r - 1];
+                let prev_bottom = prev_row
+                    .iter()
+                    .map(|&i| keys[i].y + keys[i].height)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                let mid_y = (prev_bottom + row_min_y) * 0.5;
+                row_top_bounds[r] = mid_y;
+                row_bottom_bounds[r - 1] = mid_y;
+            }
+
+            if r == num_rows - 1 {
+                // Bottom row extends down to total height
+                row_bottom_bounds[r] = metrics.total_height.max(row_max_bottom);
+            }
+        }
+
+        // Calculate horizontal boundaries and assign hit-boxes for each key
+        for (r, row) in row_indices.iter().enumerate() {
+            let hit_y = row_top_bounds[r];
+            let hit_height = (row_bottom_bounds[r] - hit_y).max(keys[row[0]].height);
+            let row_len = row.len();
+
+            let mut left_bounds = vec![0.0f32; row_len];
+            let mut right_bounds = vec![0.0f32; row_len];
+
+            for i in 0..row_len {
+                let curr_key = &keys[row[i]];
+                let curr_left = curr_key.x;
+                let curr_right = curr_key.x + curr_key.width;
+
+                if i == 0 {
+                    // First key expands to the left screen edge
+                    left_bounds[i] = 0.0;
+                } else {
+                    let prev_key = &keys[row[i - 1]];
+                    let prev_right = prev_key.x + prev_key.width;
+                    let mid_x = (prev_right + curr_left) * 0.5;
+                    left_bounds[i] = mid_x;
+                    right_bounds[i - 1] = mid_x;
+                }
+
+                if i == row_len - 1 {
+                    // Last key expands to the right screen edge
+                    right_bounds[i] = metrics.total_width.max(curr_right);
+                }
+            }
+
+            for i in 0..row_len {
+                let key_idx = row[i];
+                let hit_x = left_bounds[i];
+                let hit_width = (right_bounds[i] - hit_x).max(keys[key_idx].width);
+                keys[key_idx].set_hit_box(hit_x, hit_y, hit_width, hit_height);
+            }
         }
     }
 
@@ -105,7 +231,7 @@ impl LayoutBuilder {
                 ("в", Some("$"), &['$', '₽']),
                 ("а", Some("&"), &['&']),
                 ("п", Some("*"), &['*']),
-                ("р", Some("-"), &['-']),
+                ("р", Some("-"), &['-', '_']),
                 ("о", Some("+"), &['+']),
                 ("л", Some("("), &['(']),
                 ("д", Some(")"), &[')']),
@@ -348,7 +474,7 @@ impl LayoutBuilder {
                 ",",
                 KeyType::Normal,
             )
-            .with_alternates(vec![';', ':', '<']),
+            .with_alternates(vec![';', ':', '_', '<']),
         );
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
@@ -365,7 +491,7 @@ impl LayoutBuilder {
                 ".",
                 KeyType::Normal,
             )
-            .with_alternates(vec!['?', '!', '>']),
+            .with_alternates(vec!['?', '!', '_', '>']),
         );
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
@@ -407,7 +533,7 @@ impl LayoutBuilder {
                 ("f", Some("%"), &['%']),
                 ("g", Some("&"), &['&']),
                 ("h", Some("*"), &['*']),
-                ("j", Some("-"), &['-']),
+                ("j", Some("-"), &['-', '_']),
                 ("k", Some("+"), &['+']),
                 ("l", Some("/"), &['/']),
             ],
@@ -621,7 +747,7 @@ impl LayoutBuilder {
                 ",",
                 KeyType::Normal,
             )
-            .with_alternates(vec![';', ':', '<']),
+            .with_alternates(vec![';', ':', '_', '<']),
         );
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
@@ -637,7 +763,7 @@ impl LayoutBuilder {
                 ".",
                 KeyType::Normal,
             )
-            .with_alternates(vec!['?', '!', '>']),
+            .with_alternates(vec!['?', '!', '_', '>']),
         );
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
@@ -882,7 +1008,7 @@ impl LayoutBuilder {
                 ",",
                 KeyType::Normal,
             )
-            .with_alternates(vec![';', ':', '<']),
+            .with_alternates(vec![';', ':', '_', '<']),
         );
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
@@ -898,7 +1024,7 @@ impl LayoutBuilder {
                 ".",
                 KeyType::Normal,
             )
-            .with_alternates(vec!['?', '!', '>']),
+            .with_alternates(vec!['?', '!', '_', '>']),
         );
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
@@ -1304,7 +1430,7 @@ impl LayoutBuilder {
         let r2_y = r1_y + row_height + m.key_spacing_v;
 
         for &sym in &r2_symbols {
-            keys.push(Key::new(
+            let mut key = Key::new(
                 key_id,
                 r2_x,
                 r2_y,
@@ -1313,7 +1439,11 @@ impl LayoutBuilder {
                 KeyAction::Character(sym.chars().next().unwrap()),
                 sym,
                 KeyType::Normal,
-            ));
+            );
+            if sym == "-" {
+                key = key.with_alternates(vec!['_', '—', '–']).with_sub_label("_");
+            }
+            keys.push(key);
             key_id += 1;
             r2_x += r1_key_w + m.key_spacing_h;
         }
@@ -1423,29 +1553,35 @@ impl LayoutBuilder {
         key_id += 1;
         r4_x += space_w + m.key_spacing_h;
 
-        keys.push(Key::new(
-            key_id,
-            r4_x,
-            r4_y,
-            comma_w,
-            row_height,
-            KeyAction::Character(','),
-            ",",
-            KeyType::Normal,
-        ));
+        keys.push(
+            Key::new(
+                key_id,
+                r4_x,
+                r4_y,
+                comma_w,
+                row_height,
+                KeyAction::Character(','),
+                ",",
+                KeyType::Normal,
+            )
+            .with_alternates(vec![';', ':', '_', '<']),
+        );
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
 
-        keys.push(Key::new(
-            key_id,
-            r4_x,
-            r4_y,
-            dot_w,
-            row_height,
-            KeyAction::Character('.'),
-            ".",
-            KeyType::Normal,
-        ));
+        keys.push(
+            Key::new(
+                key_id,
+                r4_x,
+                r4_y,
+                dot_w,
+                row_height,
+                KeyAction::Character('.'),
+                ".",
+                KeyType::Normal,
+            )
+            .with_alternates(vec!['!', '?', '_', '>']),
+        );
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
 
@@ -1469,7 +1605,7 @@ impl LayoutBuilder {
         let mut keys = Vec::with_capacity(36);
         let mut key_id = 300;
 
-        let r1_symbols = ["~", "`", "|", "•", "√", "π", "÷", "×", "¶", "∆"];
+        let r1_symbols = ["~", "`", "|", "_", "•", "√", "π", "÷", "×", "¶"];
         let r1_count = 10.0;
         let r1_key_w =
             (m.total_width - 2.0 * m.padding_horizontal - (r1_count - 1.0) * m.key_spacing_h)
@@ -1478,7 +1614,7 @@ impl LayoutBuilder {
         let r1_y = m.key_area_top;
 
         for &sym in &r1_symbols {
-            keys.push(Key::new(
+            let mut key = Key::new(
                 key_id,
                 curr_x,
                 r1_y,
@@ -1487,7 +1623,11 @@ impl LayoutBuilder {
                 KeyAction::Character(sym.chars().next().unwrap()),
                 sym,
                 KeyType::Normal,
-            ));
+            );
+            if sym == "_" {
+                key = key.with_alternates(vec!['—', '–', '∆']);
+            }
+            keys.push(key);
             key_id += 1;
             curr_x += r1_key_w + m.key_spacing_h;
         }
@@ -2053,11 +2193,11 @@ impl LayoutBuilder {
         key_id += 1;
         r4_x += space_w + m.key_spacing_h;
 
-        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal));
+        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal).with_alternates(vec![';', ':', '_', '<']));
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
 
-        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal));
+        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal).with_alternates(vec!['!', '?', '_', '>']));
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
 
@@ -2127,7 +2267,7 @@ impl LayoutBuilder {
                 ("d", Some("$"), &['$']),
                 ("f", Some("%"), &['%']),
                 ("g", Some("&"), &['&']),
-                ("h", Some("-"), &['-']),
+                ("h", Some("-"), &['-', '_']),
                 ("j", Some("+"), &['+']),
                 ("k", Some("("), &['(']),
                 ("l", Some(")"), &[')']),
@@ -2290,11 +2430,11 @@ impl LayoutBuilder {
         key_id += 1;
         r4_x += space_w + m.key_spacing_h;
 
-        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal).with_alternates(vec![';', ':', '<']));
+        keys.push(Key::new(key_id, r4_x, r4_y, comma_w, row_height, KeyAction::Character(','), ",", KeyType::Normal).with_alternates(vec![';', ':', '_', '<']));
         key_id += 1;
         r4_x += comma_w + m.key_spacing_h;
 
-        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal).with_alternates(vec!['!', '?', '>']));
+        keys.push(Key::new(key_id, r4_x, r4_y, dot_w, row_height, KeyAction::Character('.'), ".", KeyType::Normal).with_alternates(vec!['!', '?', '_', '>']));
         key_id += 1;
         r4_x += dot_w + m.key_spacing_h;
 
