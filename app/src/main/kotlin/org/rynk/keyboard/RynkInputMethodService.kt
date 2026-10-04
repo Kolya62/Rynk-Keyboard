@@ -252,7 +252,7 @@ class RynkInputMethodService : InputMethodService() {
         val enabledLangs = prefs.getString("enabled_languages", null) ?: getDefaultEnabledLanguages()
         NativeBridge.nativeSetEnabledLanguages(enabledLangs)
 
-        val profanityEnabled = prefs.getBoolean("pref_profanity", false)
+        val profanityEnabled = prefs.getBoolean("pref_profanity", true)
         NativeBridge.nativeSetProfanityEnabled(profanityEnabled)
 
         val autocorrectEnabled = prefs.getBoolean("pref_autocorrect", true)

@@ -794,5 +794,54 @@ mod tests {
         assert_eq!(buf[0], 10); // ClearClipboard Type 10
         assert_eq!(buf[5], 11); // ClipboardPasted Type 11
     }
+
+    #[test]
+    fn test_profanity_modern_words_and_affixes() {
+        use crate::prediction::dictionary::Dictionary;
+        use crate::keyboard::state::Language;
+
+        let mut dict = Dictionary::new();
+        dict.ensure_language_loaded(Language::Russian);
+        dict.ensure_language_loaded(Language::English);
+        dict.ensure_language_loaded(Language::German);
+        dict.ensure_language_loaded(Language::French);
+        dict.ensure_language_loaded(Language::Spanish);
+        dict.ensure_language_loaded(Language::Polish);
+        dict.ensure_language_loaded(Language::Turkish);
+
+        // 1. Profanity test across multiple languages
+        assert!(dict.profanity_enabled, "Profanity must be enabled by default");
+        assert!(dict.profanity.contains("хуй"));
+        assert!(dict.profanity.contains("пиздец"));
+        assert!(dict.profanity.contains("fuck"));
+        assert!(dict.profanity.contains("bullshit"));
+        assert!(dict.profanity.contains("scheiße") || dict.profanity.contains("scheisse"));
+        assert!(dict.profanity.contains("merde") || dict.profanity.contains("putain"));
+        assert!(dict.profanity.contains("mierda") || dict.profanity.contains("puta"));
+        assert!(dict.profanity.contains("kurwa"));
+        assert!(dict.profanity.contains("siktir"));
+
+        assert!(dict.contains_word_for_lang("хуй", Language::Russian));
+        assert!(dict.contains_word_for_lang("fuck", Language::English));
+
+        // 2. Modern words & abbreviations test
+        assert!(dict.contains_word_for_lang("кринж", Language::Russian));
+        assert!(dict.contains_word_for_lang("вайб", Language::Russian));
+        assert!(dict.contains_word_for_lang("спс", Language::Russian));
+        assert!(dict.contains_word_for_lang("пж", Language::Russian));
+        assert!(dict.contains_word_for_lang("хз", Language::Russian));
+        assert!(dict.contains_word_for_lang("rizz", Language::English));
+        assert!(dict.contains_word_for_lang("skibidi", Language::English));
+        assert!(dict.contains_word_for_lang("idk", Language::English));
+        assert!(dict.contains_word_for_lang("btw", Language::English));
+        assert!(dict.contains_word_for_lang("lol", Language::English));
+
+        // 3. Affixes, prefixes, and endings
+        assert!(dict.contains_word_for_lang("сделать", Language::Russian));
+        assert!(dict.contains_word_for_lang("переписать", Language::Russian));
+        assert!(dict.contains_word_for_lang("пойти", Language::Russian));
+        assert!(dict.contains_word_for_lang("developer", Language::English));
+        assert!(dict.contains_word_for_lang("unmanageable", Language::English) || dict.contains_word_for_lang("uncheck", Language::English));
+    }
 }
 

@@ -41,3 +41,11 @@ so:good,much,many,happy
 too:much,many,late,bad
 very:good,nice,much,well
 make:sure,it,sense
+no:cap,problem,worries,way
+for:real,sure,now
+real:quick,talk,deal
+tbh:idk,imo,idc
+idk:man,bro,even,why
+vibe:check,only
+slay:queen,it
+fr:fr,though

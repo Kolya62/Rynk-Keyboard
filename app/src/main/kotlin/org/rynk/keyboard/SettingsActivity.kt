@@ -177,7 +177,7 @@ class SettingsActivity : AppCompatActivity() {
 
         switchAutocorrect.isChecked = prefs.getBoolean("pref_autocorrect", true)
         switchPopup.isChecked = prefs.getBoolean("pref_popup", true)
-        switchProfanity.isChecked = prefs.getBoolean("pref_profanity", false)
+        switchProfanity.isChecked = prefs.getBoolean("pref_profanity", true)
         switchHaptics.isChecked = prefs.getBoolean("pref_haptics", true)
         switchAdaptiveLearning.isChecked = prefs.getBoolean("pref_adaptive_learning", true)
 

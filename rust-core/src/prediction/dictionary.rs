@@ -474,7 +474,7 @@ impl Dictionary {
             candidate_buckets: HashMap::new(),
             bigrams,
             profanity,
-            profanity_enabled: false,
+            profanity_enabled: true,
             user_dict: HashMap::new(),
             adaptive_dict: AdaptiveDictionary::default(),
             removed_words: HashSet::new(),
@@ -494,14 +494,20 @@ impl Dictionary {
 
         let raw = get_raw_words_for_lang(lang);
         let cap = match lang {
-            Language::Russian => 50000,
-            Language::English => 25000,
+            Language::Russian => 45000,
+            Language::English => 22000,
+            Language::Turkish
+            | Language::Kazakh
+            | Language::Polish
+            | Language::German
+            | Language::Czech
+            | Language::Azerbaijani => 5500,
             Language::Korean
             | Language::Japanese
             | Language::ChineseSimplified
             | Language::ChineseTraditional
-            | Language::Cantonese => 3200,
-            _ => 1600,
+            | Language::Cantonese => 3500,
+            _ => 2500,
         };
         let words = parse_words(raw, cap);
 
