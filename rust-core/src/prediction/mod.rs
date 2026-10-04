@@ -1,4 +1,5 @@
 pub mod autocorrect;
+pub mod cjk;
 pub mod dictionary;
 pub mod morphology;
 pub mod suggestions;

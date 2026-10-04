@@ -30,6 +30,8 @@ object NativeBridge {
     const val INPUT_MODE_DATE = 7
     const val INPUT_MODE_TIME = 8
     const val INPUT_MODE_MULTILINE = 9
+    const val INPUT_MODE_NUMBER_PASSWORD = 10
+    const val INPUT_MODE_SENSITIVE = 11
 
     // Binary event constants
     const val EVENT_COMMIT_TEXT = 1

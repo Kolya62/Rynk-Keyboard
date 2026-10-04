@@ -11,3 +11,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 jni = { version = "0.21", default-features = false }
+unicode-segmentation = "1.12"

@@ -177,28 +177,34 @@ impl AdaptiveDictionary {
     }
 
     pub fn serialize_binary(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(1024);
-        buf.extend_from_slice(b"RYNK");
-        buf.extend_from_slice(&1u16.to_le_bytes());
-        buf.extend_from_slice(&(self.learned_words.len() as u32).to_le_bytes());
+        let mut payload = Vec::with_capacity(1024);
+        payload.extend_from_slice(&(self.learned_words.len() as u32).to_le_bytes());
         for (w, freq) in &self.learned_words {
             let bytes = w.as_bytes();
-            buf.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
-            buf.extend_from_slice(bytes);
-            buf.extend_from_slice(&freq.to_le_bytes());
+            payload.extend_from_slice(&(bytes.len() as u16).to_le_bytes());
+            payload.extend_from_slice(bytes);
+            payload.extend_from_slice(&freq.to_le_bytes());
         }
-        buf.extend_from_slice(&(self.learned_bigrams.len() as u32).to_le_bytes());
+        payload.extend_from_slice(&(self.learned_bigrams.len() as u32).to_le_bytes());
         for (k, list) in &self.learned_bigrams {
             let k_bytes = k.as_bytes();
-            buf.extend_from_slice(&(k_bytes.len() as u16).to_le_bytes());
-            buf.extend_from_slice(k_bytes);
-            buf.extend_from_slice(&(list.len() as u16).to_le_bytes());
+            payload.extend_from_slice(&(k_bytes.len() as u16).to_le_bytes());
+            payload.extend_from_slice(k_bytes);
+            payload.extend_from_slice(&(list.len() as u16).to_le_bytes());
             for v in list {
                 let v_bytes = v.as_bytes();
-                buf.extend_from_slice(&(v_bytes.len() as u16).to_le_bytes());
-                buf.extend_from_slice(v_bytes);
+                payload.extend_from_slice(&(v_bytes.len() as u16).to_le_bytes());
+                payload.extend_from_slice(v_bytes);
             }
         }
+
+        let checksum = adler32(&payload);
+
+        let mut buf = Vec::with_capacity(payload.len() + 10);
+        buf.extend_from_slice(b"RYNK");
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&checksum.to_le_bytes());
+        buf.extend_from_slice(&payload);
         buf
     }
 
@@ -210,91 +216,118 @@ impl AdaptiveDictionary {
         let _version = u16::from_le_bytes([data[offset], data[offset + 1]]);
         offset += 2;
 
-        if offset + 4 > data.len() {
-            return false;
-        }
-        let word_count = u32::from_le_bytes([
+        let expected_checksum = u32::from_le_bytes([
             data[offset],
             data[offset + 1],
             data[offset + 2],
             data[offset + 3],
-        ]) as usize;
+        ]);
         offset += 4;
 
-        self.learned_words.clear();
+        let payload = &data[offset..];
+        if adler32(payload) != expected_checksum {
+            return false;
+        }
+
+        let mut p_offset = 0;
+        if p_offset + 4 > payload.len() {
+            return false;
+        }
+        let word_count = u32::from_le_bytes([
+            payload[p_offset],
+            payload[p_offset + 1],
+            payload[p_offset + 2],
+            payload[p_offset + 3],
+        ]) as usize;
+        p_offset += 4;
+
+        let mut new_words = HashMap::with_capacity(word_count.min(MAX_LEARNED_WORDS));
         for _ in 0..word_count.min(MAX_LEARNED_WORDS) {
-            if offset + 2 > data.len() {
-                break;
+            if p_offset + 2 > payload.len() {
+                return false;
             }
-            let w_len = u16::from_le_bytes([data[offset], data[offset + 1]]) as usize;
-            offset += 2;
-            if offset + w_len + 4 > data.len() {
-                break;
+            let w_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
+            p_offset += 2;
+            if p_offset + w_len + 4 > payload.len() {
+                return false;
             }
-            if let Ok(w) = std::str::from_utf8(&data[offset..offset + w_len]) {
-                offset += w_len;
+            if let Ok(w) = std::str::from_utf8(&payload[p_offset..p_offset + w_len]) {
+                p_offset += w_len;
                 let freq = u32::from_le_bytes([
-                    data[offset],
-                    data[offset + 1],
-                    data[offset + 2],
-                    data[offset + 3],
+                    payload[p_offset],
+                    payload[p_offset + 1],
+                    payload[p_offset + 2],
+                    payload[p_offset + 3],
                 ]);
-                offset += 4;
-                self.learned_words.insert(w.to_string(), freq);
+                p_offset += 4;
+                new_words.insert(w.to_string(), freq);
             } else {
-                offset += w_len + 4;
+                return false;
             }
         }
 
-        if offset + 4 <= data.len() {
+        let mut new_bigrams = HashMap::new();
+        if p_offset + 4 <= payload.len() {
             let bigram_count = u32::from_le_bytes([
-                data[offset],
-                data[offset + 1],
-                data[offset + 2],
-                data[offset + 3],
+                payload[p_offset],
+                payload[p_offset + 1],
+                payload[p_offset + 2],
+                payload[p_offset + 3],
             ]) as usize;
-            offset += 4;
-            self.learned_bigrams.clear();
+            p_offset += 4;
             for _ in 0..bigram_count.min(MAX_LEARNED_BIGRAMS) {
-                if offset + 2 > data.len() {
+                if p_offset + 2 > payload.len() {
                     break;
                 }
-                let k_len = u16::from_le_bytes([data[offset], data[offset + 1]]) as usize;
-                offset += 2;
-                if offset + k_len + 2 > data.len() {
+                let k_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
+                p_offset += 2;
+                if p_offset + k_len + 2 > payload.len() {
                     break;
                 }
-                let k_opt = std::str::from_utf8(&data[offset..offset + k_len])
+                let k_opt = std::str::from_utf8(&payload[p_offset..p_offset + k_len])
                     .ok()
                     .map(|s| s.to_string());
-                offset += k_len;
-                let next_count = u16::from_le_bytes([data[offset], data[offset + 1]]) as usize;
-                offset += 2;
+                p_offset += k_len;
+                let next_count = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
+                p_offset += 2;
                 let mut list = Vec::with_capacity(next_count.min(6));
                 for _ in 0..next_count {
-                    if offset + 2 > data.len() {
+                    if p_offset + 2 > payload.len() {
                         break;
                     }
-                    let v_len = u16::from_le_bytes([data[offset], data[offset + 1]]) as usize;
-                    offset += 2;
-                    if offset + v_len > data.len() {
+                    let v_len = u16::from_le_bytes([payload[p_offset], payload[p_offset + 1]]) as usize;
+                    p_offset += 2;
+                    if p_offset + v_len > payload.len() {
                         break;
                     }
-                    if let Ok(v) = std::str::from_utf8(&data[offset..offset + v_len]) {
+                    if let Ok(v) = std::str::from_utf8(&payload[p_offset..p_offset + v_len]) {
                         if list.len() < 6 {
                             list.push(v.to_string());
                         }
                     }
-                    offset += v_len;
+                    p_offset += v_len;
                 }
                 if let Some(k) = k_opt {
-                    self.learned_bigrams.insert(k, list);
+                    new_bigrams.insert(k, list);
                 }
             }
         }
+
+        self.learned_words = new_words;
+        self.learned_bigrams = new_bigrams;
         self.is_dirty = false;
         true
     }
+}
+
+fn adler32(data: &[u8]) -> u32 {
+    let mut a: u32 = 1;
+    let mut b: u32 = 0;
+    for &byte in data {
+        a = (a + byte as u32) % 65521;
+        b = (b + a) % 65521;
+    }
+    (b << 16) | a
 }
 
 pub type CandidateBucketMap = HashMap<(char, usize), Vec<(&'static str, u32)>>;
@@ -527,6 +560,10 @@ impl Dictionary {
             buckets.entry((c0, len)).or_default().push((w, freq));
         }
 
+        for list in buckets.values_mut() {
+            list.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        }
+
         self.tries.insert(lang, trie);
         self.word_lists.insert(lang, words);
         self.candidate_buckets.insert(lang, buckets);
@@ -588,21 +625,33 @@ impl Dictionary {
         for len in min_len..=max_len {
             if let Some(c) = c0 {
                 if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list {
+                    for &(w, freq) in list.iter().take(25) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
+                            if candidates.len() >= 128 {
+                                break;
+                            }
                         }
                     }
                 }
             }
+            if candidates.len() >= 128 {
+                break;
+            }
             if let Some(c) = c1 {
                 if let Some(list) = buckets.get(&(c, len)) {
-                    for &(w, freq) in list {
+                    for &(w, freq) in list.iter().take(25) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
+                            if candidates.len() >= 128 {
+                                break;
+                            }
                         }
                     }
                 }
+            }
+            if candidates.len() >= 128 {
+                break;
             }
         }
 
@@ -618,10 +667,16 @@ impl Dictionary {
         };
         if let Some(alt) = alt_c0 {
             for len in min_len..=max_len {
+                if candidates.len() >= 128 {
+                    break;
+                }
                 if let Some(list) = buckets.get(&(alt, len)) {
-                    for &(w, freq) in list {
+                    for &(w, freq) in list.iter().take(25) {
                         if seen.insert(w) {
                             candidates.push((w, freq));
+                            if candidates.len() >= 128 {
+                                break;
+                            }
                         }
                     }
                 }
@@ -727,6 +782,11 @@ impl Dictionary {
         self.user_dict.remove(&clean);
         self.adaptive_dict.learned_words.remove(&clean);
         self.adaptive_dict.is_dirty = true;
+        if self.removed_words.len() >= 1000 {
+            if let Some(first) = self.removed_words.iter().next().cloned() {
+                self.removed_words.remove(&first);
+            }
+        }
         self.removed_words.insert(clean);
     }
 

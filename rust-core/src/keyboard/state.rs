@@ -1,4 +1,5 @@
 use super::key::KeyboardMode;
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShiftState {
@@ -772,6 +773,8 @@ pub enum InputFieldMode {
     Date = 7,
     Time = 8,
     Multiline = 9,
+    NumberPassword = 10,
+    Sensitive = 11,
 }
 
 impl InputFieldMode {
@@ -786,6 +789,8 @@ impl InputFieldMode {
             7 => InputFieldMode::Date,
             8 => InputFieldMode::Time,
             9 => InputFieldMode::Multiline,
+            10 => InputFieldMode::NumberPassword,
+            11 => InputFieldMode::Sensitive,
             _ => InputFieldMode::Normal,
         }
     }
@@ -794,18 +799,25 @@ impl InputFieldMode {
     pub fn is_password(&self) -> bool {
         matches!(
             self,
-            InputFieldMode::Password | InputFieldMode::VisiblePassword
+            InputFieldMode::Password
+                | InputFieldMode::VisiblePassword
+                | InputFieldMode::NumberPassword
         )
     }
 
     #[inline]
+    pub fn is_sensitive(&self) -> bool {
+        self.is_password() || *self == InputFieldMode::Sensitive
+    }
+
+    #[inline]
     pub fn allows_suggestions(&self) -> bool {
-        !self.is_password() && *self != InputFieldMode::Number && *self != InputFieldMode::Phone
+        !self.is_sensitive() && *self != InputFieldMode::Number && *self != InputFieldMode::Phone
     }
 
     #[inline]
     pub fn allows_autocorrect(&self) -> bool {
-        !self.is_password()
+        !self.is_sensitive()
             && *self != InputFieldMode::Email
             && *self != InputFieldMode::Uri
             && *self != InputFieldMode::Number
@@ -814,7 +826,12 @@ impl InputFieldMode {
 
     #[inline]
     pub fn allows_learning(&self) -> bool {
-        !self.is_password()
+        !self.is_sensitive()
+    }
+
+    #[inline]
+    pub fn allows_clipboard(&self) -> bool {
+        !self.is_sensitive()
     }
 }
 
@@ -960,5 +977,25 @@ impl KeyboardState {
 
     pub fn drain_events(&mut self) -> Vec<KeyboardOutputEvent> {
         std::mem::take(&mut self.output_events)
+    }
+
+    pub fn pop_last_grapheme(&mut self) -> Option<u32> {
+        if self.composing_text.is_empty() {
+            return None;
+        }
+        let cluster_opt = self
+            .composing_text
+            .graphemes(true)
+            .last()
+            .map(|s| s.to_string());
+        if let Some(cluster) = cluster_opt {
+            let cluster_len = cluster.len();
+            let new_len = self.composing_text.len().saturating_sub(cluster_len);
+            self.composing_text.truncate(new_len);
+            let utf16_count = cluster.encode_utf16().count() as u32;
+            Some(utf16_count)
+        } else {
+            None
+        }
     }
 }

@@ -28,30 +28,7 @@ class RynkKeyboardView @JvmOverloads constructor(
     private var isInitialized = false
     private var bottomInset: Int = 0
 
-    private val repeatHandler = Handler(Looper.getMainLooper())
-    private var isBackspaceRepeating = false
-    private var backspaceDownTime = 0L
-
-    private val backspaceRepeatRunnable = object : Runnable {
-        override fun run() {
-            if (!NativeBridge.isLibraryLoaded()) return
-            isBackspaceRepeating = true
-            val heldDuration = SystemClock.uptimeMillis() - backspaceDownTime
-
-            // Accelerate deletion as hold time increases
-            val (count, delayMs) = when {
-                heldDuration > 2500L -> 2 to 35L  // Fast deletion (2 chars every 35ms)
-                heldDuration > 1200L -> 1 to 45L  // Medium acceleration (1 char every 45ms)
-                else -> 1 to 60L                  // Initial repeat rate (1 char every 60ms)
-            }
-
-            NativeBridge.nativeRepeatBackspace(count)
-            onEventsReadyListener?.invoke()
-            invalidate()
-
-            repeatHandler.postDelayed(this, delayMs)
-        }
-    }
+    private val gestureHandler = Handler(Looper.getMainLooper())
 
     var currentThemeId: Int = 1
         private set
@@ -171,26 +148,27 @@ class RynkKeyboardView @JvmOverloads constructor(
         }
     }
 
-    private val longPressHandler = Handler(Looper.getMainLooper())
-    private var longPressStartX = 0f
-    private var longPressStartY = 0f
-    private var isLongPressTriggered = false
+    private class ActivePointer(
+        val pointerId: Int,
+        val startX: Float,
+        val startY: Float,
+        val startTime: Long,
+        val isBackspace: Boolean,
+        var isRepeatingBackspace: Boolean = false,
+        var isLongPressTriggered: Boolean = false,
+        var longPressRunnable: Runnable? = null,
+        var repeatRunnable: Runnable? = null
+    )
 
-    private val longPressRunnable = Runnable {
-        if (!NativeBridge.isLibraryLoaded()) return@Runnable
-        isLongPressTriggered = true
-        val now = SystemClock.uptimeMillis()
+    private val activePointers = android.util.SparseArray<ActivePointer>()
 
-        val dp = resources.displayMetrics.density
-        val suggestionBarH = 44f * dp
-        if (longPressStartY < suggestionBarH) {
-            handleSuggestionBarLongPress(longPressStartX, longPressStartY)
-            return@Runnable
+    private fun cancelAllActivePointers() {
+        for (i in 0 until activePointers.size()) {
+            val ptr = activePointers.valueAt(i)
+            ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
+            ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
         }
-
-        NativeBridge.nativeTick(now)
-        onEventsReadyListener?.invoke()
-        invalidate()
+        activePointers.clear()
     }
 
     private fun handleSuggestionBarLongPress(x: Float, y: Float) {
@@ -218,12 +196,15 @@ class RynkKeyboardView @JvmOverloads constructor(
                 val py = event.getY(i)
                 if (py > contentH) continue
 
-                val distSq = (px - longPressStartX) * (px - longPressStartX) + (py - longPressStartY) * (py - longPressStartY)
-                if (distSq > 500f && !isLongPressTriggered) {
-                    longPressHandler.removeCallbacks(longPressRunnable)
-                }
-                if (px < longPressStartX - 25f) {
-                    repeatHandler.removeCallbacks(backspaceRepeatRunnable)
+                val ptr = activePointers.get(pid)
+                if (ptr != null) {
+                    val distSq = (px - ptr.startX) * (px - ptr.startX) + (py - ptr.startY) * (py - ptr.startY)
+                    if (distSq > 500f && !ptr.isLongPressTriggered) {
+                        ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
+                    }
+                    if (px < ptr.startX - 25f) {
+                        ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
+                    }
                 }
 
                 val h = NativeBridge.nativeOnTouchEvent(2 /* Move */, pid, px, py, timeMs)
@@ -237,10 +218,7 @@ class RynkKeyboardView @JvmOverloads constructor(
 
         // Multitouch: Handle ACTION_CANCEL cleanly for all active touches
         if (actionMasked == MotionEvent.ACTION_CANCEL) {
-            repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-            longPressHandler.removeCallbacks(longPressRunnable)
-            isBackspaceRepeating = false
-            isLongPressTriggered = false
+            cancelAllActivePointers()
             for (i in 0 until event.pointerCount) {
                 val pid = event.getPointerId(i)
                 val px = event.getX(i)
@@ -259,41 +237,86 @@ class RynkKeyboardView @JvmOverloads constructor(
         val y = event.getY(actionIndex)
 
         if (y > contentH) {
-            repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-            longPressHandler.removeCallbacks(longPressRunnable)
+            val ptr = activePointers.get(pointerId)
+            if (ptr != null) {
+                ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
+                ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
+                activePointers.remove(pointerId)
+            }
             return false
         }
 
-        // Handle continuous backspace hold and repeat
+        // Handle continuous backspace hold and repeat per pointer
         if (actionMasked == MotionEvent.ACTION_DOWN || actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
-            longPressStartX = x
-            longPressStartY = y
-            isLongPressTriggered = false
-            longPressHandler.removeCallbacks(longPressRunnable)
-            longPressHandler.postDelayed(longPressRunnable, 350L)
+            val isBs = NativeBridge.nativeIsBackspaceAt(x, y)
+            val p = ActivePointer(
+                pointerId = pointerId,
+                startX = x,
+                startY = y,
+                startTime = SystemClock.uptimeMillis(),
+                isBackspace = isBs
+            )
+            activePointers.put(pointerId, p)
 
-            if (NativeBridge.nativeIsBackspaceAt(x, y)) {
-                isBackspaceRepeating = false
-                backspaceDownTime = SystemClock.uptimeMillis()
-                repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-                repeatHandler.postDelayed(backspaceRepeatRunnable, 350L)
+            val lpRunnable = Runnable {
+                if (!NativeBridge.isLibraryLoaded()) return@Runnable
+                val ptr = activePointers.get(pointerId) ?: return@Runnable
+                ptr.isLongPressTriggered = true
+                val now = SystemClock.uptimeMillis()
+
+                val dp = resources.displayMetrics.density
+                val suggestionBarH = 44f * dp
+                if (ptr.startY < suggestionBarH) {
+                    handleSuggestionBarLongPress(ptr.startX, ptr.startY)
+                    return@Runnable
+                }
+
+                NativeBridge.nativeTick(now)
+                onEventsReadyListener?.invoke()
+                invalidate()
+            }
+            p.longPressRunnable = lpRunnable
+            gestureHandler.postDelayed(lpRunnable, 350L)
+
+            if (isBs) {
+                val repRunnable = object : Runnable {
+                    override fun run() {
+                        if (!NativeBridge.isLibraryLoaded()) return
+                        val ptr = activePointers.get(pointerId) ?: return
+                        ptr.isRepeatingBackspace = true
+                        val heldDuration = SystemClock.uptimeMillis() - ptr.startTime
+
+                        val (count, delayMs) = when {
+                            heldDuration > 2500L -> 2 to 35L
+                            heldDuration > 1200L -> 1 to 45L
+                            else -> 1 to 60L
+                        }
+
+                        NativeBridge.nativeRepeatBackspace(count)
+                        onEventsReadyListener?.invoke()
+                        invalidate()
+
+                        gestureHandler.postDelayed(this, delayMs)
+                    }
+                }
+                p.repeatRunnable = repRunnable
+                gestureHandler.postDelayed(repRunnable, 350L)
             }
         } else if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_POINTER_UP) {
-            repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-            longPressHandler.removeCallbacks(longPressRunnable)
+            val ptr = activePointers.get(pointerId)
+            var wasRepeating = false
+            if (ptr != null) {
+                ptr.longPressRunnable?.let { gestureHandler.removeCallbacks(it) }
+                ptr.repeatRunnable?.let { gestureHandler.removeCallbacks(it) }
+                wasRepeating = ptr.isRepeatingBackspace
+                activePointers.remove(pointerId)
+            }
 
-            if (isBackspaceRepeating) {
-                isBackspaceRepeating = false
-                isLongPressTriggered = false
+            if (wasRepeating) {
                 // Suppress extra release delete after repeating
                 NativeBridge.nativeOnTouchEvent(3 /* Cancel */, pointerId, x, y, timeMs)
                 invalidate()
                 return true
-            }
-
-            if (isLongPressTriggered) {
-                isLongPressTriggered = false
-                // Proceed with normal ACTION_UP so Rust commits the selected alternate key
             }
         }
 
@@ -463,6 +486,7 @@ class RynkKeyboardView @JvmOverloads constructor(
     }
 
     fun resetState() {
+        cancelAllActivePointers()
         cachedLabelsVersion = -1L
         if (NativeBridge.isLibraryLoaded()) {
             NativeBridge.nativeReset()
@@ -473,8 +497,7 @@ class RynkKeyboardView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        repeatHandler.removeCallbacks(backspaceRepeatRunnable)
-        longPressHandler.removeCallbacks(longPressRunnable)
+        cancelAllActivePointers()
         frontBitmap?.recycle()
         frontBitmap = null
         backBitmap?.recycle()

@@ -58,10 +58,20 @@ class RynkInputMethodService : InputMethodService() {
         if (!NativeBridge.isLibraryLoaded()) return
         try {
             val data = NativeBridge.nativeSaveAdaptiveData() ?: return
-            val file = java.io.File(filesDir, "adaptive_dict.bin")
-            file.writeBytes(data)
+            val targetFile = java.io.File(filesDir, "adaptive_dict.bin")
+            val tempFile = java.io.File(filesDir, "adaptive_dict.bin.tmp")
+
+            java.io.FileOutputStream(tempFile).use { fos ->
+                fos.write(data)
+                fos.flush()
+                fos.fd.sync()
+            }
+            if (!tempFile.renameTo(targetFile)) {
+                targetFile.delete()
+                tempFile.renameTo(targetFile)
+            }
         } catch (e: Exception) {
-            android.util.Log.e("RynkIME", "Failed to save adaptive dictionary", e)
+            android.util.Log.e("RynkIME", "Failed to atomically save adaptive dictionary", e)
         }
     }
 
@@ -81,9 +91,11 @@ class RynkInputMethodService : InputMethodService() {
     private fun updateClipboardChip() {
         if (!NativeBridge.isLibraryLoaded()) return
 
-        // Privacy: Never read or display clipboard content when editing password fields
+        // Privacy: Never read or display clipboard content when editing password or sensitive fields
         if (currentInputFieldMode == NativeBridge.INPUT_MODE_PASSWORD ||
-            currentInputFieldMode == NativeBridge.INPUT_MODE_VISIBLE_PASSWORD) {
+            currentInputFieldMode == NativeBridge.INPUT_MODE_VISIBLE_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_NUMBER_PASSWORD ||
+            currentInputFieldMode == NativeBridge.INPUT_MODE_SENSITIVE) {
             NativeBridge.nativeSetClipboardText(null)
             keyboardView?.invalidate()
             return
@@ -182,6 +194,18 @@ class RynkInputMethodService : InputMethodService() {
 
     fun determineInputFieldMode(info: EditorInfo?): Int {
         if (info == null) return NativeBridge.INPUT_MODE_NORMAL
+
+        // Check IME_FLAG_NO_PERSONALIZED_LEARNING for incognito/private browsing mode
+        val isNoPersonalizedLearning = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+        } else {
+            false
+        }
+
+        if (isNoPersonalizedLearning) {
+            return NativeBridge.INPUT_MODE_SENSITIVE
+        }
+
         val inputType = info.inputType
         val clazz = inputType and EditorInfo.TYPE_MASK_CLASS
         val variation = inputType and EditorInfo.TYPE_MASK_VARIATION
@@ -204,7 +228,13 @@ class RynkInputMethodService : InputMethodService() {
                     }
                 }
             }
-            EditorInfo.TYPE_CLASS_NUMBER -> NativeBridge.INPUT_MODE_NUMBER
+            EditorInfo.TYPE_CLASS_NUMBER -> {
+                if (variation == EditorInfo.TYPE_NUMBER_VARIATION_PASSWORD) {
+                    NativeBridge.INPUT_MODE_NUMBER_PASSWORD
+                } else {
+                    NativeBridge.INPUT_MODE_NUMBER
+                }
+            }
             EditorInfo.TYPE_CLASS_PHONE -> NativeBridge.INPUT_MODE_PHONE
             EditorInfo.TYPE_CLASS_DATETIME -> {
                 when (variation) {
@@ -399,7 +429,7 @@ class RynkInputMethodService : InputMethodService() {
                     NativeBridge.EVENT_DELETE_SURROUNDING -> {
                         val before = buffer.int
                         val after = buffer.int
-                        ic?.deleteSurroundingText(before, after)
+                        deleteSurroundingGraphemes(before, after)
                     }
                     NativeBridge.EVENT_SEND_KEY_EVENT -> {
                         val keyCode = buffer.int
@@ -508,7 +538,7 @@ class RynkInputMethodService : InputMethodService() {
                         val parts = payload.split("\t")
                         val before = parts.getOrNull(0)?.toIntOrNull() ?: 1
                         val after = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                        ic?.deleteSurroundingText(before, after)
+                        deleteSurroundingGraphemes(before, after)
                     }
                     "KEY" -> {
                         val keyCode = payload.toIntOrNull() ?: KeyEvent.KEYCODE_ENTER
@@ -569,5 +599,26 @@ class RynkInputMethodService : InputMethodService() {
 
         val deleteCount = (textBefore.length - 1 - i).coerceAtLeast(1)
         ic.deleteSurroundingText(deleteCount, 0)
+    }
+
+    private fun deleteSurroundingGraphemes(before: Int, after: Int) {
+        val ic = currentInputConnection ?: return
+        if (before <= 0 && after <= 0) return
+
+        if (before == 1 && after == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val textBefore = ic.getTextBeforeCursor(16, 0)?.toString()
+            if (!textBefore.isNullOrEmpty()) {
+                val it = android.icu.text.BreakIterator.getCharacterInstance()
+                it.setText(textBefore)
+                val last = it.last()
+                val prev = it.previous()
+                if (prev != android.icu.text.BreakIterator.DONE) {
+                    val codeUnitsToDelete = last - prev
+                    ic.deleteSurroundingText(codeUnitsToDelete, 0)
+                    return
+                }
+            }
+        }
+        ic.deleteSurroundingText(before, after)
     }
 }

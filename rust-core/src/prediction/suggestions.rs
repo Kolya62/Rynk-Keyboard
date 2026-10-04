@@ -49,6 +49,28 @@ impl SuggestionEngine {
             return vec![input.to_string(), formatted, format!("{}...", input)];
         }
 
+        // 3.1 CJK Pinyin / Romaji candidates for Chinese and Japanese
+        if matches!(
+            lang,
+            Language::ChineseSimplified
+                | Language::ChineseTraditional
+                | Language::Cantonese
+                | Language::Japanese
+        ) {
+            let cjk_cands = crate::prediction::cjk::get_cjk_candidates(&clean, lang);
+            if !cjk_cands.is_empty() {
+                let mut top = Vec::with_capacity(3);
+                top.push(input.to_string());
+                top.push(cjk_cands[0].clone());
+                if cjk_cands.len() > 1 {
+                    top.push(cjk_cands[1].clone());
+                } else {
+                    top.push(format!("{}...", input));
+                }
+                return top;
+            }
+        }
+
         let context_nexts = last_word
             .map(|lw| dict.get_context_predictions(lw, lang))
             .unwrap_or_default();

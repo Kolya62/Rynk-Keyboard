@@ -960,5 +960,81 @@ mod tests {
             "Invisible hit-box must cover vertical gap between rows"
         );
     }
+
+    #[test]
+    fn test_engine_latency_benchmarks() {
+        use std::time::Instant;
+
+        let mut engine = KeyboardEngine::new(1080.0, 800.0, 2.75);
+
+        let sample_key = engine.keys.iter().find(|k| k.label == "а").unwrap();
+        let (kx, ky) = sample_key.center();
+
+        // Warm up
+        for _ in 0..50 {
+            engine.on_touch(keyboard::touch::TouchAction::Down, 1, kx, ky, 100);
+            engine.on_touch(keyboard::touch::TouchAction::Up, 1, kx, ky, 110);
+            let _ = engine.state.drain_events();
+        }
+
+        // 1. Touch Event Latency Benchmark (p50, p95, p99)
+        let mut touch_latencies_us = Vec::with_capacity(1000);
+
+        for i in 0..1000 {
+            let t = 1000 + (i as u64) * 10;
+            let start = Instant::now();
+            engine.on_touch(keyboard::touch::TouchAction::Down, 1, kx, ky, t);
+            engine.on_touch(keyboard::touch::TouchAction::Up, 1, kx, ky, t + 5);
+            let elapsed_us = start.elapsed().as_micros() as u64;
+            touch_latencies_us.push(elapsed_us);
+            let _ = engine.state.drain_events();
+        }
+
+        touch_latencies_us.sort_unstable();
+        let touch_p50 = touch_latencies_us[500];
+        let touch_p95 = touch_latencies_us[950];
+        let touch_p99 = touch_latencies_us[990];
+
+        println!(
+            "Touch Latency: p50={}µs, p95={}µs, p99={}µs",
+            touch_p50, touch_p95, touch_p99
+        );
+        assert!(touch_p95 < 500, "Touch p95 latency must be < 500µs, got {}µs", touch_p95);
+        assert!(touch_p99 < 1500, "Touch p99 latency must be < 1500µs, got {}µs", touch_p99);
+
+        // 2. Prediction Latency Benchmark (p50, p95, p99)
+        let mut pred_latencies_us = Vec::with_capacity(1000);
+        let test_queries = ["при", "прив", "привет", "дел", "как", "спа", "спаси", "the", "hel", "test"];
+
+        // Warm up prediction
+        for q in test_queries {
+            let _ = engine.prediction.get_suggestions_for_lang(q, None, Language::Russian);
+        }
+
+        for i in 0..1000 {
+            let query = test_queries[i % test_queries.len()];
+            let start = Instant::now();
+            let _res = engine.prediction.get_suggestions_for_lang(query, None, Language::Russian);
+            let elapsed_us = start.elapsed().as_micros() as u64;
+            pred_latencies_us.push(elapsed_us);
+        }
+
+        pred_latencies_us.sort_unstable();
+        let pred_p50 = pred_latencies_us[500];
+        let pred_p95 = pred_latencies_us[950];
+        let pred_p99 = pred_latencies_us[990];
+
+        println!(
+            "Prediction Latency: p50={}µs, p95={}µs, p99={}µs",
+            pred_p50, pred_p95, pred_p99
+        );
+        if cfg!(debug_assertions) {
+            assert!(pred_p95 < 3000, "Debug prediction p95 latency must be < 3000µs, got {}µs", pred_p95);
+            assert!(pred_p99 < 6000, "Debug prediction p99 latency must be < 6000µs, got {}µs", pred_p99);
+        } else {
+            assert!(pred_p95 < 500, "Release prediction p95 latency must be < 500µs, got {}µs", pred_p95);
+            assert!(pred_p99 < 1000, "Release prediction p99 latency must be < 1000µs, got {}µs", pred_p99);
+        }
+    }
 }
 

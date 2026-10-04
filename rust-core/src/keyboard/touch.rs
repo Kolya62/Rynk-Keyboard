@@ -33,16 +33,38 @@ pub struct TouchTracker {
     pub long_press_threshold_ms: u64,
     pub space_drag_threshold_px: f32,
     pub backspace_swipe_threshold_px: f32,
+    pub space_swipe_threshold_px: f32,
+    pub long_press_slop_sq: f32,
+    pub density: f32,
 }
 
 impl Default for TouchTracker {
     fn default() -> Self {
+        Self::with_density(1.0)
+    }
+}
+
+impl TouchTracker {
+    pub fn with_density(density: f32) -> Self {
+        let d = density.max(0.5);
         Self {
             pointers: Vec::with_capacity(4),
             long_press_threshold_ms: 350,
-            space_drag_threshold_px: 15.0,
-            backspace_swipe_threshold_px: 35.0,
+            space_drag_threshold_px: (12.0 * d).clamp(12.0, 25.0),
+            backspace_swipe_threshold_px: (16.0 * d).clamp(16.0, 35.0),
+            space_swipe_threshold_px: (30.0 * d).clamp(30.0, 70.0),
+            long_press_slop_sq: (18.0 * d).clamp(18.0, 36.0).powi(2),
+            density: d,
         }
+    }
+
+    pub fn update_density(&mut self, density: f32) {
+        let d = density.max(0.5);
+        self.density = d;
+        self.space_drag_threshold_px = (12.0 * d).clamp(12.0, 25.0);
+        self.backspace_swipe_threshold_px = (16.0 * d).clamp(16.0, 35.0);
+        self.space_swipe_threshold_px = (30.0 * d).clamp(30.0, 70.0);
+        self.long_press_slop_sq = (18.0 * d).clamp(18.0, 36.0).powi(2);
     }
 }
 
@@ -142,7 +164,7 @@ impl TouchTracker {
                     // Spacebar swipe left/right to switch language layout
                     if pointer.is_spacebar_drag && !pointer.has_swiped_language {
                         let total_dx = x - pointer.start_x;
-                        if total_dx.abs() >= 40.0 {
+                        if total_dx.abs() >= self.space_swipe_threshold_px {
                             pointer.has_swiped_language = true;
                             pointer.has_dragged_cursor = true;
                             return TouchResult::SwitchLanguageSwipe {
@@ -257,8 +279,7 @@ impl TouchTracker {
                 if elapsed >= self.long_press_threshold_ms {
                     let dist_sq = (pointer.current_x - pointer.start_x).powi(2)
                         + (pointer.current_y - pointer.start_y).powi(2);
-                    if dist_sq < 600.0 {
-                        // < 24px movement
+                    if dist_sq < self.long_press_slop_sq {
                         if let Some(key_id) = pointer.active_key_id {
                             if let Some(key) = keys.iter().find(|k| k.id == key_id) {
                                 if !key.alternate_chars.is_empty() {

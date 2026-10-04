@@ -6,7 +6,11 @@ import org.junit.Test
 
 class InputFieldModeTest {
 
-    private fun determineMode(inputType: Int): Int {
+    private fun determineMode(inputType: Int, imeOptions: Int = 0): Int {
+        if ((imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0) {
+            return NativeBridge.INPUT_MODE_SENSITIVE
+        }
+
         val clazz = inputType and EditorInfo.TYPE_MASK_CLASS
         val variation = inputType and EditorInfo.TYPE_MASK_VARIATION
 
@@ -28,7 +32,13 @@ class InputFieldModeTest {
                     }
                 }
             }
-            EditorInfo.TYPE_CLASS_NUMBER -> NativeBridge.INPUT_MODE_NUMBER
+            EditorInfo.TYPE_CLASS_NUMBER -> {
+                if (variation == EditorInfo.TYPE_NUMBER_VARIATION_PASSWORD) {
+                    NativeBridge.INPUT_MODE_NUMBER_PASSWORD
+                } else {
+                    NativeBridge.INPUT_MODE_NUMBER
+                }
+            }
             EditorInfo.TYPE_CLASS_PHONE -> NativeBridge.INPUT_MODE_PHONE
             EditorInfo.TYPE_CLASS_DATETIME -> {
                 when (variation) {
@@ -51,6 +61,16 @@ class InputFieldModeTest {
 
         val visiblePassword = EditorInfo.TYPE_CLASS_TEXT or EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         assertEquals(NativeBridge.INPUT_MODE_VISIBLE_PASSWORD, determineMode(visiblePassword))
+
+        val numPassword = EditorInfo.TYPE_CLASS_NUMBER or EditorInfo.TYPE_NUMBER_VARIATION_PASSWORD
+        assertEquals(NativeBridge.INPUT_MODE_NUMBER_PASSWORD, determineMode(numPassword))
+    }
+
+    @Test
+    fun testSensitiveFieldsMapCorrectly() {
+        val sensitiveOption = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        val normalText = EditorInfo.TYPE_CLASS_TEXT
+        assertEquals(NativeBridge.INPUT_MODE_SENSITIVE, determineMode(normalText, sensitiveOption))
     }
 
     @Test

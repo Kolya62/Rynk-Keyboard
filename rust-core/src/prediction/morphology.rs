@@ -287,8 +287,8 @@ impl Morphology {
                     return Some(0.15);
                 }
                 // Double letter prefix typo (e.g. расказать -> рассказать, разсказ -> рассказ)
-                if (p1 == "ра" && p2 == "рас" && stem2.starts_with('с') && stem1 == &stem2[1..])
-                    || (p1 == "бе" && p2 == "бес" && stem2.starts_with('с') && stem1 == &stem2[1..])
+                if (p1 == "ра" && p2 == "рас" && stem2.starts_with('с') && stem1 == &stem2['с'.len_utf8()..])
+                    || (p1 == "бе" && p2 == "бес" && stem2.starts_with('с') && stem1 == &stem2['с'.len_utf8()..])
                 {
                     return Some(0.15);
                 }
@@ -297,8 +297,8 @@ impl Morphology {
 
         // Test single 'з' vs 'с' prefix typo (зделать -> сделать, згореть -> сгореть, збросить -> сбросить)
         if in_low.starts_with('з') && cand_low.starts_with('с') {
-            let s1 = &in_low[1..];
-            let s2 = &cand_low[1..];
+            let s1 = &in_low['з'.len_utf8()..];
+            let s2 = &cand_low['с'.len_utf8()..];
             if s1 == s2 && s1.chars().count() >= 3 {
                 return Some(0.12);
             }

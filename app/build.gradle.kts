@@ -127,8 +127,11 @@ tasks.register("buildRustCore") {
 
     doLast {
         val ndkPath = System.getenv("ANDROID_NDK_HOME")
-            ?: "${System.getenv("HOME")}/Android/Sdk/ndk/26.3.11579264"
-        val llvmBin = "$ndkPath/toolchains/llvm/prebuilt/linux-x86_64/bin"
+            ?: System.getenv("ANDROID_NDK_ROOT")
+            ?: "${System.getenv("ANDROID_HOME") ?: "${System.getenv("HOME")}/Android/Sdk"}/ndk/26.3.11579264"
+        val prebuiltDir = file("$ndkPath/toolchains/llvm/prebuilt").listFiles()?.firstOrNull { it.isDirectory }
+        val llvmBin = prebuiltDir?.resolve("bin")?.absolutePath
+            ?: "$ndkPath/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
         abiTargets.forEach { (abi, triple) ->
             val (rustTarget, clangBinary, linkerEnv) = triple

@@ -1,9 +1,11 @@
+pub mod hangul;
 pub mod key;
 pub mod layout;
 pub mod state;
 pub mod touch;
 
 use crate::prediction::PredictionService;
+use hangul::HangulComposer;
 use key::{Key, KeyAction, KeyboardMode};
 use layout::{LayoutBuilder, LayoutMetrics};
 use state::{HapticFeedbackType, KeyboardOutputEvent, KeyboardState, Language};
@@ -23,7 +25,10 @@ pub struct KeyboardEngine {
     pub popup_enabled: bool,
     pub cached_suggestions: Vec<String>,
     pub suggestions_dirty: bool,
+    pub prediction_version: u64,
+    pub cached_suggestions_version: u64,
     pub enabled_languages: Vec<Language>,
+    pub hangul_composer: HangulComposer,
 }
 
 impl KeyboardEngine {
@@ -38,7 +43,7 @@ impl KeyboardEngine {
             state,
             metrics,
             keys,
-            touch_tracker: TouchTracker::default(),
+            touch_tracker: TouchTracker::with_density(density),
             active_popup_key_id: None,
             last_interaction_time_ms: 0,
             last_space_tap_time_ms: 0,
@@ -48,28 +53,37 @@ impl KeyboardEngine {
             popup_enabled: true,
             cached_suggestions: Vec::new(),
             suggestions_dirty: true,
+            prediction_version: 1,
+            cached_suggestions_version: 0,
             enabled_languages: vec![Language::Russian, Language::English],
+            hangul_composer: HangulComposer::new(),
         }
     }
 
     pub fn resize(&mut self, width: f32, height: f32, density: f32) {
         self.metrics = LayoutMetrics::new(width, height, density);
+        self.touch_tracker.update_density(density);
         self.rebuild_layout();
     }
 
     pub fn set_input_field_mode(&mut self, mode: state::InputFieldMode) {
         if self.state.field_mode != mode {
             self.state.field_mode = mode;
-            if mode.is_password() {
+            if mode.is_sensitive() {
                 self.cached_suggestions.clear();
                 self.suggestions_dirty = false;
                 self.state.composing_text.clear();
                 self.state.last_committed_word.clear();
+                self.state.clipboard_preview = None;
+                self.hangul_composer.reset();
             } else {
                 self.suggestions_dirty = true;
             }
 
-            if mode == state::InputFieldMode::Number || mode == state::InputFieldMode::Phone {
+            if mode == state::InputFieldMode::Number
+                || mode == state::InputFieldMode::Phone
+                || mode == state::InputFieldMode::NumberPassword
+            {
                 if self.state.mode != KeyboardMode::Numbers {
                     self.set_mode(KeyboardMode::Numbers);
                 }
@@ -88,14 +102,15 @@ impl KeyboardEngine {
         );
     }
 
-    pub fn get_or_update_suggestions(&mut self) -> &[String] {
+    pub fn update_suggestions(&mut self) {
         if !self.state.field_mode.allows_suggestions() {
             self.cached_suggestions.clear();
             self.suggestions_dirty = false;
-            return &self.cached_suggestions;
+            self.cached_suggestions_version = self.prediction_version;
+            return;
         }
 
-        if self.suggestions_dirty {
+        if self.suggestions_dirty || self.cached_suggestions_version != self.prediction_version {
             self.cached_suggestions = self.prediction.get_suggestions_for_lang(
                 &self.state.composing_text,
                 if self.state.last_committed_word.is_empty() {
@@ -106,7 +121,12 @@ impl KeyboardEngine {
                 self.state.language,
             );
             self.suggestions_dirty = false;
+            self.cached_suggestions_version = self.prediction_version;
         }
+    }
+
+    pub fn get_or_update_suggestions(&mut self) -> &[String] {
+        self.update_suggestions();
         &self.cached_suggestions
     }
 
@@ -304,6 +324,52 @@ impl KeyboardEngine {
                 self.state.last_autocorrect_replacement = None;
                 self.state.rejected_autocorrect_word = None;
 
+                // Korean Hangul Syllable Composition Engine
+                if self.state.language == Language::Korean && HangulComposer::is_hangul_jamo(ch) {
+                    self.state.last_char_was_space = false;
+                    match self.hangul_composer.feed_jamo(ch) {
+                        hangul::HangulAction::Commit(c) => {
+                            self.state.composing_text.push(c);
+                            self.state
+                                .push_event(KeyboardOutputEvent::CommitText(c.to_string()));
+                        }
+                        hangul::HangulAction::Replace(c) => {
+                            self.state.composing_text.pop();
+                            self.state.composing_text.push(c);
+                            self.state
+                                .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                    before: 1,
+                                    after: 0,
+                                });
+                            self.state
+                                .push_event(KeyboardOutputEvent::CommitText(c.to_string()));
+                        }
+                        hangul::HangulAction::Split(c1, c2) => {
+                            self.state.composing_text.pop();
+                            self.state.composing_text.push(c1);
+                            self.state.composing_text.push(c2);
+                            self.state
+                                .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                    before: 1,
+                                    after: 0,
+                                });
+                            self.state
+                                .push_event(KeyboardOutputEvent::CommitText(format!("{}{}", c1, c2)));
+                        }
+                    }
+                    let next_shift = self.state.shift_state.on_char_typed();
+                    if next_shift != self.state.shift_state {
+                        self.state.shift_state = next_shift;
+                        self.rebuild_layout();
+                    }
+                    self.prediction_version = self.prediction_version.wrapping_add(1);
+                    self.suggestions_dirty = true;
+                    self.update_suggestions();
+                    return;
+                }
+
+                self.hangul_composer.reset();
+
                 let is_punctuation =
                     ch == '.' || ch == ',' || ch == '!' || ch == '?' || ch == ';' || ch == ':';
                 if is_punctuation && self.state.mode == KeyboardMode::Alphabet {
@@ -401,22 +467,68 @@ impl KeyboardEngine {
                 self.state.last_autocorrect_replacement = None;
                 self.state.rejected_autocorrect_word = None;
 
-                if !self.state.composing_text.is_empty() {
-                    self.state.composing_text.pop();
+                // Korean Hangul Syllable Decomposition
+                if self.state.language == Language::Korean && self.hangul_composer.is_active() {
+                    match self.hangul_composer.feed_backspace() {
+                        hangul::HangulBackspaceResult::Replace(c) => {
+                            self.state.composing_text.pop();
+                            self.state.composing_text.push(c);
+                            self.state
+                                .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                    before: 1,
+                                    after: 0,
+                                });
+                            self.state
+                                .push_event(KeyboardOutputEvent::CommitText(c.to_string()));
+                            self.prediction_version = self.prediction_version.wrapping_add(1);
+                            self.suggestions_dirty = true;
+                            self.update_suggestions();
+                            self.state.push_event(KeyboardOutputEvent::PerformHaptic(
+                                HapticFeedbackType::KeyTick,
+                            ));
+                            return;
+                        }
+                        hangul::HangulBackspaceResult::Delete => {
+                            self.state.composing_text.pop();
+                            self.state
+                                .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                    before: 1,
+                                    after: 0,
+                                });
+                            self.prediction_version = self.prediction_version.wrapping_add(1);
+                            self.suggestions_dirty = true;
+                            self.update_suggestions();
+                            self.state.push_event(KeyboardOutputEvent::PerformHaptic(
+                                HapticFeedbackType::KeyTick,
+                            ));
+                            return;
+                        }
+                        hangul::HangulBackspaceResult::None => {}
+                    }
+                }
+
+                // Grapheme-cluster aware deletion
+                if let Some(utf16_units) = self.state.pop_last_grapheme() {
+                    self.state
+                        .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                            before: utf16_units,
+                            after: 0,
+                        });
                 } else {
                     self.state.last_committed_word.clear();
+                    self.state
+                        .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                            before: 1,
+                            after: 0,
+                        });
                 }
-                self.state
-                    .push_event(KeyboardOutputEvent::DeleteSurroundingText {
-                        before: 1,
-                        after: 0,
-                    });
                 self.state.push_event(KeyboardOutputEvent::PerformHaptic(
                     HapticFeedbackType::KeyTick,
                 ));
             }
 
             KeyAction::Enter => {
+                self.hangul_composer.reset();
                 self.last_space_tap_time_ms = 0;
                 self.state.last_char_was_space = false;
                 self.state.last_autocorrect_original = None;
@@ -440,6 +552,7 @@ impl KeyboardEngine {
             }
 
             KeyAction::Space => {
+                self.hangul_composer.reset();
                 let now = self.last_interaction_time_ms;
                 let is_double_tap = self.last_space_tap_time_ms != 0
                     && now.saturating_sub(self.last_space_tap_time_ms) < 300
@@ -568,6 +681,7 @@ impl KeyboardEngine {
             }
 
             KeyAction::SwitchLanguage => {
+                self.hangul_composer.reset();
                 self.toggle_language();
             }
 
@@ -600,5 +714,9 @@ impl KeyboardEngine {
 
             KeyAction::None => {}
         }
+
+        self.prediction_version = self.prediction_version.wrapping_add(1);
+        self.suggestions_dirty = true;
+        self.update_suggestions();
     }
 }

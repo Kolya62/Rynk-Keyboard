@@ -87,7 +87,8 @@ Rynk/
 │       │   ├── key.rs                # Описание геометрии, типов и кодов клавиш
 │       │   ├── layout.rs             # Генератор раскладок (RU, EN, 123, символы)
 │       │   ├── state.rs              # Состояние ввода (Shift, Caps, язык, события)
-│       │   └── touch.rs              # Мультитач-трекер, жесты курсора и лонг-пресс
+│       │   ├── touch.rs              # Мультитач-трекер, жесты курсора и лонг-пресс
+│       │   └── hangul.rs             # Корейский композитор 2-Set Hangul с разборкой слогов
 │       ├── render/
 │       │   ├── mod.rs                # Главный конвейер отрисовки кадра
 │       │   ├── canvas.rs             # Прямой 2D-растеризатор, SDF-сглаживание и тени
@@ -98,9 +99,11 @@ Rynk/
 │       ├── prediction/
 │       │   ├── mod.rs                # Сервис подсказок и предсказания
 │       │   ├── trie.rs               # Высокоэффективное дерево префиксов
-│       │   ├── dictionary.rs         # Частотные словари для 11 языков + User Dict
+│       │   ├── dictionary.rs         # Частотные словари и защищённый адаптивный лексикон
 │       │   ├── autocorrect.rs        # Ранжирование кандидатов по Левенштейну
 │       │   ├── typos.rs              # Таблица частых орфографических опечаток
+│       │   ├── morphology.rs         # Анализ приставок, суффиксов, окончаний и контекста
+│       │   ├── cjk.rs                # Pinyin (中文) и Romaji (日本語) генератор кандидатов
 │       │   └── suggestions.rs        # Унифицированное ранжирование кандидатов
 │       └── emoji/
 │           ├── mod.rs                # Менеджер каталога и рендера эмодзи
@@ -126,22 +129,22 @@ Rynk/
 #### Требования:
 - **JDK**: OpenJDK 21 или 27
 - **Android SDK & NDK**: NDK версия `26.3.11579264`
-- **Rust Toolchain**: `rustup target add aarch64-linux-android x86_64-linux-android`
+- **Rust Toolchain**: `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`
 
 #### Команды сборки:
 ```bash
-# 1. Прогон всех unit-тестов и бенчмарков Rust ядра (18 тестов)
+# 1. Прогон всех unit-тестов и бенчмарков Rust ядра (31 тест)
 cargo test --manifest-path rust-core/Cargo.toml
 
-# 2. Прогон модульных тестов Android и проверка Lint
+# 2. Прогон модульных тестов Android
 export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
-./gradlew test lint
+./gradlew test
 
-# 3. Компиляция Rust библиотек и сборка Release APK (с R8 и сжатием ресурсов)
+# 3. Компиляция Rust библиотек и сборка единого Release APK (с R8 и сжатием ресурсов)
 ./gradlew buildRustCore assembleRelease
 
-# Готовый APK будет расположен по пути:
-# app/build/outputs/apk/release/app-release-unsigned.apk
+# Готовый подписанный релизный APK:
+# app/build/outputs/apk/release/app-release.apk
 ```
 
 ---
@@ -206,22 +209,22 @@ Unlike standard mobile keyboards burdened by heavy Java/Kotlin UI hierarchies or
 #### Prerequisites:
 - **JDK**: OpenJDK 21 or 27
 - **Android SDK & NDK**: NDK version `26.3.11579264`
-- **Rust Toolchain**: `rustup target add aarch64-linux-android x86_64-linux-android`
+- **Rust Toolchain**: `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`
 
 #### Build Instructions:
 ```bash
-# 1. Run full Rust core test suite and benchmarks (18 unit tests)
+# 1. Run full Rust core test suite and benchmarks (31 unit tests)
 cargo test --manifest-path rust-core/Cargo.toml
 
-# 2. Run Android unit tests and Lint check
+# 2. Run Android unit tests
 export JAVA_HOME=/usr/lib/jvm/java-27-openjdk
-./gradlew test lint
+./gradlew test
 
-# 3. Build native .so libraries and generate optimized Release APK (with R8 and resource shrinking)
+# 3. Build native .so libraries and generate single signed Release APK (with R8 and resource shrinking)
 ./gradlew buildRustCore assembleRelease
 
-# Output APK:
-# app/build/outputs/apk/release/app-release-unsigned.apk
+# Output signed Release APK:
+# app/build/outputs/apk/release/app-release.apk
 ```
 
 ---

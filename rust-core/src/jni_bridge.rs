@@ -305,9 +305,22 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeTouch(
                                 after: 0,
                             });
                     }
+                    let is_cjk = matches!(
+                        core.engine.state.language,
+                        Language::ChineseSimplified
+                            | Language::ChineseTraditional
+                            | Language::Cantonese
+                            | Language::Japanese
+                    );
+                    let commit_str = if is_cjk {
+                        word.clone()
+                    } else {
+                        format!("{} ", word)
+                    };
                     core.engine
                         .state
-                        .push_event(KeyboardOutputEvent::CommitText(format!("{} ", word)));
+                        .push_event(KeyboardOutputEvent::CommitText(commit_str));
+                    core.engine.hangul_composer.reset();
 
                     // FlorisBoard Undo behavior: if suggestion replaced raw typing, allow Backspace to undo!
                     if !core.engine.state.composing_text.is_empty()
@@ -519,9 +532,9 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRender(
                     core.renderer.previous_labels = core.renderer.text_labels.clone();
                 }
             } else {
-                let suggestions = core.engine.get_or_update_suggestions().to_vec();
+                core.engine.update_suggestions();
                 core.renderer
-                    .render(&mut canvas, &core.engine, time_ms as u64, &suggestions);
+                    .render(&mut canvas, &core.engine, time_ms as u64, &core.engine.cached_suggestions);
             }
 
             AndroidBitmap_unlockPixels(raw_env, bitmap);
@@ -720,20 +733,57 @@ pub extern "system" fn Java_org_rynk_keyboard_NativeBridge_nativeRepeatBackspace
         core.engine.state.last_autocorrect_replacement = None;
         core.engine.state.rejected_autocorrect_word = None;
         let cnt = (count as u32).max(1);
+        let mut total_deleted_utf16: u32 = 0;
+
         for _ in 0..cnt {
-            if !core.engine.state.composing_text.is_empty() {
-                core.engine.state.composing_text.pop();
+            if core.engine.state.language == Language::Korean
+                && core.engine.hangul_composer.is_active()
+            {
+                match core.engine.hangul_composer.feed_backspace() {
+                    crate::keyboard::hangul::HangulBackspaceResult::Replace(c) => {
+                        core.engine.state.composing_text.pop();
+                        core.engine.state.composing_text.push(c);
+                        core.engine
+                            .state
+                            .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                                before: 1,
+                                after: 0,
+                            });
+                        core.engine
+                            .state
+                            .push_event(KeyboardOutputEvent::CommitText(c.to_string()));
+                        total_deleted_utf16 = 0;
+                        break;
+                    }
+                    crate::keyboard::hangul::HangulBackspaceResult::Delete => {
+                        core.engine.state.composing_text.pop();
+                        total_deleted_utf16 += 1;
+                        continue;
+                    }
+                    crate::keyboard::hangul::HangulBackspaceResult::None => {}
+                }
+            }
+
+            if let Some(utf16_units) = core.engine.state.pop_last_grapheme() {
+                total_deleted_utf16 += utf16_units;
             } else {
                 core.engine.state.last_committed_word.clear();
+                total_deleted_utf16 += 1;
             }
         }
+
+        core.engine.prediction_version = core.engine.prediction_version.wrapping_add(1);
         core.engine.suggestions_dirty = true;
-        core.engine
-            .state
-            .push_event(KeyboardOutputEvent::DeleteSurroundingText {
-                before: cnt,
-                after: 0,
-            });
+        core.engine.update_suggestions();
+
+        if total_deleted_utf16 > 0 {
+            core.engine
+                .state
+                .push_event(KeyboardOutputEvent::DeleteSurroundingText {
+                    before: total_deleted_utf16,
+                    after: 0,
+                });
+        }
         core.engine
             .state
             .push_event(KeyboardOutputEvent::PerformHaptic(
